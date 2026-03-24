@@ -1316,23 +1316,43 @@ class Game:
                 gojo_can_clash = self.gojo.technique_burnout == 0 and self.gojo.infinity > 0 and self.gojo.energy >= 50
 
                 if self.gojo.domain_active and self.sukuna.domain_active and gojo_can_clash:
-                    # 1. Initialize the 0.50 second (30 frames @ 60FPS) window
-                    clash_window = 10 # Reduced to 0.5 seconds!
+                    clash_window = 30 
                     
                     if getattr(self, "clash_decision_timer", 0) == 0 and not getattr(self, "clash_resolved", False):
                         self.clash_decision_timer = clash_window
+                        self.clash_failed = False # NEW: Track if they mashed too early!
 
-                    # 2. Run the timer and listen for Z + V
                     if getattr(self, "clash_decision_timer", 0) > 0:
                         self.clash_decision_timer -= 1
                         
-                        # Listen for the shrink combo
-                        if keys[pygame.K_z] and keys[pygame.K_v] and not getattr(self.gojo, "domain_shrunk", False):
-                            self.gojo.domain_shrunk = True
-                            self.shake_timer = 20
-                            self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 100, "timer": 60, "text": "DOMAIN SHRUNK!", "color": (0, 0, 255)})
+                        # --- SWEET SPOT LOGIC ---
+                        # The window is only open when the timer is between 1 and 3 frames remaining.
+                        is_sweet_spot = 1 <= self.clash_decision_timer <= 3
+                        
+                        # Check inputs, but ONLY if they haven't already failed this clash!
+                        if keys[pygame.K_z] and keys[pygame.K_v] and not getattr(self, "clash_failed", False):
+                            if is_sweet_spot and not getattr(self.gojo, "domain_shrunk", False):
+                                self.gojo.domain_shrunk = True
+                                self.shake_timer = 20
+                                self.popups.append({
+                                    "x": self.gojo.rect.centerx, 
+                                    "y": self.gojo.rect.centery - 100, 
+                                    "timer": 60, 
+                                    "text": "CRITICAL SHRINK!", 
+                                    "color": (0, 255, 255) # Cyan for a "perfect" hit
+                                })
+                            elif self.clash_decision_timer > 3:
+                                # They pressed too early! Lock them out of the sweet spot for this clash.
+                                self.clash_failed = True
+                                self.popups.append({
+                                    "x": self.gojo.rect.centerx, 
+                                    "y": self.gojo.rect.centery - 50, 
+                                    "timer": 30, 
+                                    "text": "TOO EARLY!", 
+                                    "color": RED
+                                })
 
-                        # 3. Resolve the clash when the timer hits zero
+                        # Resolve the clash when the timer hits zero
                         if self.clash_decision_timer == 0:
                             self.clash_resolved = True
                             
@@ -1357,6 +1377,7 @@ class Game:
                 else:
                     self.clash_resolved = False 
                     self.clash_decision_timer = 0
+                    self.clash_failed = False
 
                 if self.mahoraga and self.mahoraga.hp > 0:
                     self.mahoraga.update_physics()
@@ -2016,13 +2037,22 @@ class Game:
             render_surf.blit(scaled_visible, (0, 0)) 
             # --- HUD: CLASH TIMER & SHRINK PROMPT ---
             if getattr(self, "clash_decision_timer", 0) > 0:
-                # 1. Draw "SHRINK NOW" prompt locked to the top center of the screen
-                shrink_txt = self.font.render("SHRINK DOMAIN NOW!", True, WHITE) # <-- Removed (Z + V)
+                # 1. Draw Prompt (Changes text and color based on the sweet spot!)
+                prompt_text = "WAIT..." if self.clash_decision_timer > 3 else "SHRINK NOW!"
+                prompt_color = (255, 100, 100) if self.clash_decision_timer > 3 else (0, 255, 255)
+                
+                # If they failed, display a locked out message
+                if getattr(self, "clash_failed", False):
+                    prompt_text = "MISSED TIMING!"
+                    prompt_color = (150, 150, 150)
+                
+                shrink_txt = self.font.render(prompt_text, True, prompt_color) 
                 render_surf.blit(shrink_txt, (WIDTH//2 - shrink_txt.get_width()//2, 80))
 
                 # 2. Draw the Progress Bar directly into the HUD
                 bar_w, bar_h = 400, 25
-                clash_window = 10
+                clash_window = 30 # Matches the new fast window
+                
                 fill_w = int((self.clash_decision_timer / clash_window) * bar_w)
                 bx, by = WIDTH//2 - bar_w//2, 120
                 
@@ -2030,14 +2060,14 @@ class Game:
                 pygame.draw.rect(render_surf, (0, 0, 0), (bx - 4, by - 4, bar_w + 8, bar_h + 8))
                 pygame.draw.rect(render_surf, (30, 30, 30), (bx, by, bar_w, bar_h))            
                 
-                # White Fill
-                if fill_w > 0:
-                    pygame.draw.rect(render_surf, (255, 255, 255), (bx, by, fill_w, bar_h))
+                # Draw the "Sweet Spot" Zone visually on the bar (The last 30%)
+                sweet_spot_w = int((3 / clash_window) * bar_w)
+                pygame.draw.rect(render_surf, (0, 150, 150), (bx, by, sweet_spot_w, bar_h))
 
-                # Dynamic Timer Text
-                time_left = max(0, self.clash_decision_timer / 60.0)
-                timer_surf = self.font.render(f"TIME: {time_left:.2f}s", True, WHITE)
-                render_surf.blit(timer_surf, (WIDTH//2 - timer_surf.get_width()//2, by + 30))
+                # White Fill (The shrinking timer)
+                if fill_w > 0:
+                    fill_color = (150, 150, 150) if getattr(self, "clash_failed", False) else (255, 255, 255)
+                    pygame.draw.rect(render_surf, fill_color, (bx, by, fill_w, bar_h))
             # --- ANIMATED DOMAIN EXPANSION TEXT ---
             for fighter in [self.gojo, self.sukuna]:
                 if fighter.domain_charge > 0:
