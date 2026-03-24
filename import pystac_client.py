@@ -308,13 +308,15 @@ class Fighter:
         # --- CE EXHAUSTION LOGIC ---
         if self.energy <= 0.5:
             self.ce_exhausted = True
+            if self.name == "Gojo":
+                self.infinity = 0
             
         if self.ce_exhausted:
             if self.name == "Sukuna":
                 regen_mult *= 0.8 # Less severe exhaustion for Sukuna
                 recovery_thresh = 80 # Recovers faster
             else:
-                regen_mult *= 0.1 # 10x slower regen when completely depleted!
+                regen_mult *= 0.4 # 10x slower regen when completely depleted!
                 recovery_thresh = 40 if self.name == "Gojo" else 30
                 
             if self.energy >= recovery_thresh:
@@ -1255,12 +1257,14 @@ class Game:
                         # --- CE EXHAUSTION LOGIC (During Cinematic Stop) ---
                         if f.energy <= 0.5:
                             f.ce_exhausted = True
+                            if f.name == "Gojo":
+                                f.infinity = 0
                         if f.ce_exhausted:
                             if f.name == "Sukuna":
                                 regen_mult *= 0.8
                                 recovery_thresh = 80
                             else:
-                                regen_mult *= 0.1
+                                regen_mult *= 0.4
                                 recovery_thresh = 40 if f.name == "Gojo" else 30
                             if f.energy >= recovery_thresh:
                                 f.ce_exhausted = False
