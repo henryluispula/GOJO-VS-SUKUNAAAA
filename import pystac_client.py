@@ -168,7 +168,7 @@ class Fighter:
         self.hp = self.max_hp
         self.prev_hp = self.hp # Track for blood effects
         # Start the fight with appropriate max cursed energy levels
-        self.energy = 1500 if name == "Sukuna" else (200 if name == "Gojo" else 150)
+        self.energy = 3000 if name == "Sukuna" else (200 if name == "Gojo" else 150)
         self.infinity = 100 if name == "Gojo" else 0 
         
         # --- NEW: DODGE METER LOGIC ---
@@ -226,6 +226,11 @@ class Fighter:
         self.prev_energy = self.energy
         self.ce_exhausted = False # CE Exhaustion/Burnout tracking
 
+    @property
+    def cost_mult(self):
+        # 80% discount to all CE costs if they hit a black flash!
+        return 0.2 if self.potential_timer > 0 else 1.0
+
     def end_domain(self):
         # 1. ADD THIS CHECK: If it's already off, don't count it again!
         if not self.domain_active:
@@ -244,8 +249,11 @@ class Fighter:
                 self.technique_burnout = 0
 
         elif self.name == "Sukuna":
-            # Sukuna burns out every time (Lore: he only used Open Barrier to clash)
-            self.technique_burnout = 1200                                                
+            # Sukuna now gets 3 Domain Expansion uses before technique burnout
+            if self.domain_uses >= 3:
+                self.technique_burnout = 1200
+            else:
+                self.technique_burnout = 0                                         
 
     def jump(self):
         if self.on_ground and not self.is_paralyzed:
@@ -322,7 +330,7 @@ class Fighter:
             if self.energy >= recovery_thresh:
                 self.ce_exhausted = False
         
-        max_energy = 1500 if self.name == "Sukuna" else (200 if self.name == "Gojo" else 150)
+        max_energy = 3000 if self.name == "Sukuna" else (200 if self.name == "Gojo" else 150)
         self.energy = min(max_energy, self.energy + base_regen * regen_mult)
         
         # --- STAMINA EXHAUSTION LOGIC (Dodge Meter) ---
@@ -348,14 +356,14 @@ class Fighter:
         
         # Gojo Infinity regen
         if self.name == "Gojo" and self.infinity < 100 and self.technique_burnout == 0:
-            cost = 0.1 
+            cost = 0.1 * self.cost_mult
             if self.energy >= cost:
                 self.infinity = min(100, self.infinity + 0.35) 
                 self.energy -= cost
 
         # Sukuna Constant Auto-Heal
         if self.name == "Sukuna" and self.hp > 0 and self.hp < self.max_hp and not self.ce_exhausted:
-            heal_cost = 2
+            heal_cost = 2 * self.cost_mult
             if self.energy >= heal_cost:
                 self.hp = min(self.max_hp, self.hp + random.uniform(0.2, 0.5))
                 self.energy -= heal_cost
@@ -738,26 +746,26 @@ class Game:
                 # --- GOJO INPUTS ---
                 
                 # Simple Domain - Hold Right Click
-                if mouse_click[2] and self.gojo.energy > 5 and not self.gojo.domain_active:
+                if mouse_click[2] and self.gojo.energy > 5 * self.gojo.cost_mult and not self.gojo.domain_active:
                     # INITIAL COST: If it wasn't active last frame, take a big chunk
                     if not getattr(self.gojo, "sd_was_active", False):
-                        self.gojo.energy -= 25.0
+                        self.gojo.energy -= 25.0 * self.gojo.cost_mult
                     
                     self.gojo.simple_domain_active = True
                     self.gojo.sd_was_active = True # Track state for next frame
                     
                     # CONTINUOUS DRAIN: Increased from 0.5 to 1.5
                     if self.gojo.domain_charge == 0:
-                        self.gojo.energy -= 1.5
+                        self.gojo.energy -= 1.5 * self.gojo.cost_mult
                 else:
                     self.gojo.simple_domain_active = False
                     self.gojo.sd_was_active = False # Reset state
                 
                 # Domain Expansion Charge - 'V' 
                 if keys[pygame.K_v] and self.gojo.domain_cd == 0 and self.gojo.technique_burnout == 0 and self.gojo.domain_charge == 0 and not self.gojo.domain_active and self.gojo.grab_timer <= 0:
-                    if self.gojo.energy >= 190:
+                    if self.gojo.energy >= 190 * self.gojo.cost_mult:
                         self.gojo.domain_charge = 60
-                        self.gojo.energy -= 190 
+                        self.gojo.energy -= 190 * self.gojo.cost_mult 
                     else:
                         if self.gojo.attack_cooldown == 0:
                             self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 100, "timer": 30, "text": "NOT ENOUGH CE!", "color": RED})
@@ -767,8 +775,8 @@ class Game:
                 
                 # 1. BLUE POINT-BLANK (Warped Punch)
                 # Cost: 60 CE (3x Normal) | Cooldown: 300 frames (5 seconds)
-                if keys[pygame.K_e] and keys[pygame.K_w] and self.gojo.energy >= 60 and self.gojo.blue_cd == 0 and self.gojo.grab_timer <= 0:
-                    self.gojo.energy -= 60
+                if keys[pygame.K_e] and keys[pygame.K_w] and self.gojo.energy >= 60 * self.gojo.cost_mult and self.gojo.blue_cd == 0 and self.gojo.grab_timer <= 0:
+                    self.gojo.energy -= 60 * self.gojo.cost_mult
                     self.gojo.blue_cd = 300 # 5 second cooldown
                     
                     # Damage: 15.0 (3x Base Punch)
@@ -795,11 +803,11 @@ class Game:
                         
                 # 2. RED POINT-BLANK (Cleave Escape)
                 # Cost: 100 CE (2.5x Normal) | Cooldown: 240 frames (4 seconds)
-                elif keys[pygame.K_e] and keys[pygame.K_s] and self.gojo.energy >= 100 and self.gojo.red_cd == 0 and self.gojo.grab_timer > 0:
+                elif keys[pygame.K_e] and keys[pygame.K_s] and self.gojo.energy >= 100 * self.gojo.cost_mult and self.gojo.red_cd == 0 and self.gojo.grab_timer > 0:
                     self.gojo.grab_timer = 0
                     self.sukuna.grab_timer = 0
                     
-                    self.gojo.energy -= 100
+                    self.gojo.energy -= 100 * self.gojo.cost_mult
                     self.gojo.red_cd = 360  # 6 second cooldown
                     self.gojo.tech_hits = min(100, self.gojo.tech_hits + 25) # Adds to Purple Pool
                     
@@ -881,9 +889,9 @@ class Game:
                         self.gojo.attack_cooldown = 20
 
                     # RCT (Gojo)
-                    if keys[pygame.K_q] and self.gojo.energy > 5:
+                    if keys[pygame.K_q] and self.gojo.energy > 5 * self.gojo.cost_mult:
                         self.gojo.hp = min(200, self.gojo.hp + 0.5)
-                        self.gojo.energy -= 2
+                        self.gojo.energy -= 2 * self.gojo.cost_mult
                         self.gojo.rct_timer = 5
 
                    # --- GOJO TECHNIQUE ORBS ---
@@ -892,10 +900,10 @@ class Game:
 
                     # Blue
                     if keys[pygame.K_w] and self.gojo.blue_cd == 0:
-                        if self.gojo.energy >= 20:
+                        if self.gojo.energy >= 20 * self.gojo.cost_mult:
                             if not is_actually_burned_out:
                                 self.projectiles.append(Projectile(self.gojo.rect.centerx, self.gojo.rect.centery, target.rect.centerx, target.rect.centery, 18, BLUE, size_mult=1.5, type="blue_orb"))
-                                self.gojo.energy -= 20
+                                self.gojo.energy -= 20 * self.gojo.cost_mult
                                 self.gojo.blue_cd = 60 
                         else:
                             if self.gojo.attack_cooldown == 0:
@@ -905,10 +913,10 @@ class Game:
 
                     # Red
                     if keys[pygame.K_s] and self.gojo.red_cd == 0:
-                        if self.gojo.energy >= 40:
+                        if self.gojo.energy >= 40 * self.gojo.cost_mult:
                             if not is_actually_burned_out:
                                 self.projectiles.append(Projectile(self.gojo.rect.centerx, self.gojo.rect.centery, target.rect.centerx, target.rect.centery, 30, RED, size_mult=1.8, type="red_orb"))
-                                self.gojo.energy -= 40
+                                self.gojo.energy -= 40 * self.gojo.cost_mult
                                 self.gojo.red_cd = 120
                         else:
                             if self.gojo.attack_cooldown == 0:
@@ -920,7 +928,7 @@ class Game:
                     if keys[pygame.K_r] and self.gojo.purple_cd == 0 and self.gojo.purple_charge == 0:
                         
                         # 2. Check for Energy (Cursed Energy) requirement
-                        if self.gojo.energy >= 195:
+                        if self.gojo.energy >= 195 * self.gojo.cost_mult:
                             
                             # 3. Check for specific technique requirements (Burnout and Hits)
                             if not is_actually_burned_out and self.gojo.tech_hits >= 100:
@@ -950,7 +958,7 @@ class Game:
                                 target.rect.centery, 
                                 20, PURPLE, size_mult=3.5, type="purple_orb"
                             ))
-                            self.gojo.energy = 0
+                            self.gojo.energy = max(0, self.gojo.energy - (195 * self.gojo.cost_mult))
                             self.gojo.purple_cd = 720
                             self.gojo.tech_hits = 0
                             
@@ -966,30 +974,30 @@ class Game:
 
                 # --- SMART SUKUNA AI ---
                 dist = abs(self.sukuna.rect.centerx - self.gojo.rect.centerx)
-                fuga_priority = (self.sukuna.tech_hits >= 100 and self.sukuna.fuga_cd == 0 and self.sukuna.energy >= 195) or self.sukuna.fuga_charge > 0
+                fuga_priority = (self.sukuna.tech_hits >= 100 and self.sukuna.fuga_cd == 0 and self.sukuna.energy >= 195 * self.sukuna.cost_mult) or self.sukuna.fuga_charge > 0
                 
                 # --- SUKUNA DOMAIN CLASH & SIMPLE DOMAIN LOGIC ---
-                if self.sukuna.energy >= 200 and self.sukuna.domain_cd == 0 and self.sukuna.technique_burnout == 0 and self.sukuna.domain_charge == 0 and not self.sukuna.domain_active:
+                if self.sukuna.energy >= 200 * self.sukuna.cost_mult and self.sukuna.domain_cd == 0 and self.sukuna.technique_burnout == 0 and self.sukuna.domain_charge == 0 and not self.sukuna.domain_active:
                     # Sukuna casts domain if Gojo does, OR strategically if Gojo is vulnerable
-                    gojo_is_vulnerable = self.gojo.technique_burnout > 0 or self.gojo.domain_cd > 0 or self.gojo.energy < 150
+                    gojo_is_vulnerable = self.gojo.technique_burnout > 0 or self.gojo.domain_cd > 0 or self.gojo.energy < 150 * self.gojo.cost_mult
                     if self.gojo.domain_active or self.gojo.domain_charge > 0 or gojo_is_vulnerable or (self.sukuna.hp < 150 and random.random() < 0.005):
                         self.sukuna.domain_charge = 60
-                        self.sukuna.energy -= 200
+                        self.sukuna.energy -= 200 * self.sukuna.cost_mult
                 elif self.gojo.domain_active and not self.sukuna.domain_active:
                     # LORE: Gojo's Infinity prevents Unlimited Void from hitting him directly
                     if self.sukuna.rect.colliderect(self.gojo.rect):
                         self.sukuna.simple_domain_active = False
                         self.sukuna.sd_was_active = False
-                    elif self.sukuna.energy > 5:
+                    elif self.sukuna.energy > 5 * self.sukuna.cost_mult:
                         # INITIAL COST for AI
                         if not getattr(self.sukuna, "sd_was_active", False):
-                            self.sukuna.energy -= 25.0
+                            self.sukuna.energy -= 25.0 * self.sukuna.cost_mult
                         
                         self.sukuna.simple_domain_active = True
                         self.sukuna.sd_was_active = True
                         
                         # CONTINUOUS DRAIN: Gojo's superior refined domain shreds Simple Domain!
-                        self.sukuna.energy -= 4.0 # Drains extremely fast (buys limited time)
+                        self.sukuna.energy -= 4.0 * self.sukuna.cost_mult # Drains extremely fast (buys limited time)
                     else:
                         self.sukuna.simple_domain_active = False
                         self.sukuna.sd_was_active = False
@@ -1027,12 +1035,12 @@ class Game:
                     # Turn DA on only if he is very close, not about to Fuga, and slashes are unavailable
                     # TACTICAL FIX: Prioritize the Cleave Hold! Don't use DA if Cleave is ready to grab!
                     # STRATEGIC AI: Inside UV, he MUST use DA to bypass Infinity and stay in contact with Gojo!
-                    if dist <= 150 and self.sukuna.amp_cd == 0 and self.sukuna.amp_duration == 0 and self.sukuna.energy > 30 and not fuga_priority and not self.sukuna.ce_exhausted:
+                    if dist <= 150 and self.sukuna.amp_cd == 0 and self.sukuna.amp_duration == 0 and self.sukuna.energy > 30 * self.sukuna.cost_mult and not fuga_priority and not self.sukuna.ce_exhausted:
                         if self.sukuna.cleave_cd > 0 or self.gojo.domain_active:
                             self.sukuna.amp_duration = 600 
                             is_amp = True
                     
-                    if is_amp: self.sukuna.energy -= 1.8 # Yes, Domain Amp drains 1.8 CE per frame!
+                    if is_amp: self.sukuna.energy -= 1.8 * self.sukuna.cost_mult # Yes, Domain Amp drains 1.8 CE per frame!
 
                     # --- FIX: ALLOW SUKUNA TO MOVE WHILE GRABBING ---
                     # STRATEGIC AI: If Gojo's domain is active, Sukuna frantically stays in point-blank contact!
@@ -1059,7 +1067,7 @@ class Game:
                             self.sukuna.dodge_cd = 70
 
                     # FUGA LOGIC
-                    if self.sukuna.energy >= 195 and self.sukuna.fuga_cd == 0 and self.sukuna.fuga_charge == 0 and self.sukuna.technique_burnout == 0:
+                    if self.sukuna.energy >= 195 * self.sukuna.cost_mult and self.sukuna.fuga_cd == 0 and self.sukuna.fuga_charge == 0 and self.sukuna.technique_burnout == 0:
                         if self.sukuna.tech_hits >= 100:
                             self.sukuna.fuga_charge = 120
                     
@@ -1067,26 +1075,26 @@ class Game:
                         self.sukuna.fuga_charge -= 1
                         if self.sukuna.fuga_charge == 1:
                             self.projectiles.append(Projectile(self.sukuna.rect.centerx, self.sukuna.rect.centery, self.gojo.rect.centerx, self.gojo.rect.centery, 28, (255, 100, 0), size_mult=2.5, type="fuga_arrow"))
-                            self.sukuna.energy = 0
+                            self.sukuna.energy -= 500 * self.sukuna.cost_mult
                             self.sukuna.fuga_cd = 720
                             self.sukuna.tech_hits = 0
 
                     # LORE ACCURACY: Expanded slash zones so he never stands completely still
-                    if not is_amp and self.sukuna.energy > 40 and not fuga_priority and self.sukuna.technique_burnout == 0:
+                    if not is_amp and self.sukuna.energy > 40 * self.sukuna.cost_mult and not fuga_priority and self.sukuna.technique_burnout == 0:
                         # The World Cutting Slash takes absolute priority if unlocked!
-                        if self.sukuna.world_slash_unlocked and self.sukuna.energy > 80 and self.sukuna.dismantle_cd <= 0:
+                        if self.sukuna.world_slash_unlocked and self.sukuna.energy > 80 * self.sukuna.cost_mult and self.sukuna.dismantle_cd <= 0:
                             self.sukuna.slash_count = 1
                             self.sukuna.slash_type = "world_slash"
-                            self.sukuna.energy -= 80
+                            self.sukuna.energy -= 80 * self.sukuna.cost_mult
                             self.sukuna.dismantle_cd = 180 # 3 second cooldown for this ultimate move
                         elif dist > 180 and self.sukuna.dismantle_cd == 0:
                             self.sukuna.slash_count = 6
                             self.sukuna.slash_type = "dismantle"
-                            self.sukuna.energy -= 10
+                            self.sukuna.energy -= 10 * self.sukuna.cost_mult
                             self.sukuna.dismantle_cd = 40
                         # --- LORE ACCURACY: TACTICAL CLEAVE "HOLD" ---
                         elif self.sukuna.rect.colliderect(self.gojo.rect) and self.sukuna.cleave_cd <= 0 and not is_amp:
-                            if self.sukuna.energy >= 15:
+                            if self.sukuna.energy >= 15 * self.sukuna.cost_mult:
                                 # 1. ONLY Gojo gets the 5-second (300 frames) stun. Sukuna is free to drag him!
                                 self.gojo.grab_timer = 300
                                 self.gojo.purple_charge = 0
@@ -1105,12 +1113,12 @@ class Game:
                                 p.is_grab_cleave = True # Tag it so it can follow Gojo dynamically
                                 self.projectiles.append(p)
 
-                                self.sukuna.energy -= 15
+                                self.sukuna.energy -= 15 * self.sukuna.cost_mult
                                 self.sukuna.cleave_cd = 450 # Huge cooldown so he relies on the tactical 5 second stun
                                 
                                 # 3. Apply Conceptual Attrition burst (The rest of the stun is purely CC for Fuga setup)
                                 if self.gojo.infinity > 0 and self.gojo.energy > 0 and self.gojo.technique_burnout == 0:
-                                    self.gojo.energy = max(0, self.gojo.energy - 0.5) 
+                                    self.gojo.energy = max(0, self.gojo.energy - 0.5 * self.gojo.cost_mult) 
                                     self.sukuna.tech_hits = min(100, self.sukuna.tech_hits + 20)
                                 else:
                                     self.gojo.hp -= 120.0
@@ -1121,7 +1129,7 @@ class Game:
                                         bx, by = self.gojo.rect.center
                                         self.blood_particles.append([bx, by, random.uniform(-10, 10), random.uniform(-10, 10), 60, random.randint(4, 8)])
 
-                                self.sukuna.energy -= 15
+                                self.sukuna.energy -= 15 * self.sukuna.cost_mult
                                 self.sukuna.cleave_cd = 450 # Huge cooldown so he relies on the tactical 5 second stun
 
                     if self.sukuna.slash_count > 0 and self.sukuna.slash_type != "cleave": # Add this check
@@ -1171,7 +1179,7 @@ class Game:
                             else:
                                 if self.gojo.infinity > 0 and self.gojo.energy > 0 and self.gojo.technique_burnout == 0:
                                     # LORE FIX: Infinity blocks seamlessly and efficiently using only 0.5 CE
-                                    self.gojo.energy = max(0, self.gojo.energy - 0.5)
+                                    self.gojo.energy = max(0, self.gojo.energy - 0.5 * self.gojo.cost_mult)
                                     # --- NEW: SLIGHT KNOCKBACK FOR BLOCKED HIT ---
                                     kb_dir = 1 if self.gojo.rect.centerx > self.sukuna.rect.centerx else -1
                                     self.gojo.rect.x += kb_dir * 5
@@ -1275,10 +1283,11 @@ class Game:
                             
                         # INFINITY REGEN (Gojo only)
                         if f.name == "Gojo" and f.infinity < 100 and f.technique_burnout == 0:
-                            if f.energy >= 0.1:
+                            inf_cost = 0.1 * f.cost_mult
+                            if f.energy >= inf_cost:
                                 f.prev_energy = f.energy
                                 f.infinity = min(100, f.infinity + 0.35)
-                                f.energy -= 0.1                                
+                                f.energy -= inf_cost                                
                 else:
                     # Normal Physics Loop
                     for f in active_fighters:
@@ -1292,7 +1301,7 @@ class Game:
                         
                         # FIX: Cleave strictly damages the CE pool first. Only hits HP if Infinity is down/exhausted!
                         if self.gojo.infinity > 0 and self.gojo.energy > 0 and self.gojo.technique_burnout == 0:
-                            self.gojo.energy = max(0, self.gojo.energy - 1.5) # Visibly shreds the CE pool!
+                            self.gojo.energy = max(0, self.gojo.energy - 1.5 * self.gojo.cost_mult) # Visibly shreds the CE pool!
                             self.sukuna.tech_hits = min(100, self.sukuna.tech_hits + 0.5)
                         else:
                             self.gojo.hp -= 0.4 # Adds up to exactly 120 damage over 300 frames!
@@ -1467,9 +1476,9 @@ class Game:
                             self.mahoraga.attack_cooldown = 12
                             
                         # LORE ACCURACY: Mahoraga's intense passive regeneration
-                        if self.mahoraga.hp < 75 and self.mahoraga.energy > 5 and not self.mahoraga.ce_exhausted:
+                        if self.mahoraga.hp < 75 and self.mahoraga.energy > 5 * self.mahoraga.cost_mult and not self.mahoraga.ce_exhausted:
                             self.mahoraga.hp = min(self.mahoraga.max_hp, self.mahoraga.hp + 0.8) # Increased from 0.4, stacks with physics regen
-                            self.mahoraga.energy -= 1.0
+                            self.mahoraga.energy -= 1.0 * self.mahoraga.cost_mult
                             self.mahoraga.rct_timer = 5
 
                     # --- Mahoraga Adaptation Announcements Tracking ---
@@ -1701,7 +1710,7 @@ class Game:
                                     self.sukuna.tech_hits = min(100, self.sukuna.tech_hits + 1)
                                     
                                     # LORE FIX: Infinity blocks seamlessly and efficiently using only 0.5 CE
-                                    self.gojo.energy = max(0, self.gojo.energy - 0.5) 
+                                    self.gojo.energy = max(0, self.gojo.energy - 0.5 * self.gojo.cost_mult) 
                                     p.active = False 
                                 else: 
                                     # Direct HP hit also counts!
@@ -2168,7 +2177,7 @@ class Game:
                 render_surf.blit(self.mini_font.render("120% POT", True, (255, 215, 0)), (WIDTH - 100, 20))
 
             self.draw_bar_on(render_surf, WIDTH - 335, 60, self.sukuna.hp, self.sukuna.max_hp, RED, 310, 10, "HEALTH")
-            self.draw_bar_on(render_surf, WIDTH - 335, 95, self.sukuna.energy, 1500, BLUE, 310, 8, "CURSE ENERGY")
+            self.draw_bar_on(render_surf, WIDTH - 335, 95, self.sukuna.energy, 3000, BLUE, 310, 8, "CURSE ENERGY")
             
             self.draw_bar_on(render_surf, WIDTH - 335, 125, self.sukuna.tech_hits, 100, (255, 100, 0), 310, 2, "")
 
