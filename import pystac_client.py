@@ -168,7 +168,7 @@ class Fighter:
         self.hp = self.max_hp
         self.prev_hp = self.hp # Track for blood effects
         # Start the fight with appropriate max cursed energy levels
-        self.energy = 800 if name == "Sukuna" else (200 if name == "Gojo" else 150)
+        self.energy = 1500 if name == "Sukuna" else (200 if name == "Gojo" else 150)
         self.infinity = 100 if name == "Gojo" else 0 
         
         # --- NEW: DODGE METER LOGIC ---
@@ -320,7 +320,7 @@ class Fighter:
             if self.energy >= recovery_thresh:
                 self.ce_exhausted = False
         
-        max_energy = 800 if self.name == "Sukuna" else (200 if self.name == "Gojo" else 150)
+        max_energy = 1500 if self.name == "Sukuna" else (200 if self.name == "Gojo" else 150)
         self.energy = min(max_energy, self.energy + base_regen * regen_mult)
         
         # --- STAMINA EXHAUSTION LOGIC (Dodge Meter) ---
@@ -329,7 +329,7 @@ class Fighter:
             self.stamina_exhausted = True
             
         if self.stamina_exhausted:
-            stam_regen *= 0.05 # 20x slower regen when completely depleted!
+            stam_regen *= 0.1 
             if self.stamina >= 30:
                 self.stamina_exhausted = False
                 
@@ -1265,7 +1265,7 @@ class Game:
                             if f.energy >= recovery_thresh:
                                 f.ce_exhausted = False
                                 
-                        max_energy = 800 if f.name == "Sukuna" else (200 if f.name == "Gojo" else 150)
+                        max_energy = 1500 if f.name == "Sukuna" else (200 if f.name == "Gojo" else 150)
                         f.energy = min(max_energy, f.energy + base_regen * regen_mult)
                         
                             
@@ -1313,7 +1313,7 @@ class Game:
 
                 if self.gojo.domain_active and self.sukuna.domain_active and gojo_can_clash:
                     # 1. Initialize the 0.50 second (30 frames @ 60FPS) window
-                    clash_window = 30 # Reduced to 0.5 seconds!
+                    clash_window = 10 # Reduced to 0.5 seconds!
                     
                     if getattr(self, "clash_decision_timer", 0) == 0 and not getattr(self, "clash_resolved", False):
                         self.clash_decision_timer = clash_window
@@ -1789,9 +1789,79 @@ class Game:
             
             elif self.sukuna.domain_active:
                 ms_bg = pygame.Surface((WORLD_WIDTH, WORLD_HEIGHT), pygame.SRCALPHA)
-                ms_bg.fill((80, 0, 0, 120)) # Bloody red atmosphere
-                pygame.draw.circle(ms_bg, (200, 0, 0, 180), (self.sukuna.rect.centerx, self.sukuna.rect.centery), 400)
+                
+                # 1. Smoother Background Gradient (50 steps instead of 10)
+                num_steps = 50
+                step_height = WORLD_HEIGHT / num_steps
+                for i in range(num_steps):
+                    # Smoothly fades from deep red to pitch black
+                    color_val = max(0, 120 - (i * 2.4)) 
+                    alpha_val = min(255, 150 + (i * 2))
+                    pygame.draw.rect(ms_bg, (int(color_val), 0, 0, int(alpha_val)), (0, int(i * step_height), WORLD_WIDTH, int(step_height) + 2))
+                
+                # 2. Determine Shrine Position (Brought down to ground level)
+                if getattr(self.gojo, "domain_shrunk", False) and hasattr(self.gojo, "domain_center_x"):
+                    # Centered in the shrunken domain, lowered to the floor
+                    shrine_x, shrine_y = self.gojo.domain_center_x, self.gojo.domain_center_y + 50 
+                else:
+                    # Centered in the world, brought down right behind the characters
+                    shrine_x, shrine_y = WORLD_WIDTH // 2, WORLD_HEIGHT - 400 
+                    
+                # 3. Draw Blood Moon (Scaled up to match the bigger shrine)
+                pygame.draw.circle(ms_bg, (150, 0, 0, 150), (shrine_x, shrine_y - 250), 450)
+                pygame.draw.circle(ms_bg, (200, 30, 30, 200), (shrine_x, shrine_y - 250), 330)
+                pygame.draw.circle(ms_bg, (255, 150, 150, 255), (shrine_x, shrine_y - 250), 240)
+                
+                # 4. Draw the BIGGER Malevolent Shrine (Scaled up by ~1.5x)
+                shrine_color = (15, 5, 5) # Extremely dark red/pitch black silhouette
+                
+                # Main base structure (Wider and Taller)
+                pygame.draw.rect(ms_bg, shrine_color, (shrine_x - 270, shrine_y - 150, 540, 750))
+                
+                # Roof Tiers (Expanded outward and upward for a towering pagoda look)
+                pygame.draw.polygon(ms_bg, shrine_color, [(shrine_x - 450, shrine_y - 120), (shrine_x + 450, shrine_y - 120), (shrine_x + 270, shrine_y - 240), (shrine_x - 270, shrine_y - 240)])
+                pygame.draw.polygon(ms_bg, shrine_color, [(shrine_x - 360, shrine_y - 240), (shrine_x + 360, shrine_y - 240), (shrine_x + 180, shrine_y - 345), (shrine_x - 180, shrine_y - 345)])
+                pygame.draw.polygon(ms_bg, shrine_color, [(shrine_x - 240, shrine_y - 345), (shrine_x + 240, shrine_y - 345), (shrine_x + 90, shrine_y - 450), (shrine_x - 90, shrine_y - 450)])
+                
+                # 5. The BIGGER Gaping Open Mouth
+                mouth_rect = (shrine_x - 165, shrine_y - 20, 330, 420)
+                pygame.draw.ellipse(ms_bg, BLACK, mouth_rect)
+                
+                # Draw terrifying teeth lining the mouth (Adjusted to new scale)
+                teeth_color = (220, 220, 200) # Bone white
+                
+                # Top teeth pointing down
+                for tx in range(int(shrine_x - 135), int(shrine_x + 135), 35):
+                    pygame.draw.polygon(ms_bg, teeth_color, [(tx, shrine_y + 25), (tx + 35, shrine_y + 25), (tx + 17, shrine_y + 115)])
+                
+                # Bottom teeth pointing up
+                for tx in range(int(shrine_x - 135), int(shrine_x + 135), 35):
+                    pygame.draw.polygon(ms_bg, teeth_color, [(tx, shrine_y + 360), (tx + 35, shrine_y + 360), (tx + 17, shrine_y + 270)])
+                
+                # Side teeth (left pointing right)
+                for ty in range(int(shrine_y + 70), int(shrine_y + 320), 45):
+                    pygame.draw.polygon(ms_bg, teeth_color, [(shrine_x - 150, ty), (shrine_x - 150, ty + 35), (shrine_x - 75, ty + 17)])
+                
+                # Side teeth (right pointing left)
+                for ty in range(int(shrine_y + 70), int(shrine_y + 320), 45):
+                    pygame.draw.polygon(ms_bg, teeth_color, [(shrine_x + 150, ty), (shrine_x + 150, ty + 35), (shrine_x + 75, ty + 17)])
+
                 self.world_surf.blit(ms_bg, (0, 0))
+                
+                # --- Visual Background Shrinking Mask for Sukuna ---
+                if getattr(self.gojo, "domain_shrunk", False) and hasattr(self.gojo, "domain_center_x"):
+                    cx, cy = self.gojo.domain_center_x, self.gojo.domain_center_y
+                    
+                    # Draw solid black rectangles masking everything outside the 800x800 shrunk area
+                    pygame.draw.rect(self.world_surf, BLACK, (0, 0, cx - 400, WORLD_HEIGHT)) # Left
+                    pygame.draw.rect(self.world_surf, BLACK, (cx + 400, 0, WORLD_WIDTH, WORLD_HEIGHT)) # Right
+                    pygame.draw.rect(self.world_surf, BLACK, (0, 0, WORLD_WIDTH, cy - 400)) # Top
+                    pygame.draw.rect(self.world_surf, BLACK, (0, cy + 400, WORLD_WIDTH, WORLD_HEIGHT)) # Bottom
+                    
+                    # Red Domain Boundary box for Sukuna
+                    pygame.draw.rect(self.world_surf, (255, 50, 50), (cx - 400, cy - 400, 800, 800), 4) 
+                
+                # Initial Flash Effect
                 if self.sukuna.domain_timer > 390: self.world_surf.fill((200, 0, 0))
             
             pygame.draw.rect(self.world_surf, (15, 15, 25), (0, WORLD_HEIGHT - 100, WORLD_WIDTH, 100))
@@ -1948,7 +2018,7 @@ class Game:
 
                 # 2. Draw the Progress Bar directly into the HUD
                 bar_w, bar_h = 400, 25
-                clash_window = 45
+                clash_window = 10
                 fill_w = int((self.clash_decision_timer / clash_window) * bar_w)
                 bx, by = WIDTH//2 - bar_w//2, 120
                 
@@ -2064,7 +2134,7 @@ class Game:
                 render_surf.blit(self.mini_font.render("120% POT", True, (255, 215, 0)), (WIDTH - 100, 20))
 
             self.draw_bar_on(render_surf, WIDTH - 335, 60, self.sukuna.hp, self.sukuna.max_hp, RED, 310, 10, "HEALTH")
-            self.draw_bar_on(render_surf, WIDTH - 335, 95, self.sukuna.energy, 800, BLUE, 310, 8, "CURSE ENERGY")
+            self.draw_bar_on(render_surf, WIDTH - 335, 95, self.sukuna.energy, 1500, BLUE, 310, 8, "CURSE ENERGY")
             
             self.draw_bar_on(render_surf, WIDTH - 335, 125, self.sukuna.tech_hits, 100, (255, 100, 0), 310, 2, "")
 
