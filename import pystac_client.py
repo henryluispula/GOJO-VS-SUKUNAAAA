@@ -223,6 +223,8 @@ class Fighter:
         self.domain_uses = 0
         self.technique_burnout = 0
         self.simple_domain_active = False # Negates domain sure-hit effects!
+        self.sd_hits = 0 # NEW: Tracks hits for Simple Domain crumbling
+        self.sd_broken_timer = 0 # NEW: Cooldown when Simple Domain crumbles
         self.prev_energy = self.energy
         self.ce_exhausted = False # CE Exhaustion/Burnout tracking
 
@@ -273,6 +275,7 @@ class Fighter:
         # --- NEW: Domain Cooldowns & Burnouts ---
         self.domain_cd = max(0, self.domain_cd - 1)
         self.technique_burnout = max(0, self.technique_burnout - 1)
+        self.sd_broken_timer = max(0, self.sd_broken_timer - 1)
 
         if self.domain_timer > 0:
             self.domain_timer -= 1
@@ -746,10 +749,11 @@ class Game:
                 # --- GOJO INPUTS ---
                 
                 # Simple Domain - Hold Right Click
-                if mouse_click[2] and self.gojo.energy > 5 * self.gojo.cost_mult and not self.gojo.domain_active:
+                if mouse_click[2] and self.gojo.energy > 5 * self.gojo.cost_mult and not self.gojo.domain_active and self.gojo.sd_broken_timer <= 0:
                     # INITIAL COST: If it wasn't active last frame, take a big chunk
                     if not getattr(self.gojo, "sd_was_active", False):
                         self.gojo.energy -= 25.0 * self.gojo.cost_mult
+                        self.gojo.sd_hits = 0 # Reset hit count on fresh activation
                     
                     self.gojo.simple_domain_active = True
                     self.gojo.sd_was_active = True # Track state for next frame
@@ -988,10 +992,11 @@ class Game:
                     if self.sukuna.rect.colliderect(self.gojo.rect):
                         self.sukuna.simple_domain_active = False
                         self.sukuna.sd_was_active = False
-                    elif self.sukuna.energy > 5 * self.sukuna.cost_mult:
+                    elif self.sukuna.energy > 5 * self.sukuna.cost_mult and self.sukuna.sd_broken_timer <= 0:
                         # INITIAL COST for AI
                         if not getattr(self.sukuna, "sd_was_active", False):
                             self.sukuna.energy -= 25.0 * self.sukuna.cost_mult
+                            self.sukuna.sd_hits = 0 # Reset hits on fresh activation
                         
                         self.sukuna.simple_domain_active = True
                         self.sukuna.sd_was_active = True
@@ -1335,8 +1340,8 @@ class Game:
                         self.clash_decision_timer -= 1
                         
                         # --- SWEET SPOT LOGIC ---
-                        # The window is only open when the timer is between 1 and 3 frames remaining.
-                        is_sweet_spot = 1 <= self.clash_decision_timer <= 3
+                        # The window is only open when the timer is between 1 and 4 frames remaining.
+                        is_sweet_spot = 1 <= self.clash_decision_timer <= 4
                         
                         # Check inputs, but ONLY if they haven't already failed this clash!
                         if keys[pygame.K_z] and keys[pygame.K_v] and not getattr(self, "clash_failed", False):
@@ -1350,7 +1355,7 @@ class Game:
                                     "text": "CRITICAL SHRINK!", 
                                     "color": (0, 255, 255) # Cyan for a "perfect" hit
                                 })
-                            elif self.clash_decision_timer > 3:
+                            elif self.clash_decision_timer > 4:
                                 # They pressed too early! Lock them out of the sweet spot for this clash.
                                 self.clash_failed = True
                                 self.popups.append({
@@ -1519,8 +1524,18 @@ class Game:
                             # LORE: Gojo's Infinity prevents Unlimited Void from hitting him directly
                             is_touching_gojo = enemy.rect.colliderect(self.gojo.rect)
                             
-                            if getattr(enemy, "simple_domain_active", False) or is_touching_gojo:
-                                enemy.is_paralyzed = False # Protected by Simple Domain or Contact!
+                            if getattr(enemy, "simple_domain_active", False) and not is_touching_gojo:
+                                enemy.is_paralyzed = False # Protected by Simple Domain!
+                                # UV sure-hit continuously grinds down the Simple Domain
+                                enemy.sd_hits += 1
+                                if enemy.sd_hits >= 300: # 60 fps * 5 seconds = 300 frames/hits
+                                    enemy.simple_domain_active = False
+                                    enemy.sd_was_active = False
+                                    enemy.sd_broken_timer = 180 # 3 seconds cooldown
+                                    self.popups.append({"x": enemy.rect.centerx, "y": enemy.rect.centery - 100, "timer": 45, "text": "SD CRUMBLED!", "color": RED})
+                                    self.shake_timer = 15
+                            elif is_touching_gojo:
+                                enemy.is_paralyzed = False # Protected by Contact!
                             else:
                                 if enemy.name == "Mahoraga" and enemy.adaptation["void"] <= 0:
                                     enemy.is_paralyzed = False # Fully adapted, ignores effects completely!
@@ -1538,20 +1553,19 @@ class Game:
                     self.sukuna.is_paralyzed = False
                     if self.mahoraga: self.mahoraga.is_paralyzed = False
                 
-                # 2. Malevolent Shrine: Guaranteed Open Barrier Hit
                 if self.sukuna.domain_active and not self.sukuna.is_paralyzed:
                     # Relentless slashes spawned instantly around Gojo
                     if self.sukuna.domain_timer % 8 == 0:
                         # Indefinitely increase Fuga pool even if misses/blocked!
                         self.sukuna.tech_hits = min(100, self.sukuna.tech_hits + 2) 
                         
-                        # Simple Domain perfectly negates the Domain's sure-hit targeting!
-                        if not getattr(self.gojo, "simple_domain_active", False):
-                            sx = self.gojo.rect.centerx + random.randint(-200, 200)
-                            sy = self.gojo.rect.centery - random.randint(150, 400)
-                            stype = "cleave" if abs(self.sukuna.rect.centerx - self.gojo.rect.centerx) < 150 else "dismantle"
-                            # Spawn with the sure_hit modifier allowing bypass of Infinity
-                            self.projectiles.append(Projectile(sx, sy, self.gojo.rect.centerx, self.gojo.rect.centery + random.randint(-40, 40), 150, RED, size_mult=3.0, type=stype, is_sure_hit=True))
+                        # --- FIX: Spawn sure-hits directly ON Gojo with low speed so they can't clip through him! ---
+                        sx = self.gojo.rect.centerx + random.randint(-40, 40)
+                        sy = self.gojo.rect.centery + random.randint(-60, 60)
+                        stype = "cleave" if abs(self.sukuna.rect.centerx - self.gojo.rect.centerx) < 150 else "dismantle"
+                        
+                        # Speed reduced to 5 so it persists for at least 1 frame inside the collision box
+                        self.projectiles.append(Projectile(sx, sy, self.gojo.rect.centerx, self.gojo.rect.centery, 5, RED, size_mult=3.0, type=stype, is_sure_hit=True))
 
                 for p in self.projectiles[:]:
                     # Make the grab visual explicitly track Gojo while he is held
@@ -1683,7 +1697,30 @@ class Game:
                                 self.gojo.hp -= fuga_hp_dmg
                             p.active = False # Hit confirmed, remove projectile
                     
-                    if self.gojo.rect.collidepoint(p.pos) and p.type in ["normal", "dismantle", "cleave", "world_slash"]:
+                    # --- NEW FIX: SIMPLE DOMAIN INTERCEPTION RADIUS ---
+                    # Check interception before physical collision
+                    intercepted_by_sd = False
+                    if self.gojo.simple_domain_active and p.type in ["dismantle", "cleave", "world_slash"]:
+                        dist_to_gojo = pygame.Vector2(self.gojo.rect.center).distance_to(p.pos)
+                        if dist_to_gojo < 100: # Simple Domain Barrier Radius
+                            p.active = False
+                            intercepted_by_sd = True
+                            
+                            # If it's a sure-hit from the domain, it damages the Simple Domain!
+                            if getattr(p, "is_sure_hit", False):
+                                self.gojo.sd_hits += 1
+                                if self.gojo.sd_hits >= 38: # 38 hits * 8 frames = Approx 5 seconds
+                                    self.gojo.simple_domain_active = False
+                                    self.gojo.sd_was_active = False
+                                    self.gojo.sd_broken_timer = 180 # 3 seconds cooldown
+                                    self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 100, "timer": 45, "text": "SD CRUMBLED!", "color": RED})
+                                    self.shake_timer = 15
+                            else:
+                                # Normal slashes still drain a tiny bit of CE when blocked by SD
+                                self.gojo.energy = max(0, self.gojo.energy - 0.5 * self.gojo.cost_mult)
+                                
+                    # Only apply physical body damage if SD didn't intercept it
+                    if not intercepted_by_sd and self.gojo.rect.collidepoint(p.pos) and p.type in ["normal", "dismantle", "cleave", "world_slash"]:
                         if not self.gojo.is_dodging:
                             
                             # 1. World Cutting Slash (Always damages HP!)
@@ -1691,33 +1728,29 @@ class Game:
                                 self.gojo.hp -= 200 
                                 p.active = False
                                 
-                            # 2. Domain Expansion Sure-Hits
+                            # 2. Domain Expansion Sure-Hits (If SD is down)
                             elif getattr(p, "is_sure_hit", False):
-                                if self.gojo.simple_domain_active:
-                                    p.active = False 
-                                else:
-                                    proj_dmg = 80.0 if p.type == "cleave" else 32.0
-                                    self.gojo.hp -= proj_dmg
-                                    p.active = False
+                                proj_dmg = 80.0 if p.type == "cleave" else 32.0
+                                self.gojo.hp -= proj_dmg
+                                p.active = False
+                                self.blood_particles.append([self.gojo.rect.centerx, self.gojo.rect.centery, random.uniform(-5, 5), random.uniform(-5, 0), 30, random.randint(3, 6)])
                                 
                             # 3. Manual Slashes
                             else:
                                 is_burned_out = (self.gojo.domain_uses >= 3 and self.gojo.technique_burnout > 0)
                                 
                                 if self.gojo.infinity > 0 and self.gojo.energy > 0 and not is_burned_out: 
-                                    # --- LORE FIX: HIT COUNTING ---
                                     # Even if blocked, Sukuna gains progress toward Fuga
                                     self.sukuna.tech_hits = min(100, self.sukuna.tech_hits + 1)
-                                    
-                                    # LORE FIX: Infinity blocks seamlessly and efficiently using only 0.5 CE
                                     self.gojo.energy = max(0, self.gojo.energy - 0.5 * self.gojo.cost_mult) 
                                     p.active = False 
                                 else: 
                                     # Direct HP hit also counts!
-                                    self.sukuna.tech_hits = min(100, self.sukuna.tech_hits + 2) # HP hits count more
+                                    self.sukuna.tech_hits = min(100, self.sukuna.tech_hits + 2) 
                                     proj_dmg = 80.0 if p.type == "cleave" else 32.0
                                     self.gojo.hp -= proj_dmg
                                     p.active = False
+                                    self.blood_particles.append([self.gojo.rect.centerx, self.gojo.rect.centery, random.uniform(-5, 5), random.uniform(-5, 0), 30, random.randint(3, 6)])
                             
                     if not p.active: self.projectiles.remove(p)
 
@@ -2047,8 +2080,8 @@ class Game:
             # --- HUD: CLASH TIMER & SHRINK PROMPT ---
             if getattr(self, "clash_decision_timer", 0) > 0:
                 # 1. Draw Prompt (Changes text and color based on the sweet spot!)
-                prompt_text = "WAIT..." if self.clash_decision_timer > 3 else "SHRINK NOW!"
-                prompt_color = (255, 100, 100) if self.clash_decision_timer > 3 else (0, 255, 255)
+                prompt_text = "WAIT..." if self.clash_decision_timer > 4 else "SHRINK NOW!"
+                prompt_color = (255, 100, 100) if self.clash_decision_timer > 4 else (0, 255, 255)
                 
                 # If they failed, display a locked out message
                 if getattr(self, "clash_failed", False):
@@ -2069,8 +2102,8 @@ class Game:
                 pygame.draw.rect(render_surf, (0, 0, 0), (bx - 4, by - 4, bar_w + 8, bar_h + 8))
                 pygame.draw.rect(render_surf, (30, 30, 30), (bx, by, bar_w, bar_h))            
                 
-                # Draw the "Sweet Spot" Zone visually on the bar (The last 30%)
-                sweet_spot_w = int((3 / clash_window) * bar_w)
+                # Draw the "Sweet Spot" Zone visually on the bar (The last 4 frames)
+                sweet_spot_w = int((4 / clash_window) * bar_w)
                 pygame.draw.rect(render_surf, (0, 150, 150), (bx, by, sweet_spot_w, bar_h))
 
                 # White Fill (The shrinking timer)
@@ -2120,9 +2153,9 @@ class Game:
 
             # --- HUD: REVERTED TO CLEANER BOX STYLE ---
             # 1. Gojo HUD (Top Left)
-            g_bg = pygame.Surface((340, 190), pygame.SRCALPHA)
+            g_bg = pygame.Surface((340, 210), pygame.SRCALPHA) # Expanded height for SD bar
             g_bg.fill((0, 0, 15, 180))
-            pygame.draw.rect(g_bg, (100, 150, 255), (0, 0, 340, 190), 2)
+            pygame.draw.rect(g_bg, (100, 150, 255), (0, 0, 340, 210), 2)
             render_surf.blit(g_bg, (10, 10))
             
             render_surf.blit(self.font.render("SATORU GOJO", True, (200, 230, 255)), (25, 15))
@@ -2132,8 +2165,12 @@ class Game:
             self.draw_bar_on(render_surf, 25, 60, self.gojo.hp, self.gojo.max_hp, RED, 310, 10, "HEALTH")
             self.draw_bar_on(render_surf, 25, 95, self.gojo.energy, 200, PURPLE, 145, 8, "CURSE ENERGY")
             self.draw_bar_on(render_surf, 190, 95, self.gojo.infinity, 100, INF_COLOR, 145, 8, "INFINITY")          
-            
             self.draw_bar_on(render_surf, 25, 125, self.gojo.tech_hits, 100, (180, 0, 255), 310, 2, "")
+
+            # --- NEW: GOJO SIMPLE DOMAIN BAR ---
+            sd_label_g = f"SIMPLE DOMAIN (CD: {self.gojo.sd_broken_timer//60 + 1}s)" if self.gojo.sd_broken_timer > 0 else "SIMPLE DOMAIN"
+            sd_color_g = (0, 255, 255) if self.gojo.sd_broken_timer == 0 else (100, 100, 100)
+            self.draw_bar_on(render_surf, 25, 145, max(0, 38 - self.gojo.sd_hits), 38, sd_color_g, 310, 6, sd_label_g)
 
             # --- GOJO HUD LOGIC ---
             b_cd = f"BLUE: {'' if self.gojo.blue_cd==0 else str(self.gojo.blue_cd//60)+'s'}"
@@ -2153,19 +2190,13 @@ class Game:
             d_cd = f"VOID: {'BURN' if is_burned_out else 'ACT' if self.gojo.domain_active else 'RDY' if self.gojo.domain_cd==0 else str(self.gojo.domain_cd//60)+'s'}"
             use_txt = f"USES: {self.gojo.domain_uses}/3"
 
-            # --- RENDERING ---
-            # Blue and Red
-            render_surf.blit(self.mini_font.render(f"{b_cd} | {r_cd} | ", True, (200, 220, 255)), (25, 150))
-            
-            # Purple (Blit separately to use the p_color)
-            # Offset the X position (e.g., to 180) so it doesn't overlap Blue/Red
-            render_surf.blit(self.mini_font.render(p_label, True, p_color), (180, 150)) 
-            
-            # Domain and Uses
-            render_surf.blit(self.mini_font.render(f"{d_cd} | {use_txt}", True, WHITE), (25, 170))
+            # --- RENDERING (Shifted down) ---
+            render_surf.blit(self.mini_font.render(f"{b_cd} | {r_cd} | ", True, (200, 220, 255)), (25, 170))
+            render_surf.blit(self.mini_font.render(p_label, True, p_color), (180, 170)) 
+            render_surf.blit(self.mini_font.render(f"{d_cd} | {use_txt}", True, WHITE), (25, 190))
 
             # 2. Sukuna HUD (Top Right)
-            s_height = 270 if (self.mahoraga and self.mahoraga.hp > 0) else 190
+            s_height = 290 if (self.mahoraga and self.mahoraga.hp > 0) else 210 # Expanded height
             s_bg = pygame.Surface((340, s_height), pygame.SRCALPHA)
             s_bg.fill((20, 0, 0, 180))
             pygame.draw.rect(s_bg, (255, 100, 100), (0, 0, 340, s_height), 2)
@@ -2178,8 +2209,12 @@ class Game:
 
             self.draw_bar_on(render_surf, WIDTH - 335, 60, self.sukuna.hp, self.sukuna.max_hp, RED, 310, 10, "HEALTH")
             self.draw_bar_on(render_surf, WIDTH - 335, 95, self.sukuna.energy, 3000, BLUE, 310, 8, "CURSE ENERGY")
-            
             self.draw_bar_on(render_surf, WIDTH - 335, 125, self.sukuna.tech_hits, 100, (255, 100, 0), 310, 2, "")
+
+            # --- NEW: SUKUNA SIMPLE DOMAIN BAR ---
+            sd_label_s = f"SIMPLE DOMAIN (CD: {self.sukuna.sd_broken_timer//60 + 1}s)" if self.sukuna.sd_broken_timer > 0 else "SIMPLE DOMAIN"
+            sd_color_s = (0, 255, 255) if self.sukuna.sd_broken_timer == 0 else (100, 100, 100)
+            self.draw_bar_on(render_surf, WIDTH - 335, 145, max(0, 300 - self.sukuna.sd_hits), 300, sd_color_s, 310, 6, sd_label_s)
 
             da_cd = f"DOMAIN AMP: {'ACT' if (self.sukuna.amp_duration>0) else 'RDY' if self.sukuna.amp_cd == 0 else str(self.sukuna.amp_cd//60)+'s'}"
             di_cd = f"DISMANTLE: {'RDY' if self.sukuna.dismantle_cd == 0 else str(self.sukuna.dismantle_cd//60)+'s'}"
@@ -2191,23 +2226,23 @@ class Game:
                 fu_cd = f"FUGA: {fu_status}"
             sd_cd = f"SHRINE: {'BURN' if self.sukuna.technique_burnout > 0 else 'ACT' if self.sukuna.domain_active else 'RDY' if self.sukuna.domain_cd==0 else str(self.sukuna.domain_cd//60)+'s'}"
 
-            # Render Domain Amp in Yellow
+            # Render Domain Amp in Yellow (Shifted down)
             da_txt = self.mini_font.render(da_cd, True, (255, 255, 0))
-            render_surf.blit(da_txt, (WIDTH - 335, 150))
+            render_surf.blit(da_txt, (WIDTH - 335, 170))
             
             # Render the rest of the slashes next to it
             slash_str = f" | {di_cd} | {cl_cd}"
             slash_txt = self.mini_font.render(slash_str, True, (255, 150, 150))
-            render_surf.blit(slash_txt, (WIDTH - 335 + da_txt.get_width(), 150))
+            render_surf.blit(slash_txt, (WIDTH - 335 + da_txt.get_width(), 170))
 
-            render_surf.blit(self.mini_font.render(f"{fu_cd} | {sd_cd}", True, WHITE), (WIDTH - 335, 170))
+            render_surf.blit(self.mini_font.render(f"{fu_cd} | {sd_cd}", True, WHITE), (WIDTH - 335, 190))
 
             # 3. Mahoraga HUD (Extension of Sukuna's Box)
             if self.mahoraga and self.mahoraga.hp > 0:
-                self.draw_bar_on(render_surf, WIDTH - 335, 215, self.mahoraga.hp, self.mahoraga.max_hp, MAHO_COLOR, 310, 8, "MAHORAGA")
+                self.draw_bar_on(render_surf, WIDTH - 335, 235, self.mahoraga.hp, self.mahoraga.max_hp, MAHO_COLOR, 310, 8, "MAHORAGA")
                 ad_txt = f"ADAPT: {self.mahoraga.adapting_to.upper() if self.mahoraga.adapting_to else 'NONE'}"
                 if self.sukuna.world_slash_unlocked: ad_txt = "WORLD SLASH BLUEPRINT ACQUIRED!"
-                render_surf.blit(self.mini_font.render(ad_txt, True, (255, 255, 150)), (WIDTH - 335, 230))
+                render_surf.blit(self.mini_font.render(ad_txt, True, (255, 255, 150)), (WIDTH - 335, 250))
                 
                 # Tiny text for adaptation percentages to avoid overlap
                 p_p = int((1.0 - self.mahoraga.adaptation["punch"]) * 100)
@@ -2219,7 +2254,7 @@ class Game:
                 sm_txt = f"PN:{p_p}% BL:{b_p}% RD:{r_p}% PR:{pu_p}% IN:{i_p}% VD:{v_p}%"
                 
                 # Render using a slightly smaller system font for layout safety
-                render_surf.blit(pygame.font.SysFont("Impact", 13).render(sm_txt, True, WHITE), (WIDTH - 335, 250))
+                render_surf.blit(pygame.font.SysFont("Impact", 13).render(sm_txt, True, WHITE), (WIDTH - 335, 270))
 
             # 4. Center Announcements (Mahoraga Full Adaptations)
             y_offset = HEIGHT // 2 - 150
