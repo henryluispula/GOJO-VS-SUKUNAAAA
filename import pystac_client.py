@@ -1716,7 +1716,7 @@ class Game:
                             purple_dmg = (p_target.max_hp * dmg_perc)
                             
                             if p_target.name == "Mahoraga":
-                                purple_dmg *= p_target.adaptation["purple"] * 0.75
+                                purple_dmg *= p_target.adaptation["purple"] 
                             elif p_target.name == "Sukuna" and p_target.amp_duration > 0:
                                 # DA partially absorbs Purple (40% reduction, less than Red/Blue because Purple is imaginary mass)
                                 purple_dmg *= 0.6 
