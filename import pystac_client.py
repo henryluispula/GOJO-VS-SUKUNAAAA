@@ -164,11 +164,11 @@ class Fighter:
     def __init__(self, x, y, name, color=CLOTHES):
         self.rect = pygame.Rect(x, y, 70, 160)
         self.name = name
-        self.max_hp = 500 if name == "Sukuna" else (150 if name == "Mahoraga" else 200)
+        self.max_hp = 500 if name == "Sukuna" else (480 if name == "Mahoraga" else 200)
         self.hp = self.max_hp
         self.prev_hp = self.hp # Track for blood effects
         # Start the fight with appropriate max cursed energy levels
-        self.energy = 3000 if name == "Sukuna" else (200 if name == "Gojo" else 150)
+        self.energy = 3000 if name == "Sukuna" else (200 if name == "Gojo" else 2800)
         self.infinity = 100 if name == "Gojo" else 0 
         
         # --- NEW: DODGE METER LOGIC ---
@@ -322,7 +322,7 @@ class Fighter:
         # === THESE NOW RUN EVEN WHEN GRABBED ===
         
         # Energy Regen
-        base_regen = 5.0 if self.name == "Gojo" else 2.5 if self.name == "Mahoraga" else 1.2
+        base_regen = 5.0 if self.name == "Gojo" else 0.8 if self.name == "Mahoraga" else 1.0
         regen_mult = 1.2 if self.potential_timer > 0 else 1.0
         
         # --- CE EXHAUSTION LOGIC ---
@@ -342,7 +342,7 @@ class Fighter:
             if self.energy >= recovery_thresh:
                 self.ce_exhausted = False
         
-        max_energy = 3000 if self.name == "Sukuna" else (200 if self.name == "Gojo" else 150)
+        max_energy = 3000 if self.name == "Sukuna" else (200 if self.name == "Gojo" else 2800)
         self.energy = min(max_energy, self.energy + base_regen * regen_mult)
         
         # --- STAMINA EXHAUSTION LOGIC (Dodge Meter) ---
@@ -382,7 +382,7 @@ class Fighter:
 
         # Mahoraga RCT Buff
         if self.name == "Mahoraga" and self.rct_timer > 0:
-            self.hp = min(self.max_hp, self.hp + 0.8) 
+            self.hp = min(self.max_hp, self.hp + 1.2) 
 
         self.attack_cooldown = max(0, self.attack_cooldown - 1)
         self.dismantle_cd = max(0, self.dismantle_cd - 1)
@@ -882,6 +882,8 @@ class Game:
                                 # Sukuna's immense reinforcement gives him 20-50% passive damage reduction on normal attacks
                                 if target.name == "Sukuna":
                                     dmg *= random.uniform(0.5, 0.8)
+                                elif target.name == "Mahoraga":
+                                    dmg *= random.uniform(0.6, 0.85)
                                     
                                 target.hp -= dmg
                                 
@@ -903,7 +905,7 @@ class Game:
 
                     # RCT (Gojo)
                     if keys[pygame.K_q] and self.gojo.energy > 5 * self.gojo.cost_mult:
-                        self.gojo.hp = min(200, self.gojo.hp + 0.5)
+                        self.gojo.hp = min(200, self.gojo.hp + 1.5)
                         self.gojo.energy -= 2 * self.gojo.cost_mult
                         self.gojo.rct_timer = 5
 
@@ -1290,7 +1292,7 @@ class Game:
                         f.prev_energy = f.energy # Capture before change
                         
                         # REGEN LOGIC
-                        base_regen = 5.0 if f.name == "Gojo" else 2.5 if f.name == "Mahoraga" else 1.2
+                        base_regen = 5.0 if f.name == "Gojo" else 0.8 if f.name == "Mahoraga" else 1.0
                         regen_mult = 1.2 if f.potential_timer > 0 else 1.0
                         
                         # --- CE EXHAUSTION LOGIC (During Cinematic Stop) ---
@@ -1308,7 +1310,7 @@ class Game:
                             if f.energy >= recovery_thresh:
                                 f.ce_exhausted = False
                                 
-                        max_energy = 1500 if f.name == "Sukuna" else (200 if f.name == "Gojo" else 150)
+                        max_energy = 3000 if f.name == "Sukuna" else (200 if f.name == "Gojo" else 2800)
                         f.energy = min(max_energy, f.energy + base_regen * regen_mult)
                         
                             
@@ -1366,8 +1368,8 @@ class Game:
                         self.clash_decision_timer -= 1
                         
                         # --- SWEET SPOT LOGIC ---
-                        # The window is only open when the timer is between 1 and 4 frames remaining.
-                        is_sweet_spot = 1 <= self.clash_decision_timer <= 4
+                        # The window is only open when the timer is between 1 and 5 frames remaining.
+                        is_sweet_spot = 1 <= self.clash_decision_timer <= 5
                         
                         # Check inputs, but ONLY if they haven't already failed this clash!
                         if keys[pygame.K_z] and keys[pygame.K_v] and not getattr(self, "clash_failed", False):
@@ -1379,9 +1381,9 @@ class Game:
                                     "y": self.gojo.rect.centery - 100, 
                                     "timer": 60, 
                                     "text": "CRITICAL SHRINK!", 
-                                    "color": (0, 255, 255) # Cyan for a "perfect" hit
+                                    "color": (0, 255, 255) 
                                 })
-                            elif self.clash_decision_timer > 4:
+                            elif self.clash_decision_timer > 5: # <--- CHANGE THIS TO 5
                                 # They pressed too early! Lock them out of the sweet spot for this clash.
                                 self.clash_failed = True
                                 self.popups.append({
@@ -1397,14 +1399,26 @@ class Game:
                             self.clash_resolved = True
                             
                             # Power calculation logic
-                            gojo_power = self.gojo.hp + self.gojo.energy + (1000 if getattr(self.gojo, "domain_shrunk", False) else 0)
-                            sukuna_power = self.sukuna.hp + self.sukuna.energy
+                            # Gojo gets a massive but RANDOM boost for shrinking the domain (no guaranteed win!)
+                            shrink_bonus = random.randint(2000, 3400) if getattr(self.gojo, "domain_shrunk", False) else 0
+                            gojo_power = self.gojo.hp + self.gojo.energy + shrink_bonus
+                            
+                            # Sukuna's raw power, plus a tiny random variance to keep clashes unpredictable
+                            sukuna_power = self.sukuna.hp + self.sukuna.energy + random.randint(0, 500)
+                            
+                            # --- NEW: SAVE POWERS FOR THE HUD ---
+                            self.gojo_clash_power = int(gojo_power)
+                            self.sukuna_clash_power = int(sukuna_power)
+                            self.clash_power_timer = 120 # Keeps the numbers on the HUD for 2 seconds
+                            
+                            print(f"[DOMAIN CLASH] Gojo Power: {self.gojo_clash_power} vs Sukuna Power: {self.sukuna_clash_power}")
                             
                             if gojo_power >= sukuna_power:
                                 self.clash_winner = "GOJO WINS CLASH!"
                                 self.sukuna.end_domain()
                                 self.sukuna.domain_cd = 3000
                                 self.sukuna.technique_burnout = 720
+                            else: # <--- THIS 'ELSE' WAS MISSING!
                                 self.clash_winner = "SUKUNA WINS CLASH!"
                                 self.gojo.end_domain()
                                 self.gojo.domain_cd = 3000
@@ -1433,7 +1447,7 @@ class Game:
                                 ideal_x = self.sukuna.rect.centerx - 70
                             else:
                                 ideal_x = self.sukuna.rect.centerx + 70
-                        elif abs(self.gojo.rect.centerx - self.sukuna.rect.centerx) < 800:
+                        elif abs(self.gojo.rect.centerx - self.sukuna.rect.centerx) < 8000:
                             # Gojo is getting close to Sukuna, rush him to attack!
                             ideal_x = self.gojo.rect.centerx
                         else:
@@ -1444,8 +1458,8 @@ class Game:
                                 ideal_x = self.sukuna.rect.centerx + 120
 
                         # Move relentlessly towards the ideal protection position
-                        if abs(self.mahoraga.rect.centerx - ideal_x) > 38:
-                            self.mahoraga.rect.x += -38 if self.mahoraga.rect.centerx > ideal_x else 38
+                        if abs(self.mahoraga.rect.centerx - ideal_x) > 42:
+                            self.mahoraga.rect.x += -42 if self.mahoraga.rect.centerx > ideal_x else 42
                         # ------------------------------------
                         
                         if abs(self.mahoraga.rect.centerx - self.gojo.rect.centerx) > 150:
@@ -1468,7 +1482,7 @@ class Game:
                         if self.gojo.rect.colliderect(self.mahoraga.rect) and self.mahoraga.attack_cooldown == 0:
                             self.mahoraga.punch_timer = 20 
                             self.mahoraga.punch_count += 1
-                            base_dmg = 5.0 
+                            base_dmg = 9.5 
 
                             # Black Flash Trigger Logic
                             # Mahoraga (Lore Accuracy): 0.1% (0.001). Zone: 15% (0.15)
@@ -1506,8 +1520,8 @@ class Game:
                             self.mahoraga.attack_cooldown = 12
                             
                         # LORE ACCURACY: Mahoraga's intense passive regeneration
-                        if self.mahoraga.hp < 75 and self.mahoraga.energy > 5 * self.mahoraga.cost_mult and not self.mahoraga.ce_exhausted:
-                            self.mahoraga.hp = min(self.mahoraga.max_hp, self.mahoraga.hp + 0.8) # Increased from 0.4, stacks with physics regen
+                        if self.mahoraga.hp < 300 and self.mahoraga.energy > 5 * self.mahoraga.cost_mult and not self.mahoraga.ce_exhausted:
+                            self.mahoraga.hp = min(self.mahoraga.max_hp, self.mahoraga.hp + 1.8) # Further increased for massive survivability
                             self.mahoraga.energy -= 1.0 * self.mahoraga.cost_mult
                             self.mahoraga.rct_timer = 5
 
@@ -1624,6 +1638,8 @@ class Game:
                                 if p_target.name == "Sukuna":
                                     if p_target.amp_duration > 0: orb_dmg *= 0.2 
                                     orb_dmg *= random.uniform(0.5, 0.8) # Passive 20-50% reduction
+                                elif p_target.name == "Mahoraga":
+                                    orb_dmg *= 0.75
                                     
                                 if not p_target.is_dodging:
                                     p_target.hp -= orb_dmg
@@ -1661,6 +1677,8 @@ class Game:
                                 if p_target.name == "Sukuna":
                                     if p_target.amp_duration > 0: orb_dmg *= 0.3 
                                     orb_dmg *= random.uniform(0.5, 0.8) # Passive 20-50% reduction
+                                elif p_target.name == "Mahoraga":
+                                    orb_dmg *= 0.75
                                     
                                 if not p_target.is_dodging:
                                     p_target.hp -= orb_dmg
@@ -1698,7 +1716,7 @@ class Game:
                             purple_dmg = (p_target.max_hp * dmg_perc)
                             
                             if p_target.name == "Mahoraga":
-                                purple_dmg *= p_target.adaptation["purple"]
+                                purple_dmg *= p_target.adaptation["purple"] * 0.75
                             elif p_target.name == "Sukuna" and p_target.amp_duration > 0:
                                 # DA partially absorbs Purple (40% reduction, less than Red/Blue because Purple is imaginary mass)
                                 purple_dmg *= 0.6 
@@ -1800,7 +1818,7 @@ class Game:
                 self.mahoraga_summon_timer -= 1
                 if self.mahoraga_summon_timer == 1:
                     self.mahoraga = Fighter(self.sukuna.rect.x - 100, WORLD_HEIGHT - 300, "Mahoraga", MAHO_COLOR)
-                    self.mahoraga.hp = 150
+                    self.mahoraga.hp = 480
 
             # --- SCREEN SHAKE ---
             display_offset = (0,0)
@@ -2112,8 +2130,8 @@ class Game:
             # --- HUD: CLASH TIMER & SHRINK PROMPT ---
             if getattr(self, "clash_decision_timer", 0) > 0:
                 # 1. Draw Prompt (Changes text and color based on the sweet spot!)
-                prompt_text = "WAIT..." if self.clash_decision_timer > 4 else "SHRINK NOW!"
-                prompt_color = (255, 100, 100) if self.clash_decision_timer > 4 else (0, 255, 255)
+                prompt_text = "WAIT..." if self.clash_decision_timer > 5 else "SHRINK NOW!" # <--- CHANGE TO 5
+                prompt_color = (255, 100, 100) if self.clash_decision_timer > 5 else (0, 255, 255) # <--- CHANGE TO 5
                 
                 # If they failed, display a locked out message
                 if getattr(self, "clash_failed", False):
@@ -2125,7 +2143,7 @@ class Game:
 
                 # 2. Draw the Progress Bar directly into the HUD
                 bar_w, bar_h = 400, 25
-                clash_window = 30 # Matches the new fast window
+                clash_window = 30 
                 
                 fill_w = int((self.clash_decision_timer / clash_window) * bar_w)
                 bx, by = WIDTH//2 - bar_w//2, 120
@@ -2134,8 +2152,8 @@ class Game:
                 pygame.draw.rect(render_surf, (0, 0, 0), (bx - 4, by - 4, bar_w + 8, bar_h + 8))
                 pygame.draw.rect(render_surf, (30, 30, 30), (bx, by, bar_w, bar_h))            
                 
-                # Draw the "Sweet Spot" Zone visually on the bar (The last 4 frames)
-                sweet_spot_w = int((4 / clash_window) * bar_w)
+                # Draw the "Sweet Spot" Zone visually on the bar (The last 5 frames)
+                sweet_spot_w = int((5 / clash_window) * bar_w) # <--- CHANGE THIS TO 5
                 pygame.draw.rect(render_surf, (0, 150, 150), (bx, by, sweet_spot_w, bar_h))
 
                 # White Fill (The shrinking timer)
@@ -2174,7 +2192,8 @@ class Game:
                     render_surf.blit(scaled_shadow, (txt_x + 4, txt_y + 4))
                     render_surf.blit(scaled_txt, (txt_x, txt_y))
 
-            # --- DOMAIN CLASH VISUAL ---
+            # --- DOMAIN CLASH VISUAL & POWER ANNOUNCEMENT ---
+            # 1. Draw the "Who Wins" text
             if self.clash_msg_timer > 0:
                 self.clash_msg_timer -= 1
                 clash_txt = self.font.render(self.clash_winner, True, WHITE)
@@ -2182,6 +2201,32 @@ class Game:
                 clash_bg.fill((0, 0, 0, 180))
                 render_surf.blit(clash_bg, (WIDTH//2 - clash_bg.get_width()//2, HEIGHT//2 - 100))
                 render_surf.blit(clash_txt, (WIDTH//2 - clash_txt.get_width()//2, HEIGHT//2 - 90))
+
+            # 2. Draw the Exact Power Numbers in the upper HUD
+            if getattr(self, "clash_power_timer", 0) > 0:
+                self.clash_power_timer -= 1
+                
+                # Colors based on who had the higher number
+                g_color = (0, 255, 255) if self.gojo_clash_power >= self.sukuna_clash_power else (150, 150, 150)
+                s_color = RED if self.sukuna_clash_power > self.gojo_clash_power else (150, 150, 150)
+                
+                g_txt = self.font.render(f"GOJO: {self.gojo_clash_power}", True, g_color)
+                vs_txt = self.font.render(" VS ", True, WHITE)
+                s_txt = self.font.render(f"SUKUNA: {self.sukuna_clash_power}", True, s_color)
+                
+                # Calculate positions to center them dynamically
+                total_w = g_txt.get_width() + vs_txt.get_width() + s_txt.get_width() + 40
+                start_x = WIDTH // 2 - total_w // 2
+                
+                # Draw a sleek background box at Y=80 (Right where the rhythm bar was!)
+                bg_rect = pygame.Rect(start_x - 20, 80, total_w + 40, 50)
+                pygame.draw.rect(render_surf, (20, 20, 25), bg_rect, border_radius=10)
+                pygame.draw.rect(render_surf, WHITE, bg_rect, 2, border_radius=10)
+                
+                # Blit the text inside the box
+                render_surf.blit(g_txt, (start_x, 90))
+                render_surf.blit(vs_txt, (start_x + g_txt.get_width() + 20, 90))
+                render_surf.blit(s_txt, (start_x + g_txt.get_width() + vs_txt.get_width() + 40, 90))
 
             # --- HUD: REVERTED TO CLEANER BOX STYLE ---
             # 1. Gojo HUD (Top Left)
