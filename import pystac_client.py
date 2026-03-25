@@ -275,6 +275,12 @@ class Fighter:
         self.punch_count = 0 # Track alternating arms
         self.world_slash_unlocked = False # LORE: Sukuna's ultimate counter to Infinity
         self.grab_timer = 0
+        self.grab_cd = 0
+
+        # --- NEW: DEV OPTIONS ---
+        self.dev_immortal = False
+        self.dev_inf_ce = False
+        self.dev_inf_infinity = False
         
         # --- NEW: Domain Mechanics ---
         self.domain_active = False
@@ -333,14 +339,17 @@ class Fighter:
     def update_physics(self):
         if self.is_split: return
 
-        # # --- DEV OPTIONS: GOD MODE, NO COOLDOWNS, INFINITE CE, PURPLE UNLOCKED ---
-        # # Simply add a '#' at the start of any line below to turn that specific cheat off!
-        # if self.name == "Gojo": 
-        #     self.hp = self.max_hp  # Unkillable Gojo
-        #     self.purple_cd = self.domain_cd = 0  # Zero Cooldowns
-        #     self.tech_hits = 500  # Hollow Purple is always unlocked
-        #     self.energy = 200  # Infinite Cursed Energy (needed to spam attacks!)
-        #     self.technique_burnout = 0 # Prevents burnout after Domain Expansion
+        # --- NEW: APPLY DEV OPTIONS (GOJO ONLY) ---
+        if self.name == "Gojo":
+            if getattr(self, "dev_immortal", False):
+                self.hp = self.max_hp
+            if getattr(self, "dev_inf_ce", False):
+                self.energy = 200 # Locks CE to maximum
+                self.ce_exhausted = False
+                
+            # --- FIXED: FORCE INFINITY TO 0 WHEN TOGGLED OFF ---
+            if getattr(self, "dev_disable_infinity", False):
+                self.infinity = 0 # Strips his barrier completely!
         
         # --- NEW: Domain Cooldowns & Burnouts ---
         self.domain_cd = max(0, self.domain_cd - 1)
@@ -427,8 +436,8 @@ class Fighter:
             if pt[2] <= 0:
                 self.trail_points.remove(pt)
         
-        # Gojo Infinity regen
-        if self.name == "Gojo" and self.infinity < 1000 and self.technique_burnout == 0:
+        # --- FIXED: Gojo Infinity regen (Now respects the Dev Toggle!) ---
+        if self.name == "Gojo" and self.infinity < 1000 and self.technique_burnout == 0 and not getattr(self, "dev_disable_infinity", False):
             cost = 0.1 * self.cost_mult
             if self.energy >= cost:
                 self.infinity = min(1000, self.infinity + 3.5) 
@@ -448,6 +457,7 @@ class Fighter:
         self.attack_cooldown = max(0, self.attack_cooldown - 1)
         self.dismantle_cd = max(0, self.dismantle_cd - 1)
         self.cleave_cd = max(0, self.cleave_cd - 1)
+        self.grab_cd = max(0, self.grab_cd - 1)
         self.blue_cd = max(0, self.blue_cd - 1)
         self.red_cd = max(0, self.red_cd - 1)
         self.purple_cd = max(0, self.purple_cd - 1)
@@ -527,29 +537,32 @@ class Fighter:
             surface.blit(sd_surf, (mid_x - 90, y + 80 - 90))
 
         if self.name == "Gojo":
-            # Infinity: Form-fitting spatial distortion outlining his exact body shape
-            alpha_base = max(0, min(255, int((self.infinity / 1000) * 150)))
-            if alpha_base > 0:
-                # Smooth pulsating distance - Increased for a noticeably larger aura
-                pulse = math.sin(t * 6) * 10
+            is_hit = self.hp < self.prev_hp or self.energy < self.prev_energy or self.grab_timer > 0
+            is_bypassed = (self.hp < self.prev_hp and self.energy >= self.prev_energy)
+
+            # --- NEW: Hide Infinity Aura during Domain Amplification holds! ---
+            if self.grab_timer > 0 and getattr(self, "grab_type", "") == "amp_punch":
+                is_bypassed = True # Force bypass state so the barrier doesn't draw
+
+            if is_hit and not is_bypassed:
+                alpha_base = 180 
+                pulse = math.sin(t * 20) * 15 
                 
-                # Enlarged temp surface so the big transparent layers blend beautifully
-                inf_surf = pygame.Surface((200, 260), pygame.SRCALPHA)
-                
-                for i in range(3): # 3 layers of spatial distortion
+                # We increase the surface height to 320 to ensure the feet aren't cut off
+                inf_surf = pygame.Surface((220, 320), pygame.SRCALPHA) 
+                for i in range(2): 
                     layer_alpha = int(alpha_base / (i + 1))
-                    thickness = int(pulse + 15 + (i * 10)) # Gets much wider
+                    thickness = int(pulse + 10 + (i * 5))
                     
-                    # Scaled coordinates mapped to his torso polygon
-                    poly = [(60, 70), (140, 70), (130, 160), (70, 160)]
+                    # EXTENDED POLYGON: 
+                    # Changed the last two points from 160 to 240 to reach the feet
+                    poly = [(60, 70), (140, 70), (135, 240), (65, 240)]
                     
-                    # Draw thick spatial outlines around his torso
-                    pygame.draw.polygon(inf_surf, (150 + i*30, 220, 255, layer_alpha), poly, thickness)
-                    # Draw thick spatial outlines around his head
-                    pygame.draw.circle(inf_surf, (200, 230, 255, layer_alpha), (100, 45), 35 + (thickness//2), thickness)
-                    
-                # Blit the aura offset so it centers perfectly on his body
-                surface.blit(inf_surf, (x - 65, y - 45))
+                    pygame.draw.polygon(inf_surf, (100, 200, 255, layer_alpha), poly, thickness)
+                    pygame.draw.circle(inf_surf, (150, 230, 255, layer_alpha), (110, 45), 35 + (thickness//2), thickness)
+                
+                # Blit it slightly higher to account for the longer surface
+                surface.blit(inf_surf, (x - 75, y - 55))
 
             if self.purple_charge > 0:
                 ct = (120 - self.purple_charge) / 120.0
@@ -656,7 +669,8 @@ class Fighter:
             
             # Outer shimmering cloak outline
             glow_rect = self.rect.inflate(15 + math.sin(t * 15) * 5, 15 + math.cos(t * 15) * 5)
-            pygame.draw.rect(surface, (150, 220, 255), glow_rect, 2, border_radius=15)
+            # --- CHANGED: Deleted the hard line border here! ---
+            
             # Very faint inner fill to give it volume
             amp_surf = pygame.Surface((glow_rect.width, glow_rect.height), pygame.SRCALPHA)
             pygame.draw.rect(amp_surf, (100, 150, 255, 40), amp_surf.get_rect(), border_radius=15)
@@ -746,29 +760,17 @@ class Fighter:
             pygame.draw.polygon(surface, MAHO_COLOR, [(mid_x + 20, y - 10), (mid_x + 50, y - 40), (mid_x + 20, y + 5)])
 
         if self.rct_timer > 0:
-            # Positive Energy (RCT): Smooth flowing, upward-lapping green/gold fire
-            for i in range(12):
-                # Math creates a seamless upward looping flow (0.0 to 1.0 progress)
-                flame_t = (t * 3 + i * 0.08) % 1.0 
-                
-                # Flames start wide at the bottom and taper into sharp points at the top
-                fw = int(35 * (1.0 - flame_t)) 
-                fh = int(50 * (1.0 - flame_t))
-                
-                # Sine wave gives them that flickering, swaying fire movement
-                fx = mid_x - (fw // 2) + math.sin(t * 8 + i) * 15 * flame_t
-                fy = (y + 150) - (flame_t * 130) # Rises from legs to chest
-                
-                # Fire blends from a hot white/gold core into positive green energy tips
-                if flame_t < 0.3:
-                    f_color = (255, 255, 200) # White-hot core
-                elif flame_t < 0.7:
-                    f_color = (150, 255, 150) # Light Green mid
-                else:
-                    f_color = (50, 200, 100)  # Dark Green tip
+            # Three distinct flowing streams: Left, Center, Right
+            offsets = [-35, 0, 35] 
+            for j, x_off in enumerate(offsets):
+                for i in range(5): # 4 sparks per stream
+                    # Smooth sine wave + upward modulo flow
+                    sx = mid_x + x_off + math.sin(t * 5 + i + j) * 15
+                    sy = (y + 160) - ((t * 80 + i * 40 + j * 20) % 150)
                     
-                pygame.draw.ellipse(surface, f_color, (fx, fy, fw, fh))
-                
+                    r_color = [(150, 255, 150), (255, 255, 200), (100, 255, 150)][(i+j) % 3]
+                    pygame.draw.circle(surface, r_color, (int(sx), int(sy)), 3)
+            
             self.rct_timer -= 1
 
         # Hair
@@ -853,6 +855,34 @@ class Game:
                         if event.key == pygame.K_SPACE: self.gojo.jump()
                         if event.key == pygame.K_LSHIFT or event.key == pygame.K_RSHIFT: self.gojo.dodge()
                         
+                        # --- NEW: GOJO DEV CONTROLS ---
+                        if event.key == pygame.K_1: 
+                            self.gojo.dev_immortal = not self.gojo.dev_immortal
+                            self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 120, "timer": 60, "text": f"IMMORTAL: {self.gojo.dev_immortal}", "color": HEAL_GREEN})
+                        
+                        if event.key == pygame.K_2:
+                            self.gojo.dev_inf_ce = not self.gojo.dev_inf_ce
+                            self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 120, "timer": 60, "text": f"INF CE: {self.gojo.dev_inf_ce}", "color": BLUE})
+                        
+                        if event.key == pygame.K_3:
+                            # Toggles the state between True and False
+                            self.gojo.dev_disable_infinity = not getattr(self.gojo, "dev_disable_infinity", False)
+                            
+                            # Give a clear popup so you know if it's OFF or NORMAL
+                            state_text = "OFF" if self.gojo.dev_disable_infinity else "NORMAL"
+                            self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 120, "timer": 60, "text": f"INFINITY: {state_text}", "color": INF_COLOR})
+                        
+                        if event.key == pygame.K_4:
+                            self.gojo.blue_cd = 0
+                            self.gojo.red_cd = 0
+                            self.gojo.purple_cd = 0
+                            self.gojo.domain_cd = 0
+                            self.gojo.technique_burnout = 0
+                            self.gojo.sd_broken_timer = 0
+                            self.gojo.attack_cooldown = 0
+                            self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 120, "timer": 60, "text": "COOLDOWNS RESET!", "color": WHITE})
+                        # ------------------------------
+
                         # Capture specific combo keys
                         if event.key == pygame.K_w: self.gojo_combo_buffer.append("W")
                         if event.key == pygame.K_s: self.gojo_combo_buffer.append("S")
@@ -902,7 +932,8 @@ class Game:
                 
                 # 1. BLUE POINT-BLANK (Warped Punch)
                 # Cost: 60 CE (3x Normal) | Cooldown: 300 frames (5 seconds)
-                if keys[pygame.K_e] and keys[pygame.K_w] and self.gojo.energy >= 60 * self.gojo.cost_mult and self.gojo.blue_cd == 0 and self.gojo.grab_timer <= 0:
+                # THE FIX: Added 'and self.gojo.technique_burnout == 0' to prevent usage during burnout
+                if keys[pygame.K_e] and keys[pygame.K_w] and self.gojo.energy >= 60 * self.gojo.cost_mult and self.gojo.blue_cd == 0 and self.gojo.grab_timer <= 0 and self.gojo.technique_burnout == 0:
                     self.gojo.energy -= 60 * self.gojo.cost_mult
                     self.gojo.blue_cd = 300 # 5 second cooldown
                     
@@ -929,8 +960,8 @@ class Game:
                     self.gojo_combo_buffer.clear()
                         
                 # 2. RED POINT-BLANK (Cleave Escape)
-                # Cost: 100 CE (2.5x Normal) | Cooldown: 240 frames (4 seconds)
-                elif keys[pygame.K_e] and keys[pygame.K_s] and self.gojo.energy >= 100 * self.gojo.cost_mult and self.gojo.red_cd == 0 and self.gojo.grab_timer > 0:
+                # THE FIX: Added 'and self.gojo.technique_burnout == 0' to prevent usage during burnout
+                elif keys[pygame.K_e] and keys[pygame.K_s] and self.gojo.energy >= 100 * self.gojo.cost_mult and self.gojo.red_cd == 0 and self.gojo.grab_timer > 0 and self.gojo.technique_burnout == 0:
                     self.gojo.grab_timer = 0
                     self.sukuna.grab_timer = 0
                     
@@ -942,11 +973,24 @@ class Game:
                     pb_red_dmg = 150.0
                     if self.sukuna.amp_duration > 0: pb_red_dmg *= 0.3 # DA absorbs 70%
                     self.sukuna.hp -= pb_red_dmg 
-                    self.sukuna.rect.x += 350 * self.gojo.direction 
+                    
+                    # --- FIXED: PUSH BOTH FIGHTERS AWAY FROM EACH OTHER ---
+                    push_force = 250
+                    if self.sukuna.rect.centerx > self.gojo.rect.centerx:
+                        self.sukuna.rect.x += push_force
+                        self.gojo.rect.x -= push_force
+                    else:
+                        self.sukuna.rect.x -= push_force
+                        self.gojo.rect.x += push_force
                     
                     self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 80, "timer": 45, "text": "REPELLED!", "color": RED})
                     
-                    red_burst = Projectile(self.sukuna.rect.centerx, self.sukuna.rect.centery, self.sukuna.rect.centerx, self.sukuna.rect.centery, 0, RED, size_mult=2.5, type="red_orb")
+                    # --- FIXED: SPAWN ORB EXACTLY IN THE MIDDLE ---
+                    mid_x = (self.gojo.rect.centerx + self.sukuna.rect.centerx) // 2
+                    mid_y = (self.gojo.rect.centery + self.sukuna.rect.centery) // 2
+                    
+                    # Increased size_mult to 3.0 so it looks like a massive point-blank explosion
+                    red_burst = Projectile(mid_x, mid_y, mid_x, mid_y, 0, RED, size_mult=3.0, type="red_orb")
                     red_burst.lifetime = 15 
                     self.projectiles.append(red_burst)
                     
@@ -982,8 +1026,12 @@ class Game:
                         if abs(self.gojo.rect.centerx - target.rect.centerx) < 130:
                             dmg = 6.5 * (target.adaptation["punch"] if target.name == "Mahoraga" else 1.0)
                             
-                            # Black Flash Trigger Logic
-                            bf_chance = 0.15 if self.gojo.potential_timer > 0 else 0.03
+                            # Black Flash Trigger Logic (Base: 0.5-1%, Zone: 5-10%)
+                            if self.gojo.potential_timer > 0:
+                                bf_chance = random.uniform(0.05, 0.10) # 5% to 10%
+                            else:
+                                bf_chance = random.uniform(0.005, 0.01) # 0.5% to 1%
+                                
                             if random.random() < bf_chance:
                                 dmg *= math.pow(2.5, 2.5) 
                                 self.gojo.black_flash_timer = 20
@@ -1165,11 +1213,9 @@ class Game:
                         is_amp = False
                     
                     # Turn DA on only if he is very close, not about to Fuga, and slashes are unavailable
-                    # TACTICAL FIX: Prioritize the Cleave Hold! Don't use DA if Cleave is ready to grab!
-                    # STRATEGIC AI: Inside UV, he MUST use DA to bypass Infinity and stay in contact with Gojo!
-                    # --- NEW: DO NOT activate DA if he is currently grabbing Gojo! ---
                     if dist <= 150 and self.sukuna.amp_cd == 0 and self.sukuna.amp_duration == 0 and self.sukuna.energy > 30 * self.sukuna.cost_mult and not fuga_priority and not self.sukuna.ce_exhausted and self.gojo.grab_timer <= 0:
-                        if self.sukuna.cleave_cd > 0 or self.gojo.domain_active:
+                        # --- CHANGED: Now checks grab_cd instead of cleave_cd ---
+                        if self.sukuna.grab_cd > 0 or self.gojo.domain_active:
                             self.sukuna.amp_duration = 600 
                             is_amp = True
                     
@@ -1209,7 +1255,7 @@ class Game:
                     if self.sukuna.fuga_charge > 0:
                         self.sukuna.fuga_charge -= 1
                         if self.sukuna.fuga_charge == 1:
-                            self.projectiles.append(Projectile(self.sukuna.rect.centerx, self.sukuna.rect.centery, self.gojo.rect.centerx, self.gojo.rect.centery, 28, (255, 100, 0), size_mult=2.5, type="fuga_arrow"))
+                            self.projectiles.append(Projectile(self.sukuna.rect.centerx, self.sukuna.rect.centery, self.gojo.rect.centerx, self.gojo.rect.centery, 28, (255, 100, 0), size_mult=3.5, type="fuga_arrow"))
                             
                             # --- FIXED: Now matches Purple's 195 CE cost! ---
                             fuga_cost = 195 * self.sukuna.cost_mult
@@ -1236,13 +1282,55 @@ class Game:
                             self.sukuna.energy -= dismantle_cost
                             print(f"[Sukuna CE Log] Dismantle consumed: {dismantle_cost:.2f} CE")
                             self.sukuna.dismantle_cd = 40
-                        # --- LORE ACCURACY: TACTICAL CLEAVE "HOLD" ---
-                        elif self.sukuna.rect.colliderect(self.gojo.rect) and self.sukuna.cleave_cd <= 0:
-                            if self.sukuna.energy >= 15 * self.sukuna.cost_mult:
-                                # LORE MECHANIC: Sukuna must drop Domain Amp to cast his Innate Technique.
-                                # The moment this happens, Infinity instantly re-activates between them.
-                                self.sukuna.amp_duration = 0 
-                                is_amp = False
+                        # --- LORE ACCURACY: TACTICAL HOLD DECISION ---
+                        elif self.sukuna.rect.colliderect(self.gojo.rect) and self.sukuna.grab_cd <= 0:
+                            is_burned_out = (self.gojo.domain_uses >= 3 and self.gojo.technique_burnout > 0)
+                            has_infinity = self.gojo.infinity > 0 and self.gojo.energy > 0 and not is_burned_out
+                            
+                            if has_infinity:
+                                # HOLD 1: Domain Amp Beatdown (Infinity is UP)
+                                if self.sukuna.energy >= 15 * self.sukuna.cost_mult:
+                                    self.sukuna.amp_duration = max(self.sukuna.amp_duration, 300) 
+                                    is_amp = True
+                                    
+                                    self.gojo.grab_timer = 300
+                                    self.gojo.grab_type = "amp_punch" 
+                                    self.gojo.purple_charge = 0
+                                    self.gojo.domain_charge = 0
+                                    
+                                    self.popups.append({"x": self.sukuna.rect.centerx, "y": self.sukuna.rect.centery - 80, "timer": 45, "text": "DA BEATDOWN!", "color": (255, 255, 0)})
+                                    
+                                    self.gojo.rect.centerx = self.sukuna.rect.centerx + (40 * self.sukuna.direction)
+                                    self.gojo.rect.centery = self.sukuna.rect.centery
+                                    
+                                    self.sukuna.energy -= 15 * self.sukuna.cost_mult
+                                    self.sukuna.grab_cd = 450 # FIXED: Cleave HUD stays ready!
+                            else:
+                                # HOLD 2: Cleave Dismemberment (Infinity is DOWN)
+                                if self.sukuna.energy >= 30 * self.sukuna.cost_mult and self.sukuna.cleave_cd <= 0: 
+                                    self.sukuna.amp_duration = 0 
+                                    is_amp = False
+                                    
+                                    self.gojo.grab_timer = 300
+                                    self.gojo.grab_type = "cleave" 
+                                    self.gojo.purple_charge = 0
+                                    self.gojo.domain_charge = 0
+                                    
+                                    self.popups.append({"x": self.sukuna.rect.centerx, "y": self.sukuna.rect.centery - 80, "timer": 45, "text": "CLEAVE!", "color": RED})
+                                    
+                                    self.gojo.rect.centerx = self.sukuna.rect.centerx + (40 * self.sukuna.direction)
+                                    self.gojo.rect.centery = self.sukuna.rect.centery
+                                    
+                                    # Spawn Visual Cleave strictly on Gojo
+                                    p = Projectile(self.gojo.rect.centerx, self.gojo.rect.centery, self.gojo.rect.centerx, self.gojo.rect.centery, 1, RED, size_mult=4.0, type="cleave")
+                                    p.vel = pygame.Vector2(random.uniform(-1, 1), random.uniform(-1, 1)).normalize() * 0.1
+                                    p.lifetime = 300
+                                    p.is_grab_cleave = True 
+                                    self.projectiles.append(p)
+
+                                    self.sukuna.energy -= 30 * self.sukuna.cost_mult
+                                    self.sukuna.cleave_cd = 450
+                                    self.sukuna.grab_cd = 450 # Both go on cooldown
                                 # 1. ONLY Gojo gets the 5-second (300 frames) stun. Sukuna is free to drag him!
                                 self.gojo.grab_timer = 300
                                 self.gojo.purple_charge = 0
@@ -1305,14 +1393,21 @@ class Game:
                             self.sukuna.punch_count += 1
                             melee_dmg = 7.5
                             
-                            # Black Flash Trigger Logic
-                            bf_chance = 0.15 if self.sukuna.potential_timer > 0 else 0.03
+                            # Black Flash Trigger Logic (Base: 0.5-1%, Zone: 5-10%)
+                            if self.sukuna.potential_timer > 0:
+                                bf_chance = random.uniform(0.05, 0.10) # 5% to 10%
+                            else:
+                                bf_chance = random.uniform(0.005, 0.01) # 0.5% to 1%
+                                
                             if random.random() < bf_chance:
                                 melee_dmg *= math.pow(2.5, 2.5) 
                                 self.sukuna.black_flash_timer = 20
                                 self.sukuna.potential_timer = 600 # 10s duration
                                 self.shake_timer = 15
-                                self.sukuna.energy = 800 
+                                
+                                ce_recovery = 3000 * 0.20 
+                                self.sukuna.energy = min(3000, self.sukuna.energy + ce_recovery) 
+                                
                                 self.bf_words.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 60, "timer": 45})
                                 
                             if is_amp:
@@ -1445,11 +1540,39 @@ class Game:
                     for f in active_fighters:
                         if f: f.prev_energy = f.energy
                     
-                    # --- NEW: CONTINUOUS GRAB CLEAVE DAMAGE & DRAGGING ---
+                    # --- NEW: CONTINUOUS GRAB DAMAGE & DRAGGING ---
                     if self.gojo.grab_timer > 0:
                         # Force Gojo to follow Sukuna's hand, dragging him across the map
                         self.gojo.rect.centerx = self.sukuna.rect.centerx + (40 * self.sukuna.direction)
                         self.gojo.rect.centery = self.sukuna.rect.centery
+                        
+                        # Identify which hold is currently active
+                        grab_type = getattr(self.gojo, "grab_type", "cleave")
+                        
+                        if grab_type == "amp_punch":
+                            # LORE MECHANIC: Domain Amplification neutralizes Infinity.
+                            # Sukuna violently pummels Gojo, directly damaging his HP while maintaining the hold!
+                            self.sukuna.amp_duration = max(self.sukuna.amp_duration, 10) # Ensure DA stays locked ON
+                            
+                            # Deal steady melee damage directly to HP
+                            self.gojo.hp -= 0.3 
+                            self.sukuna.tech_hits = min(500, self.sukuna.tech_hits + 0.3)
+                            
+                            # Visual: Rapid brutal punches and hit sparks!
+                            if self.gojo.grab_timer % 8 == 0:
+                                self.shake_timer = 4
+                                spark_color = WHITE if random.random() < 0.5 else RED
+                                for _ in range(5):
+                                    self.hit_sparks.append([self.gojo.rect.centerx + random.randint(-15, 15), self.gojo.rect.centery + random.randint(-20, 20), random.uniform(-8, 8), random.uniform(-8, 8), random.randint(15, 30), spark_color])
+                                    
+                        elif grab_type == "cleave":
+                            # LORE MECHANIC: Infinity is down. Cleave shreds flesh mercilessly!
+                            self.gojo.hp -= 0.4 # Adds up to exactly 120 damage over 300 frames
+                            self.sukuna.tech_hits = min(500, self.sukuna.tech_hits + 0.5) 
+                            
+                            if self.gojo.grab_timer % 10 == 0:
+                                self.shake_timer = 5
+                                self.blood_particles.append([self.gojo.rect.centerx, self.gojo.rect.centery, random.uniform(-5, 5), random.uniform(-5, 0), 30, random.randint(3, 6)])
                         
                         # LORE MECHANIC: Because Sukuna dropped DA, Infinity is active. 
                         # Cleave grinds against the spatial barrier, violently shredding Gojo's CE reserves!
@@ -1609,14 +1732,21 @@ class Game:
                             self.mahoraga.punch_count += 1
                             base_dmg = 4.5
 
-                            # Black Flash Trigger Logic
-                            # Mahoraga (Lore Accuracy): 0.1% (0.001). Zone: 15% (0.15)
-                            bf_chance = 0.15 if self.mahoraga.potential_timer > 0 else 0.001
+                            # Black Flash Trigger Logic 
+                            # Mahoraga Scale (Base: 0.1%, Zone: 1-2%)
+                            if self.mahoraga.potential_timer > 0:
+                                bf_chance = random.uniform(0.01, 0.02) # 1% to 2%
+                            else:
+                                bf_chance = 0.001 # 0.1% flat base
+                                
                             if random.random() < bf_chance:
                                 base_dmg *= math.pow(2.5, 2.5)
                                 self.mahoraga.black_flash_timer = 20
                                 self.shake_timer = 15
-                                self.mahoraga.energy = 150 
+                                
+                                ce_recovery = 2800 * 0.20
+                                self.mahoraga.energy = min(2800, self.mahoraga.energy + ce_recovery)
+                                
                                 self.bf_words.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 60, "timer": 45})
                             
                             if not self.gojo.is_dodging:
@@ -1721,10 +1851,12 @@ class Game:
                     if self.mahoraga: self.mahoraga.is_paralyzed = False
                 
                 if self.sukuna.domain_active and not self.sukuna.is_paralyzed:
+                    # --- NEW: Rapidly auto-charge Fuga pool inside Domain! ---
+                    self.sukuna.tech_hits = min(500, self.sukuna.tech_hits + 2)
+                    
                     # Relentless slashes spawned instantly around Gojo
                     if self.sukuna.domain_timer % 8 == 0:
-                        # Indefinitely increase Fuga pool even if misses/blocked!
-                        self.sukuna.tech_hits = min(500, self.sukuna.tech_hits + 2) 
+                        self.sukuna.tech_hits = min(500, self.sukuna.tech_hits + 2)
                         
                         # --- FIX: Spawn sure-hits directly ON Gojo with low speed so they can't clip through him! ---
                         sx = self.gojo.rect.centerx + random.randint(-40, 40)
@@ -1751,9 +1883,23 @@ class Game:
 
                     if p.type == "blue_orb":
                         if dist_to_orb < 600:
+                            # --- NEW: Mahoraga actively adapts to the pull force! ---
+                            if p_target.name == "Mahoraga" and self.sukuna.amp_duration <= 0:
+                                p_target.trigger_adaptation("blue", 1.0)
+                                turns = p_target.adaptation_points["blue"] / 250.0
+                                p_target.adaptation["blue"] = max(0, 1.0 - min(1.0, turns / 4.0))
+
                             if not p_target.is_dodging:
-                                pull_factor = 0.85 * (p_target.adaptation["blue"] if p_target.name == "Mahoraga" else 1.0)
-                                p_target.rect.x += (p.pos.x - p_target.rect.centerx) * pull_factor
+                                # --- THE FIX: Absolute Pull Immunity for Mahoraga! ---
+                                if p_target.name == "Mahoraga" and p_target.adaptation["blue"] <= 0:
+                                    pull_factor = 0.0 # He is fully adapted, Blue cannot move him!
+                                else:
+                                    # Sukuna (or partially adapted Mahoraga) still gets pulled
+                                    pull_factor = 0.85 * (p_target.adaptation["blue"] if p_target.name == "Mahoraga" else 1.0)
+                                
+                                # Only apply the movement if the pull factor is actively greater than 0
+                                if pull_factor > 0:
+                                    p_target.rect.x += (p.pos.x - p_target.rect.centerx) * pull_factor
                             
                             if dist_to_orb < 250:
                                 if p_target.name == "Mahoraga" and self.sukuna.amp_duration <= 0:
@@ -1772,27 +1918,40 @@ class Game:
                                 if not p_target.is_dodging:
                                     p_target.hp -= orb_dmg
                                     if p_target.name in ["Sukuna", "Mahoraga"]: self.gojo.tech_hits = min(500, self.gojo.tech_hits + 1)
+                        
                         # --- NEW: Blue Pulls Sukuna's Slashes ---
                         for slash in self.projectiles:
-                            if slash.type in ["dismantle", "cleave"]: # Add "world_slash" here if you want it to be deflectable too!
+                            if slash.type in ["dismantle", "cleave"]:
                                 dist = p.pos.distance_to(slash.pos)
-                                if 0 < dist < 400: # If the slash is within 400 pixels
-                                    # Calculate direction towards the Blue orb
+                                if 0 < dist < 400:
                                     pull_dir = (p.pos - slash.pos).normalize()
                                     current_speed = slash.vel.length()
                                     
-                                    pull_force = current_speed * 0.65 # Adjust 0.25 to make it stronger/weaker
+                                    pull_force = current_speed * 0.65 
                                     slash.vel += pull_dir * pull_force
                                     
-                                    # Maintain original speed so it doesn't slow down or speed up
                                     if slash.vel.length() > 0:
                                         slash.vel.scale_to_length(current_speed)
 
                     elif p.type == "red_orb":
                         if dist_to_orb < 600:
+                            # --- NEW: Mahoraga actively adapts to the push force! ---
+                            if p_target.name == "Mahoraga" and self.sukuna.amp_duration <= 0:
+                                p_target.trigger_adaptation("red", 1.0)
+                                turns = p_target.adaptation_points["red"] / 250.0
+                                p_target.adaptation["red"] = max(0, 1.0 - min(1.0, turns / 4.0))
+
                             if not p_target.is_dodging:
-                                push_factor = 1.60 * (p_target.adaptation["red"] if p_target.name == "Mahoraga" else 1.0)
-                                p_target.rect.x -= (p.pos.x - p_target.rect.centerx) * push_factor
+                                # --- THE FIX: Absolute Push Immunity for Mahoraga! ---
+                                if p_target.name == "Mahoraga" and p_target.adaptation["red"] <= 0:
+                                    push_factor = 0.0 # He is fully adapted, Red cannot move him!
+                                else:
+                                    # Sukuna (or partially adapted Mahoraga) still gets pushed
+                                    push_factor = 1.60 * (p_target.adaptation["red"] if p_target.name == "Mahoraga" else 1.0)
+                                
+                                # Only apply the movement if the push factor is actively greater than 0
+                                if push_factor > 0:
+                                    p_target.rect.x -= (p.pos.x - p_target.rect.centerx) * push_factor
                             
                             if dist_to_orb < 250:
                                 if p_target.name == "Mahoraga" and self.sukuna.amp_duration <= 0:
@@ -1815,13 +1974,11 @@ class Game:
                         for slash in self.projectiles:
                             if slash.type in ["dismantle", "cleave"]:
                                 dist = p.pos.distance_to(slash.pos)
-                                if 0 < dist < 450: # Slightly larger deflection radius for Red
-                                    # Calculate direction AWAY from the Red orb
+                                if 0 < dist < 450: 
                                     push_dir = (slash.pos - p.pos).normalize()
                                     current_speed = slash.vel.length()
                                     
-                                    # Violently bend the trajectory away
-                                    push_force = current_speed * 0.85 # Red is traditionally more violent than Blue
+                                    push_force = current_speed * 0.85 
                                     slash.vel += push_dir * push_force
                                     
                                     if slash.vel.length() > 0:
@@ -1855,12 +2012,14 @@ class Game:
                     elif p.type == "fuga_arrow":
                         dist_x = abs(self.gojo.rect.centerx - p.pos.x)
                         dist_y = abs(self.gojo.rect.centery - p.pos.y)
-                        if dist_x < 180 and dist_y < 180: # Must physically escape this radius
+                        
+                        # --- CHANGED: Massively increased the blast radius from 180 to 350! ---
+                        if dist_x < 350 and dist_y < 350: 
                             # Fuga ignores I-frames (is_dodging is ignored here)
-                            if dist_x < 80 and dist_y < 80: # Direct Hit
-                                dmg_perc = random.uniform(0.50, 0.70)
-                            else: # Realistic Hit
-                                dmg_perc = random.uniform(0.20, 0.35)
+                            if dist_x < 120 and dist_y < 120: # Direct Hit center zone expanded
+                                dmg_perc = random.uniform(0.60, 0.85) # Buffed damage to match scale
+                            else: # Caught in the massive outer blast
+                                dmg_perc = random.uniform(0.25, 0.45)
                                 
                             fuga_hp_dmg = (self.gojo.max_hp * dmg_perc)
                             fuga_ce_dmg = (200 * dmg_perc) # Gojo's Max CE
@@ -1914,8 +2073,7 @@ class Game:
                                 is_burned_out = (self.gojo.domain_uses >= 3 and self.gojo.technique_burnout > 0)
                                 
                                 if self.gojo.infinity > 0 and self.gojo.energy > 0 and not is_burned_out: 
-                                    # Even if blocked, Sukuna gains progress toward Fuga
-                                    self.sukuna.tech_hits = min(500, self.sukuna.tech_hits + 1)
+                                    # --- CHANGED: Removed the tech_hits increase here! Slashes blocked by Infinity give NO Fuga progress. ---
                                     self.gojo.energy = max(0, self.gojo.energy - 0.5 * self.gojo.cost_mult) 
                                     p.active = False 
                                 else: 
@@ -2390,20 +2548,24 @@ class Game:
             self.draw_bar_on(render_surf, 25, 145, max(0, 38 - self.gojo.sd_hits), 38, sd_color_g, 310, 6, sd_label_g)
 
             # --- GOJO HUD LOGIC ---
-            b_cd = f"BLUE: {'' if self.gojo.blue_cd==0 else str(self.gojo.blue_cd//60)+'s'}"
-            r_cd = f"RED: {'' if self.gojo.red_cd==0 else str(self.gojo.red_cd//60)+'s'}"
+            # Define burnout state first so we can apply it to all techniques
+            is_burned_out = self.gojo.technique_burnout > 0 and self.gojo.domain_uses >= 3
+            
+            # THE FIX: Apply the 'BURN' state to Blue and Red text displays
+            b_cd = f"BLUE: {'BURN' if is_burned_out else 'RDY' if self.gojo.blue_cd==0 else str(self.gojo.blue_cd//60)+'s'}"
+            r_cd = f"RED: {'BURN' if is_burned_out else 'RDY' if self.gojo.red_cd==0 else str(self.gojo.red_cd//60)+'s'}"
             
             # --- FANCY PURPLE STATUS ---
-            p_status = "RDY" if self.gojo.purple_cd == 0 else f"{self.gojo.purple_cd//60}s"
+            p_status = "BURN" if is_burned_out else ("RDY" if self.gojo.purple_cd == 0 else f"{self.gojo.purple_cd//60}s")
             if self.gojo.tech_hits < 500:
                 p_label = f"PURPLE: LOCKED ({self.gojo.tech_hits}/500)"
                 p_color = (150, 150, 150) # Grey when locked
             else:
                 p_label = f"PURPLE: {p_status}"
-                p_color = (200, 100, 255) # Bright Purple when ready!
+                # If burned out, make it red to indicate an error state, otherwise bright purple
+                p_color = RED if is_burned_out else (200, 100, 255) 
 
-            # Domain Burnout logic (3-Domain Rule)
-            is_burned_out = self.gojo.technique_burnout > 0 and self.gojo.domain_uses >= 3
+            # Domain Burnout logic (Void)
             d_cd = f"VOID: {'BURN' if is_burned_out else 'ACT' if self.gojo.domain_active else 'RDY' if self.gojo.domain_cd==0 else str(self.gojo.domain_cd//60)+'s'}"
             use_txt = f"USES: {self.gojo.domain_uses}/3"
 
@@ -2433,18 +2595,30 @@ class Game:
             sd_color_s = (0, 255, 255) if self.sukuna.sd_broken_timer == 0 else (100, 100, 100)
             self.draw_bar_on(render_surf, WIDTH - 335, 145, max(0, 300 - self.sukuna.sd_hits), 300, sd_color_s, 310, 6, sd_label_s)
 
+            # --- SUKUNA HUD LOGIC ---
+            sukuna_is_burned_out = self.sukuna.technique_burnout > 0
+            
+            # Domain Amp can be used even during burnout in lore, so we leave it alone!
             da_cd = f"DOMAIN AMP: {'ACT' if (self.sukuna.amp_duration>0) else 'RDY' if self.sukuna.amp_cd == 0 else str(self.sukuna.amp_cd//60)+'s'}"
-            di_cd = f"DISMANTLE: {'RDY' if self.sukuna.dismantle_cd == 0 else str(self.sukuna.dismantle_cd//60)+'s'}"
-            cl_cd = f"CLEAVE: {'RDY' if self.sukuna.cleave_cd == 0 else str(self.sukuna.cleave_cd//60)+'s'}"
-            fu_status = "RDY" if self.sukuna.fuga_cd == 0 else f"{self.sukuna.fuga_cd//60}s"
+            
+            # Apply BURN status to his innate techniques
+            di_cd = f"DISMANTLE: {'BURN' if sukuna_is_burned_out else 'RDY' if self.sukuna.dismantle_cd == 0 else str(self.sukuna.dismantle_cd//60)+'s'}"
+            cl_cd = f"CLEAVE: {'BURN' if sukuna_is_burned_out else 'RDY' if self.sukuna.cleave_cd == 0 else str(self.sukuna.cleave_cd//60)+'s'}"
+            
+            # --- FANCY FUGA STATUS (Matches Gojo's Purple) ---
+            fu_status = "BURN" if sukuna_is_burned_out else ("RDY" if self.sukuna.fuga_cd == 0 else f"{self.sukuna.fuga_cd//60}s")
             if self.sukuna.tech_hits < 500:
-                fu_cd = f"FUGA: LOCKED ({self.sukuna.tech_hits}/500)"
+                fu_label = f"FUGA: LOCKED ({int(self.sukuna.tech_hits)}/500)"
+                fu_color = (150, 150, 150) # Grey when locked
             else:
-                fu_cd = f"FUGA: {fu_status}"
-            sd_cd = f"SHRINE: {'BURN' if self.sukuna.technique_burnout > 0 else 'ACT' if self.sukuna.domain_active else 'RDY' if self.sukuna.domain_cd==0 else str(self.sukuna.domain_cd//60)+'s'}"
+                fu_label = f"FUGA: {fu_status}"
+                # If burned out, make it red, otherwise bright orange
+                fu_color = RED if sukuna_is_burned_out else (255, 150, 50)
+                
+            sd_cd = f"SHRINE: {'BURN' if sukuna_is_burned_out else 'ACT' if self.sukuna.domain_active else 'RDY' if self.sukuna.domain_cd==0 else str(self.sukuna.domain_cd//60)+'s'}"
 
-            # Render Domain Amp in Yellow (Shifted down)
-            da_txt = self.mini_font.render(da_cd, True, (255, 255, 0))
+            # Render Domain Amp (Shifted down)
+            da_txt = self.mini_font.render(da_cd, True, (150, 220, 255))
             render_surf.blit(da_txt, (WIDTH - 335, 170))
             
             # Render the rest of the slashes next to it
@@ -2452,7 +2626,11 @@ class Game:
             slash_txt = self.mini_font.render(slash_str, True, (255, 150, 150))
             render_surf.blit(slash_txt, (WIDTH - 335 + da_txt.get_width(), 170))
 
-            render_surf.blit(self.mini_font.render(f"{fu_cd} | {sd_cd}", True, WHITE), (WIDTH - 335, 190))
+            # --- RENDER FUGA AND SHRINE ---
+            # Split Fuga and Shrine so Fuga can have dynamic colors like Purple!
+            fu_txt = self.mini_font.render(f"{fu_label} | ", True, fu_color)
+            render_surf.blit(fu_txt, (WIDTH - 335, 190))
+            render_surf.blit(self.mini_font.render(sd_cd, True, WHITE), (WIDTH - 335 + fu_txt.get_width(), 190))
 
             # 3. Mahoraga HUD (Extension of Sukuna's Box)
             if self.mahoraga and self.mahoraga.hp > 0:
