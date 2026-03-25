@@ -795,7 +795,7 @@ class Game:
                     # Damage: 15.0 (3x Base Punch)
                     self.sukuna.rect.centerx = self.gojo.rect.centerx + (50 * self.gojo.direction)
                     
-                    pb_blue_dmg = 45.0
+                    pb_blue_dmg = 80.0
                     if self.sukuna.amp_duration > 0: pb_blue_dmg *= 0.2 # DA absorbs 80%
                     self.sukuna.hp -= pb_blue_dmg 
                     
@@ -825,7 +825,7 @@ class Game:
                     self.gojo.tech_hits = min(500, self.gojo.tech_hits + 25) # Adds to Purple Pool
                     
                     # Damage: 30.0 (2x PB Blue)
-                    pb_red_dmg = 85.0
+                    pb_red_dmg = 150.0
                     if self.sukuna.amp_duration > 0: pb_red_dmg *= 0.3 # DA absorbs 70%
                     self.sukuna.hp -= pb_red_dmg 
                     self.sukuna.rect.x += 350 * self.gojo.direction 
