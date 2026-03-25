@@ -1842,10 +1842,21 @@ class Game:
                         self.popups.append({"x": fighter.rect.centerx, "y": fighter.rect.centery - 100, "timer": 45, "text": "DOMAIN INTERRUPTED!", "color": WHITE})
                     
                     # --- SUKUNA DOMAIN COLLAPSE MECHANIC ---
-                    if fighter.name == "Sukuna" and damage >= 20: # Severe damage check disrupts focus
+                    # Upgraded: Sukuna is extremely resilient. It now takes at least 60 damage 
+                    # in a single frame to even risk breaking his concentration!
+                    if fighter.name == "Sukuna" and damage >= 60: 
                         if fighter.domain_active:
-                            fighter.end_domain()
-                            self.shake_timer = 20 # Screen shakes as domain shatters
+                            # Lore Accuracy: 
+                            # If damage is utterly catastrophic (like PB Red > 120), 75% chance his domain breaks.
+                            # If it's a heavy hit (like PB Blue > 60), only a 30% chance it breaks.
+                            break_chance = 0.75 if damage >= 120 else 0.30 
+                            
+                            # Roll the dice to see if he loses focus!
+                            if random.random() < break_chance:
+                                fighter.end_domain()
+                                self.shake_timer = 20 # Screen shakes as domain shatters
+                                # Let's add a visual popup so you know exactly when it breaks!
+                                self.popups.append({"x": fighter.rect.centerx, "y": fighter.rect.centery - 100, "timer": 60, "text": "DOMAIN SHATTERED!", "color": WHITE})
                     
                     num_drops = min(int(damage * 1.5), 40) # Scale amount of blood to damage taken, capped at 40
                     for _ in range(num_drops):
