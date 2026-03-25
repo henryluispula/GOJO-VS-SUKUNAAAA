@@ -53,60 +53,80 @@ class Projectile:
             pygame.draw.polygon(screen, self.color, [p1, p2, p3])
             
         elif self.type in ["dismantle", "cleave", "world_slash"]:
-            # --- CONFIGURATION FOR CURVE ---
-            angle = math.atan2(self.vel.y, self.vel.x)
-            points = []
-            num_segments = 10  # More segments = smoother curve
-            arc_radius = 50 * self.size_mult
-            arc_sweep = math.radians(120) # Wider sweep for sharper, moon-like shape
-            
-            # 1. Generate the Outer Curve (Front of the blade)
-            for i in range(num_segments + 1):
-                # Map i to a range from -sweep/2 to +sweep/2
-                theta = (i / num_segments - 0.5) * arc_sweep
-                # Rotate the local coordinates by the projectile's movement angle
-                rel_x = math.cos(theta) * arc_radius
-                rel_y = math.sin(theta) * arc_radius
-                
-                # Final rotated position
-                p = self.pos + pygame.Vector2(rel_x, rel_y).rotate(math.degrees(angle))
-                points.append(p)
-
-            # 2. Generate the Inner Curve (Back of the blade - offset slightly)
-            # We iterate backwards to close the polygon correctly
-            for i in range(num_segments, -1, -1):
-                theta = (i / num_segments - 0.5) * arc_sweep
-                
-                # --- NEW: DYNAMIC THICKNESS CALCULATION ---
-                # Calculate how close this segment is to the center of the blade.
-                # 't' will be 0 at the exact middle, and 1 or -1 at the very tips.
-                t = (i / num_segments - 0.5) * 2.0 
-                
-                # A math curve that peaks at 1.0 in the middle and drops to 0.0 at the ends
-                thickness_curve = 1.0 - (t * t) 
-                
-                # --- ADJUST THESE VARIABLES TO YOUR LIKING ---
-                edge_thickness = 1.0  # Keeps the tips razor sharp
-                center_thickness = 6.0 # DECREASED from 14.0 for a much thinner, sleeker crescent!
-                
-                # Apply the curve to get our dynamic thickness for this specific point
-                current_thickness = (edge_thickness + (center_thickness * thickness_curve)) * self.size_mult
-                
-                # Inner radius uses our new dynamic thickness
-                rel_x = math.cos(theta) * (arc_radius - current_thickness)
-                rel_y = math.sin(theta) * (arc_radius - current_thickness)
-                
-                p = self.pos + pygame.Vector2(rel_x, rel_y).rotate(math.degrees(angle))
-                points.append(p)
-
-            # --- RENDERING ---
             poly_color = WHITE if self.type == "world_slash" else self.color
             base_color = BLACK if self.type == "world_slash" else (255, 100, 100)
-            
-            # Fill the crescent body
-            pygame.draw.polygon(screen, base_color, points)
-            # Draw the glowing edge (outline)
-            pygame.draw.polygon(screen, poly_color, points, 1)
+
+            if getattr(self, "is_grab_cleave", False):
+                # --- CLEAVE HOLD: MULTI-SLASH FLURRY VFX ---
+                num_flurry_slashes = 2 # Spawns 8 slashes every single frame
+                for _ in range(num_flurry_slashes):
+                    # Random center point around the victim's body
+                    cx = self.pos.x + random.uniform(-40, 40)
+                    cy = self.pos.y + random.uniform(-60, 60)
+                    
+                    # Length ranges from 120 to 180 (Averaging Sukuna's exact height of 160!)
+                    length = random.uniform(120, 180)
+                    angle = random.uniform(0, 360)
+                    
+                    # Calculate end points of the slash
+                    dx = math.cos(math.radians(angle)) * (length / 2)
+                    dy = math.sin(math.radians(angle)) * (length / 2)
+                    
+                    p1 = (int(cx - dx), int(cy - dy))
+                    p2 = (int(cx + dx), int(cy + dy))
+                    
+                    # Draw a thick dark red base and a bright white/red core
+                    pygame.draw.line(screen, (150, 0, 0), p1, p2, 8)
+                    pygame.draw.line(screen, (255, 100, 100), p1, p2, 3)
+                    pygame.draw.line(screen, WHITE, p1, p2, 1)
+                    
+                    # Spark flashes where the blade bites into the target
+                    if random.random() < 0.3:
+                        pygame.draw.circle(screen, WHITE, (int(cx), int(cy)), random.randint(4, 8))
+                        pygame.draw.circle(screen, (255, 50, 50), (int(cx), int(cy)), random.randint(8, 15), 2)
+                        
+            else:
+                # --- STANDARD SLASH VFX ---
+                angle = math.atan2(self.vel.y, self.vel.x)
+                points = []
+                num_segments = 10 
+                arc_radius = 50 * self.size_mult
+                arc_sweep = math.radians(120) 
+                
+                # 1. Generate Outer Curve
+                for i in range(num_segments + 1):
+                    theta = (i / num_segments - 0.5) * arc_sweep
+                    rel_x = math.cos(theta) * arc_radius
+                    rel_y = math.sin(theta) * arc_radius
+                    p = self.pos + pygame.Vector2(rel_x, rel_y).rotate(math.degrees(angle))
+                    points.append(p)
+
+                # 2. Generate Inner Curve
+                for i in range(num_segments, -1, -1):
+                    theta = (i / num_segments - 0.5) * arc_sweep
+                    t = (i / num_segments - 0.5) * 2.0 
+                    thickness_curve = 1.0 - (t * t) 
+                    
+                    edge_thickness = 1.0  
+                    center_thickness = 6.0 
+                    current_thickness = (edge_thickness + (center_thickness * thickness_curve)) * self.size_mult
+                    
+                    rel_x = math.cos(theta) * (arc_radius - current_thickness)
+                    rel_y = math.sin(theta) * (arc_radius - current_thickness)
+                    p = self.pos + pygame.Vector2(rel_x, rel_y).rotate(math.degrees(angle))
+                    points.append(p)
+
+                # --- NEW: Speed Trail / Ghost Blade ---
+                # This draws a darker blade trailing slightly behind to simulate immense velocity
+                if self.vel.length() > 0:
+                    trail_color = (120, 20, 20) if self.type != "world_slash" else (80, 80, 80)
+                    trail_offset = self.vel.normalize() * -15 * self.size_mult
+                    trail_points = [pt + trail_offset for pt in points]
+                    pygame.draw.polygon(screen, trail_color, trail_points)
+
+                # 3. Draw the main crescent body and glowing edge on top
+                pygame.draw.polygon(screen, base_color, points)
+                pygame.draw.polygon(screen, poly_color, points, 1)
 
         elif self.type == "fuga_arrow":
             # Big Flamy Arrow Visuals
@@ -131,34 +151,75 @@ class Projectile:
                 fy = self.pos.y + random.randint(-int(20*self.size_mult), int(20*self.size_mult))
                 pygame.draw.circle(screen, random.choice([(255, 0, 0), (255, 120, 0), (255, 200, 0)]), (int(fx), int(fy)), random.randint(4, 12))
         else:
-            # Draw Orbs as 3D-shaded, glowing spears of light
-            angle = math.atan2(self.vel.y, self.vel.x)
-            spear_len = (80 if self.type == "purple_orb" else 60) * self.size_mult
-            spear_width = (30 if self.type == "purple_orb" else 15) * self.size_mult
+            # --- ANIME-ACCURATE GOJO ORBS ---
+            # Create a pulsating effect using time
+            t = time.time() * 15
             
-            front = self.pos + pygame.Vector2(spear_len, 0).rotate(math.degrees(angle))
-            back = self.pos + pygame.Vector2(-spear_len, 0).rotate(math.degrees(angle))
-            top = self.pos + pygame.Vector2(0, -spear_width).rotate(math.degrees(angle))
-            bottom = self.pos + pygame.Vector2(0, spear_width).rotate(math.degrees(angle))
+            # Base size calculation
+            base_radius = (50 if self.type == "purple_orb" else 22) * self.size_mult
+            pulse = math.sin(t) * 4 * self.size_mult
+            radius = int(max(5, base_radius + pulse))
             
-            if self.type == "blue_orb": core_color = (200, 230, 255)
-            elif self.type == "red_orb": core_color = (255, 200, 200)
-            else: core_color = (240, 200, 255)
-            
-            # Outer glow
-            pygame.draw.polygon(screen, self.color, [front, top, back, bottom])
-            
-            # 3D shading effect lines
-            pygame.draw.line(screen, (0, 0, 0), front, top, max(1, int(2 * self.size_mult)))
-            pygame.draw.line(screen, (0, 0, 0), back, bottom, max(1, int(2 * self.size_mult)))
-            
-            # Inner bright core
-            pygame.draw.polygon(screen, core_color, [
-                self.pos + pygame.Vector2(spear_len*0.7, 0).rotate(math.degrees(angle)),
-                self.pos + pygame.Vector2(0, -spear_width*0.4).rotate(math.degrees(angle)),
-                self.pos + pygame.Vector2(-spear_len*0.7, 0).rotate(math.degrees(angle)),
-                self.pos + pygame.Vector2(0, spear_width*0.4).rotate(math.degrees(angle))
-            ])
+            cx, cy = int(self.pos.x), int(self.pos.y)
+
+            if self.type == "blue_orb":
+                # LAPSE BLUE: Magnetic Black Hole
+                # Outer gravitational pull (faint blue)
+                pygame.draw.circle(screen, (0, 30, 100), (cx, cy), radius + int(12 * self.size_mult))
+                # Main energy body
+                pygame.draw.circle(screen, BLUE, (cx, cy), radius)
+                # Absolute dense black hole core
+                pygame.draw.circle(screen, (0, 0, 5), (cx, cy), int(radius * 0.6)) 
+                
+                # Swirling space debris/energy rings
+                ring_r = radius + int(15 * self.size_mult)
+                for i in range(3):
+                    angle = (t * 0.4) + (i * (math.pi * 2 / 3))
+                    px = int(cx + math.cos(angle) * ring_r)
+                    py = int(cy + math.sin(angle) * ring_r)
+                    pygame.draw.circle(screen, (150, 220, 255), (px, py), max(1, int(4 * self.size_mult)))
+
+            elif self.type == "red_orb":
+                # REVERSAL RED: White-hot explosive repel
+                # Outer explosive heat wave
+                pygame.draw.circle(screen, (150, 0, 0), (cx, cy), radius + int(10 * self.size_mult))
+                # Main crimson energy body
+                pygame.draw.circle(screen, RED, (cx, cy), radius)
+                # Superheated white core
+                pygame.draw.circle(screen, (255, 240, 240), (cx, cy), int(radius * 0.4)) 
+                
+                # Violent, erratic energy spikes shooting off it
+                for _ in range(5):
+                    sx = int(cx + random.uniform(-1.5, 1.5) * radius)
+                    sy = int(cy + random.uniform(-1.5, 1.5) * radius)
+                    pygame.draw.line(screen, (255, 100, 100), (cx, cy), (sx, sy), max(1, int(3 * self.size_mult)))
+
+            elif self.type == "purple_orb":
+                # HOLLOW PURPLE: Crackling sphere of erasing imaginary mass
+                # Massive destructive outer aura
+                pygame.draw.circle(screen, (90, 0, 140), (cx, cy), radius + int(20 * self.size_mult))
+                # Main purple void
+                pygame.draw.circle(screen, PURPLE, (cx, cy), radius)
+                # Deep, dark inner void
+                pygame.draw.circle(screen, (20, 0, 30), (cx, cy), int(radius * 0.75)) 
+                # Tiny, blinding singularity at the exact center
+                pygame.draw.circle(screen, WHITE, (cx, cy), int(radius * 0.15)) 
+                
+                # Intense, erratic plasma lightning tearing around the sphere
+                for _ in range(8):
+                    start_angle = random.uniform(0, math.pi * 2)
+                    end_angle = start_angle + random.uniform(-0.8, 0.8)
+                    r1 = radius * random.uniform(0.9, 1.4)
+                    r2 = radius * random.uniform(0.9, 1.4)
+                    
+                    p1 = (int(cx + math.cos(start_angle) * r1), int(cy + math.sin(start_angle) * r1))
+                    p2 = (int(cx + math.cos(end_angle) * r2), int(cy + math.sin(end_angle) * r2))
+                    
+                    # Draw lightning arcs
+                    pygame.draw.line(screen, (220, 180, 255), p1, p2, max(2, int(4 * self.size_mult)))
+                    # Bright flashes where the lightning arcs snap
+                    if random.random() > 0.5:
+                        pygame.draw.circle(screen, WHITE, p1, max(1, int(3 * self.size_mult)))
 
 class Fighter:
     def __init__(self, x, y, name, color=CLOTHES):
@@ -379,7 +440,7 @@ class Fighter:
             if self.energy >= heal_cost:
                 self.hp = min(self.max_hp, self.hp + random.uniform(0.2, 0.5))
                 self.energy -= heal_cost
-
+                self.rct_timer = 5
         # Mahoraga RCT Buff
         if self.name == "Mahoraga" and self.rct_timer > 0:
             self.hp = min(self.max_hp, self.hp + 1.2) 
@@ -466,10 +527,29 @@ class Fighter:
             surface.blit(sd_surf, (mid_x - 90, y + 80 - 90))
 
         if self.name == "Gojo":
-            alpha = max(0, min(255, int((self.infinity / 100) * 50)))
-            inf_surf = pygame.Surface((220, 220), pygame.SRCALPHA)
-            pygame.draw.circle(inf_surf, (200, 230, 255, alpha), (110, 110), 110, 1)
-            surface.blit(inf_surf, (mid_x - 110, y + 80 - 110))
+            # Infinity: Form-fitting spatial distortion outlining his exact body shape
+            alpha_base = max(0, min(255, int((self.infinity / 1000) * 150)))
+            if alpha_base > 0:
+                # Smooth pulsating distance - Increased for a noticeably larger aura
+                pulse = math.sin(t * 6) * 10
+                
+                # Enlarged temp surface so the big transparent layers blend beautifully
+                inf_surf = pygame.Surface((200, 260), pygame.SRCALPHA)
+                
+                for i in range(3): # 3 layers of spatial distortion
+                    layer_alpha = int(alpha_base / (i + 1))
+                    thickness = int(pulse + 15 + (i * 10)) # Gets much wider
+                    
+                    # Scaled coordinates mapped to his torso polygon
+                    poly = [(60, 70), (140, 70), (130, 160), (70, 160)]
+                    
+                    # Draw thick spatial outlines around his torso
+                    pygame.draw.polygon(inf_surf, (150 + i*30, 220, 255, layer_alpha), poly, thickness)
+                    # Draw thick spatial outlines around his head
+                    pygame.draw.circle(inf_surf, (200, 230, 255, layer_alpha), (100, 45), 35 + (thickness//2), thickness)
+                    
+                # Blit the aura offset so it centers perfectly on his body
+                surface.blit(inf_surf, (x - 65, y - 45))
 
             if self.purple_charge > 0:
                 ct = (120 - self.purple_charge) / 120.0
@@ -567,8 +647,20 @@ class Fighter:
                     bpy = y + 40 + random.randint(-burst // 2, burst // 2)
                     pygame.draw.circle(surface, WHITE, (int(bpx), int(bpy)), random.randint(2, 7))
         if is_amp:
-            pulse = (math.sin(t * 15) + 1) * 0.5
-            pygame.draw.rect(surface, (255, 255, 100 + 155 * pulse), self.rect.inflate(15, 15), 3)
+            # Domain Amplification: Fluid, shimmering water-like energy cloak
+            for i in range(3):
+                # Flowing energy layers moving up the body
+                amp_y = y + 160 - ((t * 120 + i * 50) % 160)
+                pulse_x = math.sin(t * 8 + i) * 8
+                pygame.draw.ellipse(surface, (100, 180, 255), (mid_x - 40 + pulse_x, amp_y - 15, 80, 30), 2)
+            
+            # Outer shimmering cloak outline
+            glow_rect = self.rect.inflate(15 + math.sin(t * 15) * 5, 15 + math.cos(t * 15) * 5)
+            pygame.draw.rect(surface, (150, 220, 255), glow_rect, 2, border_radius=15)
+            # Very faint inner fill to give it volume
+            amp_surf = pygame.Surface((glow_rect.width, glow_rect.height), pygame.SRCALPHA)
+            pygame.draw.rect(amp_surf, (100, 150, 255, 40), amp_surf.get_rect(), border_radius=15)
+            surface.blit(amp_surf, glow_rect.topleft)
 
         # Draw Dharma Wheel for Mahoraga or Sukuna summoning
         if self.name == "Mahoraga" or (self.name == "Sukuna" and effect == "summoning"):
@@ -654,7 +746,29 @@ class Fighter:
             pygame.draw.polygon(surface, MAHO_COLOR, [(mid_x + 20, y - 10), (mid_x + 50, y - 40), (mid_x + 20, y + 5)])
 
         if self.rct_timer > 0:
-            pygame.draw.circle(surface, HEAL_GREEN, (mid_x, y+40), 50, 3)
+            # Positive Energy (RCT): Smooth flowing, upward-lapping green/gold fire
+            for i in range(12):
+                # Math creates a seamless upward looping flow (0.0 to 1.0 progress)
+                flame_t = (t * 3 + i * 0.08) % 1.0 
+                
+                # Flames start wide at the bottom and taper into sharp points at the top
+                fw = int(35 * (1.0 - flame_t)) 
+                fh = int(50 * (1.0 - flame_t))
+                
+                # Sine wave gives them that flickering, swaying fire movement
+                fx = mid_x - (fw // 2) + math.sin(t * 8 + i) * 15 * flame_t
+                fy = (y + 150) - (flame_t * 130) # Rises from legs to chest
+                
+                # Fire blends from a hot white/gold core into positive green energy tips
+                if flame_t < 0.3:
+                    f_color = (255, 255, 200) # White-hot core
+                elif flame_t < 0.7:
+                    f_color = (150, 255, 150) # Light Green mid
+                else:
+                    f_color = (50, 200, 100)  # Dark Green tip
+                    
+                pygame.draw.ellipse(surface, f_color, (fx, fy, fw, fh))
+                
             self.rct_timer -= 1
 
         # Hair
@@ -1053,7 +1167,8 @@ class Game:
                     # Turn DA on only if he is very close, not about to Fuga, and slashes are unavailable
                     # TACTICAL FIX: Prioritize the Cleave Hold! Don't use DA if Cleave is ready to grab!
                     # STRATEGIC AI: Inside UV, he MUST use DA to bypass Infinity and stay in contact with Gojo!
-                    if dist <= 150 and self.sukuna.amp_cd == 0 and self.sukuna.amp_duration == 0 and self.sukuna.energy > 30 * self.sukuna.cost_mult and not fuga_priority and not self.sukuna.ce_exhausted:
+                    # --- NEW: DO NOT activate DA if he is currently grabbing Gojo! ---
+                    if dist <= 150 and self.sukuna.amp_cd == 0 and self.sukuna.amp_duration == 0 and self.sukuna.energy > 30 * self.sukuna.cost_mult and not fuga_priority and not self.sukuna.ce_exhausted and self.gojo.grab_timer <= 0:
                         if self.sukuna.cleave_cd > 0 or self.gojo.domain_active:
                             self.sukuna.amp_duration = 600 
                             is_amp = True
@@ -1122,8 +1237,12 @@ class Game:
                             print(f"[Sukuna CE Log] Dismantle consumed: {dismantle_cost:.2f} CE")
                             self.sukuna.dismantle_cd = 40
                         # --- LORE ACCURACY: TACTICAL CLEAVE "HOLD" ---
-                        elif self.sukuna.rect.colliderect(self.gojo.rect) and self.sukuna.cleave_cd <= 0 and not is_amp:
+                        elif self.sukuna.rect.colliderect(self.gojo.rect) and self.sukuna.cleave_cd <= 0:
                             if self.sukuna.energy >= 15 * self.sukuna.cost_mult:
+                                # LORE MECHANIC: Sukuna must drop Domain Amp to cast his Innate Technique.
+                                # The moment this happens, Infinity instantly re-activates between them.
+                                self.sukuna.amp_duration = 0 
+                                is_amp = False
                                 # 1. ONLY Gojo gets the 5-second (300 frames) stun. Sukuna is free to drag him!
                                 self.gojo.grab_timer = 300
                                 self.gojo.purple_charge = 0
@@ -1332,12 +1451,18 @@ class Game:
                         self.gojo.rect.centerx = self.sukuna.rect.centerx + (40 * self.sukuna.direction)
                         self.gojo.rect.centery = self.sukuna.rect.centery
                         
-                        # FIX: Cleave strictly damages the CE pool first. Only hits HP if Infinity is down/exhausted!
+                        # LORE MECHANIC: Because Sukuna dropped DA, Infinity is active. 
+                        # Cleave grinds against the spatial barrier, violently shredding Gojo's CE reserves!
                         if self.gojo.infinity > 0 and self.gojo.energy > 0 and self.gojo.technique_burnout == 0:
-                            self.gojo.energy = max(0, self.gojo.energy - 1.5 * self.gojo.cost_mult) # Visibly shreds the CE pool!
+                            self.gojo.energy = max(0, self.gojo.energy - 1.5 * self.gojo.cost_mult) 
                             self.sukuna.tech_hits = min(500, self.sukuna.tech_hits + 0.5)
+                            
+                            # Visual: Blue sparks where Cleave strikes the Infinity barrier
+                            if random.random() < 0.3:
+                                self.hit_sparks.append([self.gojo.rect.centerx + random.randint(-20, 20), self.gojo.rect.centery + random.randint(-30, 30), random.uniform(-5, 5), random.uniform(-5, 5), random.randint(15, 25), INF_COLOR])
                         else:
-                            self.gojo.hp -= 0.4 # Adds up to exactly 120 damage over 300 frames!
+                            # If Infinity drops (CE exhausted), Cleave directly targets flesh!
+                            self.gojo.hp -= 0.4 
                             self.sukuna.tech_hits = min(500, self.sukuna.tech_hits + 0.5) 
                             if self.gojo.grab_timer % 10 == 0:
                                 self.shake_timer = 5
@@ -1611,10 +1736,13 @@ class Game:
 
                 for p in self.projectiles[:]:
                     # Make the grab visual explicitly track Gojo while he is held
-                    if getattr(p, "is_grab_cleave", False) and self.gojo.grab_timer > 0:
-                        p.pos.x = self.gojo.rect.centerx
-                        p.pos.y = self.gojo.rect.centery
-                        
+                    if getattr(p, "is_grab_cleave", False):
+                        if self.gojo.grab_timer > 0:
+                            p.pos.x = self.gojo.rect.centerx
+                            p.pos.y = self.gojo.rect.centery
+                        else:
+                            p.active = False # Kill it instantly when grab ends/goes on cooldown
+                            
                     p.update()
                     # Recalculate target for projectiles to hit closest
                     p_target = min(enemies, key=lambda e: pygame.Vector2(e.rect.center).distance_to(p.pos))
@@ -1766,7 +1894,7 @@ class Game:
                                 self.gojo.energy = max(0, self.gojo.energy - 0.5 * self.gojo.cost_mult)
                                 
                     # Only apply physical body damage if SD didn't intercept it
-                    if not intercepted_by_sd and self.gojo.rect.collidepoint(p.pos) and p.type in ["normal", "dismantle", "cleave", "world_slash"]:
+                    if not intercepted_by_sd and self.gojo.rect.collidepoint(p.pos) and p.type in ["normal", "dismantle", "cleave", "world_slash"] and not getattr(p, "is_grab_cleave", False):
                         if not self.gojo.is_dodging:
                             
                             # 1. World Cutting Slash (Always damages HP!)
@@ -2030,8 +2158,7 @@ class Game:
                 self.world_surf.blit(s_txt, (p_up["x"] - s_txt.get_width()//2, p_up["y"] - s_txt.get_height()//2))
                 p_up["timer"] -= 1
             self.popups = [p for p in self.popups if p["timer"] > 0]
-            
-            for p in self.projectiles: p.draw(self.world_surf)
+                        
             
             if self.mahoraga_summon_timer > 0:
                 overlay = pygame.Surface((WORLD_WIDTH, WORLD_HEIGHT), pygame.SRCALPHA); overlay.fill((0, 0, 0, 150))
@@ -2050,6 +2177,8 @@ class Game:
             
             self.gojo.draw_detailed(self.world_surf, punching)
             if self.mahoraga and self.mahoraga.hp > 0: self.mahoraga.draw_detailed(self.world_surf)
+
+            for p in self.projectiles: p.draw(self.world_surf)
 
             # Draw Blood Particles
             for bp in self.blood_particles[:]:
