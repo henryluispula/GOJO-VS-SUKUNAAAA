@@ -866,7 +866,7 @@ class Game:
                         self.gojo.punch_timer = 20 
                         self.gojo.punch_count += 1 
                         if abs(self.gojo.rect.centerx - target.rect.centerx) < 130:
-                            dmg = 10.0 * (target.adaptation["punch"] if target.name == "Mahoraga" else 1.0)
+                            dmg = 6.0 * (target.adaptation["punch"] if target.name == "Mahoraga" else 1.0)
                             
                             # Black Flash Trigger Logic
                             bf_chance = 0.15 if self.gojo.potential_timer > 0 else 0.03
@@ -901,7 +901,7 @@ class Game:
                                         target.trigger_adaptation("punch", 15.0)
                                         turns = target.adaptation_points["punch"] / 250.0
                                         target.adaptation["punch"] = max(0, 1.0 - min(1.0, turns))
-                        self.gojo.attack_cooldown = 20
+                        self.gojo.attack_cooldown = 12
 
                     # RCT (Gojo)
                     if keys[pygame.K_q] and self.gojo.energy > 5 * self.gojo.cost_mult:
@@ -1184,7 +1184,7 @@ class Game:
                         if self.sukuna.attack_cooldown == 0: 
                             self.sukuna.punch_timer = 20 
                             self.sukuna.punch_count += 1
-                            melee_dmg = 5.0
+                            melee_dmg = 10.0
                             
                             # Black Flash Trigger Logic
                             bf_chance = 0.15 if self.sukuna.potential_timer > 0 else 0.03
@@ -1229,7 +1229,7 @@ class Game:
                                         kb_dir = 1 if self.gojo.rect.centerx > self.sukuna.rect.centerx else -1
                                         self.gojo.rect.x += kb_dir * 15
                             # Spams punches more than twice as fast (12 frames instead of 30) when exhausted to fish for a Black Flash!
-                            self.sukuna.attack_cooldown = 12 if self.sukuna.ce_exhausted else 30 
+                            self.sukuna.attack_cooldown = 12 
 
                     purple_active = any(p.type == "purple_orb" for p in self.projectiles)
                     if (purple_active or self.gojo.purple_charge > 0) and self.sukuna.on_ground:
@@ -1482,7 +1482,7 @@ class Game:
                         if self.gojo.rect.colliderect(self.mahoraga.rect) and self.mahoraga.attack_cooldown == 0:
                             self.mahoraga.punch_timer = 20 
                             self.mahoraga.punch_count += 1
-                            base_dmg = 9.5 
+                            base_dmg = 4.5
 
                             # Black Flash Trigger Logic
                             # Mahoraga (Lore Accuracy): 0.1% (0.001). Zone: 15% (0.15)
