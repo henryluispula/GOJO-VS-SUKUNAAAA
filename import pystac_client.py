@@ -169,7 +169,7 @@ class Fighter:
         self.prev_hp = self.hp # Track for blood effects
         # Start the fight with appropriate max cursed energy levels
         self.energy = 3000 if name == "Sukuna" else (200 if name == "Gojo" else 2800)
-        self.infinity = 100 if name == "Gojo" else 0 
+        self.infinity = 1000 if name == "Gojo" else 0 
         
         # --- NEW: DODGE METER LOGIC ---
         self.max_stamina = 100.0
@@ -367,10 +367,10 @@ class Fighter:
                 self.trail_points.remove(pt)
         
         # Gojo Infinity regen
-        if self.name == "Gojo" and self.infinity < 100 and self.technique_burnout == 0:
+        if self.name == "Gojo" and self.infinity < 1000 and self.technique_burnout == 0:
             cost = 0.1 * self.cost_mult
             if self.energy >= cost:
-                self.infinity = min(100, self.infinity + 0.35) 
+                self.infinity = min(1000, self.infinity + 3.5) 
                 self.energy -= cost
 
         # Sukuna Constant Auto-Heal
@@ -984,7 +984,7 @@ class Game:
                         self.gojo.domain_active = True
                         self.gojo.domain_timer = 400
                         self.gojo.domain_cd = 3000
-                        self.gojo.infinity = 100
+                        self.gojo.infinity = 1000
                         self.shake_timer = 30
 
                 # --- SMART SUKUNA AI ---
@@ -1278,7 +1278,7 @@ class Game:
 
                 # --- CINEMATIC TIME STOP ---
                 # Check if anyone is currently charging their Domain
-                is_cinematic = self.gojo.domain_charge > 0 or self.sukuna.domain_charge > 0
+                is_cinematic = self.gojo.domain_charge > 0 or self.sukuna.domain_charge > 0 or getattr(self, "clash_decision_timer", 0) > 0
                 active_fighters = [self.gojo, self.sukuna]
                 if self.mahoraga: active_fighters.append(self.mahoraga)
                 
@@ -1315,11 +1315,11 @@ class Game:
                         
                             
                         # INFINITY REGEN (Gojo only)
-                        if f.name == "Gojo" and f.infinity < 100 and f.technique_burnout == 0:
+                        if f.name == "Gojo" and f.infinity < 1000 and f.technique_burnout == 0:
                             inf_cost = 0.1 * f.cost_mult
                             if f.energy >= inf_cost:
                                 f.prev_energy = f.energy
-                                f.infinity = min(100, f.infinity + 0.35)
+                                f.infinity = min(1000, f.infinity + 3.5)
                                 f.energy -= inf_cost                                
                 else:
                     # Normal Physics Loop
@@ -2252,7 +2252,7 @@ class Game:
 
             self.draw_bar_on(render_surf, 25, 60, self.gojo.hp, self.gojo.max_hp, RED, 310, 10, "HEALTH")
             self.draw_bar_on(render_surf, 25, 95, self.gojo.energy, 200, PURPLE, 145, 8, "CURSE ENERGY")
-            self.draw_bar_on(render_surf, 190, 95, self.gojo.infinity, 100, INF_COLOR, 145, 8, "INFINITY")          
+            self.draw_bar_on(render_surf, 190, 95, self.gojo.infinity, 1000, INF_COLOR, 145, 8, "INFINITY")          
             self.draw_bar_on(render_surf, 25, 125, self.gojo.tech_hits, 500, (180, 0, 255), 310, 2, "")
 
             # --- NEW: GOJO SIMPLE DOMAIN BAR ---
