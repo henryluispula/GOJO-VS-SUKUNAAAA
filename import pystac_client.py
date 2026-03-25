@@ -866,7 +866,7 @@ class Game:
                         self.gojo.punch_timer = 20 
                         self.gojo.punch_count += 1 
                         if abs(self.gojo.rect.centerx - target.rect.centerx) < 130:
-                            dmg = 6.0 * (target.adaptation["punch"] if target.name == "Mahoraga" else 1.0)
+                            dmg = 6.5 * (target.adaptation["punch"] if target.name == "Mahoraga" else 1.0)
                             
                             # Black Flash Trigger Logic
                             bf_chance = 0.15 if self.gojo.potential_timer > 0 else 0.03
@@ -1184,7 +1184,7 @@ class Game:
                         if self.sukuna.attack_cooldown == 0: 
                             self.sukuna.punch_timer = 20 
                             self.sukuna.punch_count += 1
-                            melee_dmg = 10.0
+                            melee_dmg = 7.5
                             
                             # Black Flash Trigger Logic
                             bf_chance = 0.15 if self.sukuna.potential_timer > 0 else 0.03
@@ -1358,7 +1358,7 @@ class Game:
                 gojo_can_clash = self.gojo.technique_burnout == 0 and self.gojo.infinity > 0 and self.gojo.energy >= 50
 
                 if self.gojo.domain_active and self.sukuna.domain_active and gojo_can_clash:
-                    clash_window = 30 
+                    clash_window = 20
                     
                     if getattr(self, "clash_decision_timer", 0) == 0 and not getattr(self, "clash_resolved", False):
                         self.clash_decision_timer = clash_window
@@ -1624,7 +1624,7 @@ class Game:
                     if p.type == "blue_orb":
                         if dist_to_orb < 600:
                             if not p_target.is_dodging:
-                                pull_factor = 0.40 * (p_target.adaptation["blue"] if p_target.name == "Mahoraga" else 1.0)
+                                pull_factor = 0.85 * (p_target.adaptation["blue"] if p_target.name == "Mahoraga" else 1.0)
                                 p_target.rect.x += (p.pos.x - p_target.rect.centerx) * pull_factor
                             
                             if dist_to_orb < 250:
@@ -1653,7 +1653,7 @@ class Game:
                                     pull_dir = (p.pos - slash.pos).normalize()
                                     current_speed = slash.vel.length()
                                     
-                                    pull_force = current_speed * 0.25 # Adjust 0.25 to make it stronger/weaker
+                                    pull_force = current_speed * 0.65 # Adjust 0.25 to make it stronger/weaker
                                     slash.vel += pull_dir * pull_force
                                     
                                     # Maintain original speed so it doesn't slow down or speed up
@@ -1663,7 +1663,7 @@ class Game:
                     elif p.type == "red_orb":
                         if dist_to_orb < 600:
                             if not p_target.is_dodging:
-                                push_factor = 0.80 * (p_target.adaptation["red"] if p_target.name == "Mahoraga" else 1.0)
+                                push_factor = 1.60 * (p_target.adaptation["red"] if p_target.name == "Mahoraga" else 1.0)
                                 p_target.rect.x -= (p.pos.x - p_target.rect.centerx) * push_factor
                             
                             if dist_to_orb < 250:
@@ -1693,7 +1693,7 @@ class Game:
                                     current_speed = slash.vel.length()
                                     
                                     # Violently bend the trajectory away
-                                    push_force = current_speed * 0.35 # Red is traditionally more violent than Blue
+                                    push_force = current_speed * 0.85 # Red is traditionally more violent than Blue
                                     slash.vel += push_dir * push_force
                                     
                                     if slash.vel.length() > 0:
@@ -2154,7 +2154,7 @@ class Game:
 
                 # 2. Draw the Progress Bar directly into the HUD
                 bar_w, bar_h = 400, 25
-                clash_window = 30 
+                clash_window = 20 
                 
                 fill_w = int((self.clash_decision_timer / clash_window) * bar_w)
                 bx, by = WIDTH//2 - bar_w//2, 120
