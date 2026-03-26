@@ -1361,6 +1361,21 @@ class Game:
                     retreating = needs_healing and not self.gojo.domain_active
                     
                     if retreating and self.gojo.grab_timer <= 0:
+                        
+                        # --- NEW: ACTIVE RCT BURST ---
+                        # Sukuna checks if he has a very safe CE buffer (> 1000 CE).
+                        # If so, he dramatically speeds up healing at a heavy CE cost!
+                        if self.sukuna.energy > 1000 * self.sukuna.cost_mult:
+                            active_heal_cost = 4.0 * self.sukuna.cost_mult
+                            self.sukuna.energy -= active_heal_cost
+                            self.sukuna.hp = min(self.sukuna.max_hp, self.sukuna.hp + 2.5) # Massive burst heal!
+                            self.sukuna.rct_timer = 5 # Keep particles flowing
+                            
+                            # Optional: Occasional visual popup so the player sees the rapid heal
+                            if random.random() < 0.05:
+                                self.popups.append({"x": self.sukuna.rect.centerx, "y": self.sukuna.rect.centery - 80, "timer": 20, "text": "+RCT BURST", "color": HEAL_GREEN})
+                        # Note: If energy is <= 1000, he skips this burst and relies on his 0.3 CE passive RCT to save energy!
+
                         # --- MODIFIED: Attempt Domain Expansion as a defensive counter-measure while retreating! ---
                         # --- FIXED: Added attack_cooldown <= 0 so he doesn't panic-cast while flying backwards! ---
                         if self.sukuna.energy >= 200 * self.sukuna.cost_mult and self.sukuna.domain_cd == 0 and self.sukuna.technique_burnout == 0 and self.sukuna.domain_charge == 0 and not self.sukuna.domain_active and self.sukuna.attack_cooldown <= 0:
@@ -1576,8 +1591,8 @@ class Game:
                                 self.sukuna.potential_timer = 600 # 10s duration
                                 self.shake_timer = 15
                                 
-                                ce_recovery = 3000 * 0.20 
-                                self.sukuna.energy = min(3000, self.sukuna.energy + ce_recovery) 
+                                # --- FIXED: Sukuna Black Flash fully restores CE pool! ---
+                                self.sukuna.energy = 3000 
                                 
                                 self.bf_words.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 60, "timer": 45})
                                 
@@ -1586,9 +1601,13 @@ class Game:
                                 # CE Imbue still buffs damage since DA doesn't stop CE output!
                                 if not self.gojo.is_dodging: 
                                     actual_dmg = melee_dmg
-                                    # --- GOJO'S CE REINFORCEMENT DEFENSE ---
+                                    # --- NEW: GOJO'S 1:1 CE REINFORCEMENT DEFENSE ---
                                     if self.gojo.energy > 0:
-                                        actual_dmg *= random.uniform(0.5, 0.8) 
+                                        reduction_mult = random.uniform(0.5, 0.8)
+                                        mitigated_dmg = actual_dmg * (1.0 - reduction_mult)
+                                        actual_dmg *= reduction_mult
+                                        # Six Eyes Efficiency: 1 CE per 1 HP saved
+                                        self.gojo.energy = max(0, self.gojo.energy - mitigated_dmg * self.gojo.cost_mult)
                                         
                                     self.gojo.hp -= actual_dmg
                                     
@@ -1610,9 +1629,13 @@ class Game:
                                 else:
                                     if not self.gojo.is_dodging: 
                                         actual_dmg = melee_dmg
-                                        # --- GOJO'S CE REINFORCEMENT DEFENSE ---
+                                        # --- NEW: GOJO'S 1:1 CE REINFORCEMENT DEFENSE ---
                                         if self.gojo.energy > 0:
-                                            actual_dmg *= random.uniform(0.5, 0.8) 
+                                            reduction_mult = random.uniform(0.5, 0.8)
+                                            mitigated_dmg = actual_dmg * (1.0 - reduction_mult)
+                                            actual_dmg *= reduction_mult
+                                            # Six Eyes Efficiency: 1 CE per 1 HP saved
+                                            self.gojo.energy = max(0, self.gojo.energy - mitigated_dmg * self.gojo.cost_mult)
                                             
                                         self.gojo.hp -= actual_dmg 
                                         
@@ -1744,9 +1767,12 @@ class Game:
                                 self.sukuna.energy -= imbue_cost
                                 beatdown_dmg *= 1.6 # CE Imbue Damage Boost!
                                 
-                            # --- GOJO'S CE REINFORCEMENT DEFENSE ---
+                            # --- NEW: GOJO'S 1:1 CE REINFORCEMENT DEFENSE ---
                             if self.gojo.energy > 0:
-                                beatdown_dmg *= random.uniform(0.5, 0.8)
+                                reduction_mult = random.uniform(0.5, 0.8)
+                                mitigated_dmg = beatdown_dmg * (1.0 - reduction_mult)
+                                beatdown_dmg *= reduction_mult
+                                self.gojo.energy = max(0, self.gojo.energy - mitigated_dmg * self.gojo.cost_mult)
 
                             # Deal steady melee damage directly to HP
                             self.gojo.hp -= beatdown_dmg 
@@ -1763,9 +1789,12 @@ class Game:
                             # LORE MECHANIC: Infinity is down, but Gojo reinforces his body with CE!
                             cleave_dmg = 0.4
                             
-                            # --- GOJO'S CE REINFORCEMENT DEFENSE ---
+                            # --- NEW: GOJO'S 1:1 CE REINFORCEMENT DEFENSE ---
                             if self.gojo.energy > 0:
-                                cleave_dmg *= random.uniform(0.5, 0.8)
+                                reduction_mult = random.uniform(0.5, 0.8)
+                                mitigated_dmg = cleave_dmg * (1.0 - reduction_mult)
+                                cleave_dmg *= reduction_mult
+                                self.gojo.energy = max(0, self.gojo.energy - mitigated_dmg * self.gojo.cost_mult)
                                 
                             self.gojo.hp -= cleave_dmg # Adds up to ~60-96 damage over 300 frames with CE, or 120 without
                             self.sukuna.tech_hits = min(500, self.sukuna.tech_hits + 0.5) 
@@ -1787,9 +1816,12 @@ class Game:
                             # If Infinity drops (CE exhausted), Cleave directly targets flesh!
                             cleave_dmg = 0.4
                             
-                            # --- GOJO'S CE REINFORCEMENT DEFENSE ---
+                            # --- NEW: GOJO'S 1:1 CE REINFORCEMENT DEFENSE ---
                             if self.gojo.energy > 0:
-                                cleave_dmg *= random.uniform(0.5, 0.8)
+                                reduction_mult = random.uniform(0.5, 0.8)
+                                mitigated_dmg = cleave_dmg * (1.0 - reduction_mult)
+                                cleave_dmg *= reduction_mult
+                                self.gojo.energy = max(0, self.gojo.energy - mitigated_dmg * self.gojo.cost_mult)
                                 
                             self.gojo.hp -= cleave_dmg 
                             self.sukuna.tech_hits = min(500, self.sukuna.tech_hits + 0.5) 
@@ -2266,8 +2298,12 @@ class Game:
                                 
                             fuga_hp_dmg = (self.gojo.max_hp * dmg_perc)
                             
-                            # --- GOJO'S CE REINFORCEMENT DEFENSE ---
-                            if self.gojo.energy > 0: fuga_hp_dmg *= random.uniform(0.5, 0.8)
+                            # --- NEW: GOJO'S 1:1 CE REINFORCEMENT DEFENSE ---
+                            if self.gojo.energy > 0: 
+                                reduction_mult = random.uniform(0.5, 0.8)
+                                mitigated_dmg = fuga_hp_dmg * (1.0 - reduction_mult)
+                                fuga_hp_dmg *= reduction_mult
+                                self.gojo.energy = max(0, self.gojo.energy - mitigated_dmg * self.gojo.cost_mult)
                             
                             fuga_ce_dmg = (200 * dmg_perc) # Gojo's Max CE
                             
@@ -2311,8 +2347,12 @@ class Game:
                             # 2. Domain Expansion Sure-Hits (If SD is down)
                             elif getattr(p, "is_sure_hit", False):
                                 proj_dmg = 80.0 if p.type == "cleave" else 32.0
-                                # --- GOJO'S CE REINFORCEMENT DEFENSE ---
-                                if self.gojo.energy > 0: proj_dmg *= random.uniform(0.5, 0.8)
+                                # --- NEW: GOJO'S 1:1 CE REINFORCEMENT DEFENSE ---
+                                if self.gojo.energy > 0: 
+                                    reduction_mult = random.uniform(0.5, 0.8)
+                                    mitigated_dmg = proj_dmg * (1.0 - reduction_mult)
+                                    proj_dmg *= reduction_mult
+                                    self.gojo.energy = max(0, self.gojo.energy - mitigated_dmg * self.gojo.cost_mult)
                                 
                                 self.gojo.hp -= proj_dmg
                                 p.active = False
@@ -2330,8 +2370,12 @@ class Game:
                                     # Direct HP hit also counts!
                                     self.sukuna.tech_hits = min(500, self.sukuna.tech_hits + 2) 
                                     proj_dmg = 80.0 if p.type == "cleave" else 32.0
-                                    # --- GOJO'S CE REINFORCEMENT DEFENSE ---
-                                    if self.gojo.energy > 0: proj_dmg *= random.uniform(0.5, 0.8)
+                                    # --- NEW: GOJO'S 1:1 CE REINFORCEMENT DEFENSE ---
+                                    if self.gojo.energy > 0: 
+                                        reduction_mult = random.uniform(0.5, 0.8)
+                                        mitigated_dmg = proj_dmg * (1.0 - reduction_mult)
+                                        proj_dmg *= reduction_mult
+                                        self.gojo.energy = max(0, self.gojo.energy - mitigated_dmg * self.gojo.cost_mult)
                                     
                                     self.gojo.hp -= proj_dmg
                                     p.active = False
@@ -2869,8 +2913,8 @@ class Game:
             da_cd = f"DOMAIN AMP: {'ACT' if (self.sukuna.amp_duration>0) else 'RDY' if self.sukuna.amp_cd == 0 else str(self.sukuna.amp_cd//60)+'s'}"
             
             # Apply BURN status to his innate techniques
-            di_cd = f"DISMANTLE: {'BURN' if sukuna_is_burned_out else 'RDY' if self.sukuna.dismantle_cd == 0 else str(self.sukuna.dismantle_cd//60)+'s'}"
-            cl_cd = f"CLEAVE: {'BURN' if sukuna_is_burned_out else 'RDY' if self.sukuna.cleave_cd == 0 else str(self.sukuna.cleave_cd//60)+'s'}"
+            di_cd = f"DISMANTLE: {'BRN' if sukuna_is_burned_out else 'RDY' if self.sukuna.dismantle_cd == 0 else str(self.sukuna.dismantle_cd//60)+'s'}"
+            cl_cd = f"CLEAVE: {'BRN' if sukuna_is_burned_out else 'RDY' if self.sukuna.cleave_cd == 0 else str(self.sukuna.cleave_cd//60)+'s'}"
             
             # --- FANCY FUGA STATUS (Matches Gojo's Purple) ---
             fu_status = "BURN" if sukuna_is_burned_out else ("RDY" if self.sukuna.fuga_cd == 0 else f"{self.sukuna.fuga_cd//60}s")
