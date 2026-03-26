@@ -882,7 +882,7 @@ class Game:
                         #     self.gojo.attack_cooldown = 0
                         #     self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 120, "timer": 60, "text": "COOLDOWNS RESET!", "color": WHITE})
                         # # ------------------------------
-
+                       
                         # Capture specific combo keys
                         if event.key == pygame.K_w: self.gojo_combo_buffer.append("W")
                         if event.key == pygame.K_s: self.gojo_combo_buffer.append("S")
@@ -931,11 +931,11 @@ class Game:
                 # --- COMBO EXECUTION LOGIC ---
                 
                 # 1. BLUE POINT-BLANK (Warped Punch)
-                # Cost: 60 CE (3x Normal) | Cooldown: 300 frames (5 seconds)
+                # Cost: 60 CE (3x Normal) | Cooldown: 120 frames (2 seconds) -> Shortened!
                 # THE FIX: Added 'and self.gojo.technique_burnout == 0' to prevent usage during burnout
                 if keys[pygame.K_e] and keys[pygame.K_w] and self.gojo.energy >= 60 * self.gojo.cost_mult and self.gojo.blue_cd == 0 and self.gojo.grab_timer <= 0 and self.gojo.technique_burnout == 0:
                     self.gojo.energy -= 60 * self.gojo.cost_mult
-                    self.gojo.blue_cd = 300 # 5 second cooldown
+                    self.gojo.blue_cd = 120 # Shortened to 2 second cooldown
                     
                     # Damage: 15.0 (3x Base Punch)
                     self.sukuna.rect.centerx = self.gojo.rect.centerx + (50 * self.gojo.direction)
@@ -966,7 +966,7 @@ class Game:
                     self.sukuna.grab_timer = 0
                     
                     self.gojo.energy -= 100 * self.gojo.cost_mult
-                    self.gojo.red_cd = 360  # 6 second cooldown
+                    self.gojo.red_cd = 240  
                     self.gojo.tech_hits = min(500, self.gojo.tech_hits + 25) # Adds to Purple Pool
                     
                     # Damage: 30.0 (2x PB Blue)
@@ -1025,6 +1025,12 @@ class Game:
                         self.gojo.punch_count += 1 
                         if abs(self.gojo.rect.centerx - target.rect.centerx) < 130:
                             dmg = 6.5 * (target.adaptation["punch"] if target.name == "Mahoraga" else 1.0)
+                            
+                            # --- CE IMBUE TO PUNCHES ---
+                            imbue_cost = 2.0 * self.gojo.cost_mult
+                            if self.gojo.energy >= imbue_cost:
+                                self.gojo.energy -= imbue_cost
+                                dmg *= 1.6 # CE Imbue Damage Boost!
                             
                             # Black Flash Trigger Logic (Base: 0.5-1%, Zone: 5-10%)
                             if self.gojo.potential_timer > 0:
@@ -1393,6 +1399,12 @@ class Game:
                             self.sukuna.punch_count += 1
                             melee_dmg = 7.5
                             
+                            # --- CE IMBUE TO PUNCHES ---
+                            imbue_cost = 2.0 * self.sukuna.cost_mult
+                            if self.sukuna.energy >= imbue_cost:
+                                self.sukuna.energy -= imbue_cost
+                                melee_dmg *= 1.6 # CE Imbue Damage Boost!
+                            
                             # Black Flash Trigger Logic (Base: 0.5-1%, Zone: 5-10%)
                             if self.sukuna.potential_timer > 0:
                                 bf_chance = random.uniform(0.05, 0.10) # 5% to 10%
@@ -1411,7 +1423,8 @@ class Game:
                                 self.bf_words.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 60, "timer": 45})
                                 
                             if is_amp:
-                                # LORE ACCURACY: Domain Amplification Bypass ignores Infinity, but does NOT buff base damage.
+                                # LORE ACCURACY: Domain Amplification Bypass ignores Infinity.
+                                # CE Imbue still buffs damage since DA doesn't stop CE output!
                                 if not self.gojo.is_dodging: 
                                     self.gojo.hp -= melee_dmg
                                     
@@ -1731,6 +1744,12 @@ class Game:
                             self.mahoraga.punch_timer = 20 
                             self.mahoraga.punch_count += 1
                             base_dmg = 4.5
+
+                            # --- CE IMBUE TO PUNCHES ---
+                            imbue_cost = 2.0 * self.mahoraga.cost_mult
+                            if self.mahoraga.energy >= imbue_cost:
+                                self.mahoraga.energy -= imbue_cost
+                                base_dmg *= 1.6 # CE Imbue Damage Boost!
 
                             # Black Flash Trigger Logic 
                             # Mahoraga Scale (Base: 0.1%, Zone: 1-2%)
