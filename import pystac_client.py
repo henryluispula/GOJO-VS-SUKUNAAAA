@@ -1048,7 +1048,8 @@ class Game:
                             
                             if not target.is_dodging:
                                 # Sukuna's immense reinforcement gives him 20-50% passive damage reduction on normal attacks
-                                if target.name == "Sukuna":
+                                # FIXED: Now strictly requires CE, exactly like Gojo's defense!
+                                if target.name == "Sukuna" and target.energy > 0:
                                     dmg *= random.uniform(0.5, 0.8)
                                 elif target.name == "Mahoraga":
                                     dmg *= random.uniform(0.6, 0.85)
@@ -1233,7 +1234,27 @@ class Game:
                     # STRATEGIC AI: If Gojo's domain is active, Sukuna frantically stays in point-blank contact!
                     rush_distance = 40 if self.gojo.domain_active else 110
                     
-                    if dist > rush_distance or self.gojo.grab_timer > 0:
+                    # --- NEW: TACTICAL HEALING RETREAT ---
+                    # If Sukuna drops below 40% HP (200) and has CE, back away to heal unless Gojo is using Domain!
+                    needs_healing = self.sukuna.hp < 200 and self.sukuna.energy > 50 and not self.sukuna.ce_exhausted
+                    retreating = needs_healing and not self.gojo.domain_active
+                    
+                    if retreating and self.gojo.grab_timer <= 0:
+                        # Run away from Gojo to buy time for RCT!
+                        speed = 18
+                        self.sukuna.rect.x += speed if self.sukuna.rect.x > self.gojo.rect.x else -speed
+                        
+                        # Occasionally jump to evade Orbs while retreating
+                        if self.sukuna.on_ground and random.random() < 0.03:
+                            self.sukuna.jump()
+                            
+                        # Use dodge specifically to create distance if Gojo gets too close
+                        if self.sukuna.dodge_cd == 0 and dist < 250 and random.random() < 0.05:
+                            self.sukuna.direction = 1 if self.sukuna.rect.x > self.gojo.rect.x else -1
+                            self.sukuna.dodge()
+                            self.sukuna.dodge_cd = 50
+                            
+                    elif dist > rush_distance or self.gojo.grab_timer > 0:
                         # Magnetic Lunge to trigger Cleave Hold (speed 28) or normal relentless walking (speed 9)
                         # AI FIX: If exhausted or surviving UV, aggressively rush at high speed!
                         speed = 35 if (self.sukuna.ce_exhausted or self.gojo.domain_active) else (28 if (self.sukuna.cleave_cd <= 0 and dist < 600 and self.gojo.grab_timer <= 0) else 9)
