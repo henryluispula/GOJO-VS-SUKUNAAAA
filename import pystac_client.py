@@ -1371,9 +1371,6 @@ class Game:
                             self.sukuna.hp = min(self.sukuna.max_hp, self.sukuna.hp + 2.5) # Massive burst heal!
                             self.sukuna.rct_timer = 5 # Keep particles flowing
                             
-                            # Optional: Occasional visual popup so the player sees the rapid heal
-                            if random.random() < 0.05:
-                                self.popups.append({"x": self.sukuna.rect.centerx, "y": self.sukuna.rect.centery - 80, "timer": 20, "text": "+RCT BURST", "color": HEAL_GREEN})
                         # Note: If energy is <= 1000, he skips this burst and relies on his 0.3 CE passive RCT to save energy!
 
                         # --- MODIFIED: Attempt Domain Expansion as a defensive counter-measure while retreating! ---
@@ -2313,27 +2310,22 @@ class Game:
                                 self.gojo.hp -= fuga_hp_dmg
                             p.active = False # Hit confirmed, remove projectile
                     
-                    # --- NEW FIX: SIMPLE DOMAIN INTERCEPTION RADIUS ---
-                    # Check interception before physical collision
+                    # --- FIXED: LORE-ACCURATE SIMPLE DOMAIN ---
+                    # Simple Domain ONLY neutralizes sure-hits. Manual slashes pass right through!
                     intercepted_by_sd = False
-                    if self.gojo.simple_domain_active and p.type in ["dismantle", "cleave", "world_slash"]:
+                    if self.gojo.simple_domain_active and getattr(p, "is_sure_hit", False):
                         dist_to_gojo = pygame.Vector2(self.gojo.rect.center).distance_to(p.pos)
                         if dist_to_gojo < 100: # Simple Domain Barrier Radius
                             p.active = False
                             intercepted_by_sd = True
                             
-                            # If it's a sure-hit from the domain, it damages the Simple Domain!
-                            if getattr(p, "is_sure_hit", False):
-                                self.gojo.sd_hits += 1
-                                if self.gojo.sd_hits >= 30: 
-                                    self.gojo.simple_domain_active = False
-                                    self.gojo.sd_was_active = False
-                                    self.gojo.sd_broken_timer = 120 # Reduced to 2 seconds cooldown
-                                    self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 100, "timer": 45, "text": "SD CRUMBLED!", "color": RED})
-                                    self.shake_timer = 15
-                        else:
-                            # Normal slashes still drain a tiny bit of CE when blocked by SD
-                            self.gojo.energy = max(0, self.gojo.energy - 0.5 * self.gojo.cost_mult)
+                            self.gojo.sd_hits += 1
+                            if self.gojo.sd_hits >= 30: 
+                                self.gojo.simple_domain_active = False
+                                self.gojo.sd_was_active = False
+                                self.gojo.sd_broken_timer = 120 # 2 seconds cooldown
+                                self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 100, "timer": 45, "text": "SD CRUMBLED!", "color": RED})
+                                self.shake_timer = 15
                                 
                     # Only apply physical body damage if SD didn't intercept it
                     if not intercepted_by_sd and self.gojo.rect.collidepoint(p.pos) and p.type in ["normal", "dismantle", "cleave", "world_slash"] and not getattr(p, "is_grab_cleave", False):
