@@ -985,15 +985,15 @@ class Game:
                     pb_blue_dmg = 80.0
                     if self.sukuna.amp_duration > 0: pb_blue_dmg *= 0.2 # DA absorbs 80%
                     
-                    # --- NEW: 1:1 Dynamic CE Drain based on Mitigation ---
+                    # --- NEW: 1:2 Final CE Drain based on Mitigation ---
                     if self.sukuna.energy > 0:
                         reduction_mult = random.uniform(0.5, 0.8)
                         mitigated_dmg = pb_blue_dmg * (1.0 - reduction_mult) 
                         
                         pb_blue_dmg *= reduction_mult 
                         
-                        # Cost matches mitigated damage exactly
-                        self.sukuna.energy = max(0, self.sukuna.energy - mitigated_dmg * self.sukuna.cost_mult)
+                        # 2 CE spent for every 1 HP saved
+                        self.sukuna.energy = max(0, self.sukuna.energy - (mitigated_dmg * 2.0) * self.sukuna.cost_mult)
                     
                     self.sukuna.hp -= pb_blue_dmg 
                     
@@ -1029,15 +1029,15 @@ class Game:
                     pb_red_dmg = 150.0
                     if self.sukuna.amp_duration > 0: pb_red_dmg *= 0.3 # DA absorbs 70%
                     
-                    # --- NEW: 1:1 Dynamic CE Drain based on Mitigation ---
+                    # --- NEW: 1:2 Final CE Drain based on Mitigation ---
                     if self.sukuna.energy > 0:
                         reduction_mult = random.uniform(0.5, 0.8)
                         mitigated_dmg = pb_red_dmg * (1.0 - reduction_mult) 
                         
                         pb_red_dmg *= reduction_mult 
                         
-                        # Cost matches mitigated damage exactly
-                        self.sukuna.energy = max(0, self.sukuna.energy - mitigated_dmg * self.sukuna.cost_mult)
+                        # 2 CE spent for every 1 HP saved
+                        self.sukuna.energy = max(0, self.sukuna.energy - (mitigated_dmg * 2.0) * self.sukuna.cost_mult)
                         
                     self.sukuna.hp -= pb_red_dmg 
                     
@@ -1124,8 +1124,8 @@ class Game:
                                     
                                     dmg *= reduction_mult 
                                     
-                                    # Cost matches mitigated damage exactly
-                                    target.energy = max(0, target.energy - mitigated_dmg * target.cost_mult)
+                                    # 2 CE spent for every 1 HP saved
+                                    target.energy = max(0, target.energy - (mitigated_dmg * 2.0) * target.cost_mult)
                                 elif target.name == "Mahoraga":
                                     dmg *= random.uniform(0.6, 0.85)
                                     
@@ -2135,15 +2135,15 @@ class Game:
                                 if p_target.name == "Sukuna":
                                     if p_target.amp_duration > 0: orb_dmg *= 0.2 
                                     
-                                    # --- NEW: 1:1 Dynamic CE Drain based on Mitigation ---
+                                    # --- NEW: 1:2 Final CE Drain based on Mitigation ---
                                     if p_target.energy > 0:
                                         reduction_mult = random.uniform(0.5, 0.8)
                                         mitigated_dmg = orb_dmg * (1.0 - reduction_mult) 
                                         
                                         orb_dmg *= reduction_mult 
                                         
-                                        # Cost matches mitigated damage exactly
-                                        p_target.energy = max(0, p_target.energy - mitigated_dmg * p_target.cost_mult)
+                                        # 2 CE spent for every 1 HP saved
+                                        p_target.energy = max(0, p_target.energy - (mitigated_dmg * 2.0) * p_target.cost_mult)
                                         
                                 elif p_target.name == "Mahoraga":
                                     orb_dmg *= 0.75
@@ -2197,15 +2197,15 @@ class Game:
                                 if p_target.name == "Sukuna":
                                     if p_target.amp_duration > 0: orb_dmg *= 0.3 
                                     
-                                    # --- NEW: 1:1 Dynamic CE Drain based on Mitigation ---
+                                    # --- NEW: 1:2 Final CE Drain based on Mitigation ---
                                     if p_target.energy > 0:
                                         reduction_mult = random.uniform(0.5, 0.8)
                                         mitigated_dmg = orb_dmg * (1.0 - reduction_mult) 
                                         
                                         orb_dmg *= reduction_mult 
                                         
-                                        # Cost matches mitigated damage exactly
-                                        p_target.energy = max(0, p_target.energy - mitigated_dmg * p_target.cost_mult)
+                                        # 2 CE spent for every 1 HP saved
+                                        p_target.energy = max(0, p_target.energy - (mitigated_dmg * 2.0) * p_target.cost_mult)
                                         
                                 elif p_target.name == "Mahoraga":
                                     orb_dmg *= 0.75
