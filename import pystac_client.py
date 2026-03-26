@@ -447,7 +447,7 @@ class Fighter:
         if self.name == "Sukuna" and self.hp > 0 and self.hp < self.max_hp and not self.ce_exhausted:
             heal_cost = 0.3 * self.cost_mult
             if self.energy >= heal_cost:
-                self.hp = min(self.max_hp, self.hp + random.uniform(0.2, 0.5))
+                self.hp = min(self.max_hp, self.hp + random.uniform(0.25, 0.55))
                 self.energy -= heal_cost
                 self.rct_timer = 5
         # Mahoraga RCT Buff
@@ -856,31 +856,31 @@ class Game:
                         if event.key == pygame.K_LSHIFT or event.key == pygame.K_RSHIFT: self.gojo.dodge()
                         
                         # # --- NEW: GOJO DEV CONTROLS ---
-                        # if event.key == pygame.K_1: 
-                        #     self.gojo.dev_immortal = not self.gojo.dev_immortal
-                        #     self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 120, "timer": 60, "text": f"IMMORTAL: {self.gojo.dev_immortal}", "color": HEAL_GREEN})
+                        if event.key == pygame.K_1: 
+                            self.gojo.dev_immortal = not self.gojo.dev_immortal
+                            self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 120, "timer": 60, "text": f"IMMORTAL: {self.gojo.dev_immortal}", "color": HEAL_GREEN})
                         
-                        # if event.key == pygame.K_2:
-                        #     self.gojo.dev_inf_ce = not self.gojo.dev_inf_ce
-                        #     self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 120, "timer": 60, "text": f"INF CE: {self.gojo.dev_inf_ce}", "color": BLUE})
+                        if event.key == pygame.K_2:
+                            self.gojo.dev_inf_ce = not self.gojo.dev_inf_ce
+                            self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 120, "timer": 60, "text": f"INF CE: {self.gojo.dev_inf_ce}", "color": BLUE})
                         
-                        # if event.key == pygame.K_3:
-                        #     # Toggles the state between True and False
-                        #     self.gojo.dev_disable_infinity = not getattr(self.gojo, "dev_disable_infinity", False)
+                        if event.key == pygame.K_3:
+                            # Toggles the state between True and False
+                            self.gojo.dev_disable_infinity = not getattr(self.gojo, "dev_disable_infinity", False)
                             
-                        #     # Give a clear popup so you know if it's OFF or NORMAL
-                        #     state_text = "OFF" if self.gojo.dev_disable_infinity else "NORMAL"
-                        #     self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 120, "timer": 60, "text": f"INFINITY: {state_text}", "color": INF_COLOR})
+                            # Give a clear popup so you know if it's OFF or NORMAL
+                            state_text = "OFF" if self.gojo.dev_disable_infinity else "NORMAL"
+                            self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 120, "timer": 60, "text": f"INFINITY: {state_text}", "color": INF_COLOR})
                         
-                        # if event.key == pygame.K_4:
-                        #     self.gojo.blue_cd = 0
-                        #     self.gojo.red_cd = 0
-                        #     self.gojo.purple_cd = 0
-                        #     self.gojo.domain_cd = 0
-                        #     self.gojo.technique_burnout = 0
-                        #     self.gojo.sd_broken_timer = 0
-                        #     self.gojo.attack_cooldown = 0
-                        #     self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 120, "timer": 60, "text": "COOLDOWNS RESET!", "color": WHITE})
+                        if event.key == pygame.K_4:
+                            self.gojo.blue_cd = 0
+                            self.gojo.red_cd = 0
+                            self.gojo.purple_cd = 0
+                            self.gojo.domain_cd = 0
+                            self.gojo.technique_burnout = 0
+                            self.gojo.sd_broken_timer = 0
+                            self.gojo.attack_cooldown = 0
+                            self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 120, "timer": 60, "text": "COOLDOWNS RESET!", "color": WHITE})
                         # # ------------------------------
                        
                         # Capture specific combo keys
@@ -1161,14 +1161,29 @@ class Game:
                 fuga_priority = (self.sukuna.tech_hits >= 500 and self.sukuna.fuga_cd == 0 and self.sukuna.energy >= 195 * self.sukuna.cost_mult) or self.sukuna.fuga_charge > 0
                 
                 # --- SUKUNA DOMAIN CLASH & SIMPLE DOMAIN LOGIC ---
-                if self.sukuna.energy >= 200 * self.sukuna.cost_mult and self.sukuna.domain_cd == 0 and self.sukuna.technique_burnout == 0 and self.sukuna.domain_charge == 0 and not self.sukuna.domain_active:
-                    # Sukuna casts domain if Gojo does, OR strategically if Gojo is vulnerable
+                if self.sukuna.energy >= 200 * self.sukuna.cost_mult and self.sukuna.domain_cd == 0 and self.sukuna.technique_burnout == 0 and self.sukuna.domain_charge == 0 and not self.sukuna.domain_active and not self.sukuna.is_paralyzed:
+                    
+                    # Evaluate if Sukuna can physically interrupt Gojo's cast before committing to a clash!
+                    gojo_has_inf = self.gojo.infinity > 0 and self.gojo.technique_burnout == 0
+                    can_interrupt = False
+                    
+                    if self.gojo.domain_charge > 0:
+                        if self.sukuna.world_slash_unlocked and self.sukuna.dismantle_cd <= 0 and self.sukuna.energy >= 80 * self.sukuna.cost_mult:
+                            can_interrupt = True # World Slash ignores Infinity
+                        elif dist <= 300: 
+                            can_interrupt = True # Close enough to dash and punch with Domain Amp
+                        elif not gojo_has_inf and self.sukuna.dismantle_cd <= 0 and self.sukuna.energy >= 10 * self.sukuna.cost_mult:
+                            can_interrupt = True # Infinity is down, a normal Dismantle will work
+                            
+                    # Sukuna casts domain if Gojo does (and he can't interrupt), OR strategically if Gojo is vulnerable
                     gojo_is_vulnerable = self.gojo.technique_burnout > 0 or self.gojo.domain_cd > 0 or self.gojo.energy < 150 * self.gojo.cost_mult
-                    if self.gojo.domain_active or self.gojo.domain_charge > 0 or gojo_is_vulnerable or (self.sukuna.hp < 150 and random.random() < 0.005):
+                    
+                    if self.gojo.domain_active or (self.gojo.domain_charge > 0 and not can_interrupt) or gojo_is_vulnerable or (self.sukuna.hp < 150 and random.random() < 0.005):
                         self.sukuna.domain_charge = 60
                         de_cost = 200 * self.sukuna.cost_mult
                         self.sukuna.energy -= de_cost
                         print(f"[Sukuna CE Log] Domain Expansion consumed: {de_cost:.2f} CE")
+
                 elif self.gojo.domain_active and not self.sukuna.domain_active:
                     # AI smartly maintains Simple Domain inside Gojo's domain
                     if self.sukuna.energy > 5 * self.sukuna.cost_mult and self.sukuna.sd_broken_timer <= 0:
@@ -1195,6 +1210,31 @@ class Game:
                 if not self.sukuna.is_paralyzed and self.sukuna.grab_timer <= 0:
                     is_amp = self.sukuna.amp_duration > 0
                     
+                    # --- NEW: ACTIVE DOMAIN INTERRUPT ---
+                    if self.gojo.domain_charge > 0:
+                        # Face Gojo instantly
+                        self.sukuna.direction = 1 if self.sukuna.rect.x < self.gojo.rect.x else -1
+                        gojo_has_inf = self.gojo.infinity > 0 and self.gojo.technique_burnout == 0
+                        
+                        # Priority 1: World Slash (Bypasses Infinity)
+                        if self.sukuna.world_slash_unlocked and self.sukuna.dismantle_cd <= 0 and self.sukuna.energy >= 80 * self.sukuna.cost_mult:
+                            self.sukuna.slash_count = 1
+                            self.sukuna.slash_type = "world_slash"
+                            self.sukuna.energy -= 80 * self.sukuna.cost_mult
+                            self.sukuna.dismantle_cd = 180
+                            
+                        # Priority 2: Rush in for a DA punch if close enough
+                        elif dist > 100 and self.sukuna.dodge_cd <= 0 and self.sukuna.stamina >= 20:
+                            self.sukuna.dodge()
+                            self.sukuna.dodge_cd = 20 # Fast dash cooldown to cover ground quickly
+                            
+                        # Priority 3: Normal Dismantle (If Gojo's Infinity is down!)
+                        elif not gojo_has_inf and self.sukuna.dismantle_cd <= 0 and self.sukuna.energy >= 10 * self.sukuna.cost_mult and self.sukuna.technique_burnout == 0:
+                            self.sukuna.slash_count = 3 # Fast burst
+                            self.sukuna.slash_type = "dismantle"
+                            self.sukuna.energy -= 10 * self.sukuna.cost_mult
+                            self.sukuna.dismantle_cd = 40
+                    
                     # LORE ACCURACY: Actively detect incoming Orbs and dodge THROUGH them to close the gap!
                     incoming_orbs = [p for p in self.projectiles if p.type in ["blue_orb", "red_orb", "purple_orb"] and abs(p.pos.x - self.sukuna.rect.centerx) < 250]
                     if incoming_orbs:
@@ -1220,11 +1260,16 @@ class Game:
                         is_amp = False
                     
                     # Turn DA on only if he is very close, not about to Fuga, and slashes are unavailable
-                    if dist <= 150 and self.sukuna.amp_cd == 0 and self.sukuna.amp_duration == 0 and self.sukuna.energy > 30 * self.sukuna.cost_mult and not fuga_priority and not self.sukuna.ce_exhausted and self.gojo.grab_timer <= 0:
-                        # --- CHANGED: Now checks grab_cd instead of cleave_cd ---
-                        if self.sukuna.grab_cd > 0 or self.gojo.domain_active:
-                            self.sukuna.amp_duration = 600 
+                    if dist <= 150 and self.sukuna.energy > 30 * self.sukuna.cost_mult and not fuga_priority and not self.sukuna.ce_exhausted and self.gojo.grab_timer <= 0:
+                        # --- MODIFIED: Force DA to stay on if Gojo's Infinity is active so he can punch! ---
+                        if self.gojo.infinity > 0:
+                            # Continuously refresh the duration so it never drops while punching Gojo's Infinity
+                            self.sukuna.amp_duration = max(self.sukuna.amp_duration, 60) 
                             is_amp = True
+                        elif self.sukuna.amp_cd == 0 and self.sukuna.amp_duration == 0:
+                            if self.sukuna.grab_cd > 0 or self.gojo.domain_active:
+                                self.sukuna.amp_duration = 600 
+                                is_amp = True
                     
                     if is_amp: 
                         da_cost = 0.25 * self.sukuna.cost_mult
@@ -1234,12 +1279,19 @@ class Game:
                     # STRATEGIC AI: If Gojo's domain is active, Sukuna frantically stays in point-blank contact!
                     rush_distance = 40 if self.gojo.domain_active else 110
                     
-                    # --- NEW: TACTICAL HEALING RETREAT ---
+                   # --- NEW: TACTICAL HEALING RETREAT ---
                     # If Sukuna drops below 40% HP (200) and has CE, back away to heal unless Gojo is using Domain!
                     needs_healing = self.sukuna.hp < 200 and self.sukuna.energy > 50 and not self.sukuna.ce_exhausted
                     retreating = needs_healing and not self.gojo.domain_active
                     
                     if retreating and self.gojo.grab_timer <= 0:
+                        # --- MODIFIED: Attempt Domain Expansion as a defensive counter-measure while retreating! ---
+                        if self.sukuna.energy >= 200 * self.sukuna.cost_mult and self.sukuna.domain_cd == 0 and self.sukuna.technique_burnout == 0 and self.sukuna.domain_charge == 0 and not self.sukuna.domain_active:
+                            self.sukuna.domain_charge = 60
+                            de_cost = 200 * self.sukuna.cost_mult
+                            self.sukuna.energy -= de_cost
+                            print(f"[Sukuna CE Log] Defensive Retreat Domain Expansion consumed: {de_cost:.2f} CE")
+
                         # Run away from Gojo to buy time for RCT!
                         speed = 18
                         self.sukuna.rect.x += speed if self.sukuna.rect.x > self.gojo.rect.x else -speed
@@ -1248,12 +1300,12 @@ class Game:
                         if self.sukuna.on_ground and random.random() < 0.03:
                             self.sukuna.jump()
                             
-                        # Use dodge specifically to create distance if Gojo gets too close
-                        if self.sukuna.dodge_cd == 0 and dist < 250 and random.random() < 0.05:
+                        # Aggressively spam dodge to escape and heal!
+                        if self.sukuna.dodge_cd <= 0 and self.sukuna.stamina >= 20 and not self.sukuna.stamina_exhausted:
                             self.sukuna.direction = 1 if self.sukuna.rect.x > self.gojo.rect.x else -1
                             self.sukuna.dodge()
-                            self.sukuna.dodge_cd = 50
-                            
+                            self.sukuna.dodge_cd = 25 # Short cooldown so he strings multiple dashes together
+
                     elif dist > rush_distance or self.gojo.grab_timer > 0:
                         # Magnetic Lunge to trigger Cleave Hold (speed 28) or normal relentless walking (speed 9)
                         # AI FIX: If exhausted or surviving UV, aggressively rush at high speed!
@@ -1294,14 +1346,68 @@ class Game:
 
                     # LORE ACCURACY: Expanded slash zones so he never stands completely still
                     if not is_amp and self.sukuna.energy > 40 * self.sukuna.cost_mult and not fuga_priority and self.sukuna.technique_burnout == 0:
-                        # The World Cutting Slash takes absolute priority if unlocked!
-                        if self.sukuna.world_slash_unlocked and self.sukuna.energy > 80 * self.sukuna.cost_mult and self.sukuna.dismantle_cd <= 0:
+                        
+                        # --- MODIFIED: PRIORITY 1 - TACTICAL HOLD DECISION ---
+                        # Moved to the top so he instantly grabs Gojo after PB Blue pulls them together!
+                        if self.sukuna.rect.colliderect(self.gojo.rect) and self.sukuna.grab_cd <= 0:
+                            is_burned_out = (self.gojo.domain_uses >= 3 and self.gojo.technique_burnout > 0)
+                            has_infinity = self.gojo.infinity > 0 and self.gojo.energy > 0 and not is_burned_out
+                            
+                            if has_infinity:
+                                # HOLD 1: Domain Amp Beatdown (Infinity is UP)
+                                if self.sukuna.energy >= 15 * self.sukuna.cost_mult:
+                                    self.sukuna.amp_duration = max(self.sukuna.amp_duration, 300) 
+                                    is_amp = True
+                                    
+                                    self.gojo.grab_timer = 300
+                                    self.gojo.grab_type = "amp_punch" 
+                                    self.gojo.purple_charge = 0
+                                    self.gojo.domain_charge = 0
+                                    
+                                    self.popups.append({"x": self.sukuna.rect.centerx, "y": self.sukuna.rect.centery - 80, "timer": 45, "text": "DA BEATDOWN!", "color": (255, 255, 0)})
+                                    
+                                    self.gojo.rect.centerx = self.sukuna.rect.centerx + (40 * self.sukuna.direction)
+                                    self.gojo.rect.centery = self.sukuna.rect.centery
+                                    
+                                    self.sukuna.energy -= 15 * self.sukuna.cost_mult
+                                    self.sukuna.grab_cd = 480 # Reduced by 2 seconds (was 600)
+                            else:
+                                # HOLD 2: Cleave Dismemberment (Infinity is DOWN)
+                                if self.sukuna.energy >= 30 * self.sukuna.cost_mult and self.sukuna.cleave_cd <= 0: 
+                                    self.sukuna.amp_duration = 0 
+                                    is_amp = False
+                                    
+                                    self.gojo.grab_timer = 300
+                                    self.gojo.grab_type = "cleave" 
+                                    self.gojo.purple_charge = 0
+                                    self.gojo.domain_charge = 0
+                                    
+                                    self.popups.append({"x": self.sukuna.rect.centerx, "y": self.sukuna.rect.centery - 80, "timer": 45, "text": "CLEAVE!", "color": RED})
+                                    
+                                    self.gojo.rect.centerx = self.sukuna.rect.centerx + (40 * self.sukuna.direction)
+                                    self.gojo.rect.centery = self.sukuna.rect.centery
+                                    
+                                    # Spawn Visual Cleave strictly on Gojo
+                                    p = Projectile(self.gojo.rect.centerx, self.gojo.rect.centery, self.gojo.rect.centerx, self.gojo.rect.centery, 1, RED, size_mult=4.0, type="cleave")
+                                    p.vel = pygame.Vector2(random.uniform(-1, 1), random.uniform(-1, 1)).normalize() * 0.1
+                                    p.lifetime = 300
+                                    p.is_grab_cleave = True 
+                                    self.projectiles.append(p)
+
+                                    self.sukuna.energy -= 30 * self.sukuna.cost_mult
+                                    self.sukuna.cleave_cd = 480 # Reduced by 2 seconds
+                                    self.sukuna.grab_cd = 480 # Reduced by 2 seconds
+                                    
+                        # Priority 2: The World Cutting Slash
+                        elif self.sukuna.world_slash_unlocked and self.sukuna.energy > 80 * self.sukuna.cost_mult and self.sukuna.dismantle_cd <= 0:
                             self.sukuna.slash_count = 1
                             self.sukuna.slash_type = "world_slash"
                             ws_cost = 80 * self.sukuna.cost_mult
                             self.sukuna.energy -= ws_cost
                             print(f"[Sukuna CE Log] World Slash consumed: {ws_cost:.2f} CE")
-                            self.sukuna.dismantle_cd = 180 # 3 second cooldown for this ultimate move
+                            self.sukuna.dismantle_cd = 180 
+                            
+                        # Priority 3: Standard Dismantle Spacing
                         elif dist > 180 and self.sukuna.dismantle_cd == 0:
                             self.sukuna.slash_count = 6
                             self.sukuna.slash_type = "dismantle"
@@ -2116,7 +2222,7 @@ class Game:
                             # If it's a sure-hit from the domain, it damages the Simple Domain!
                             if getattr(p, "is_sure_hit", False):
                                 self.gojo.sd_hits += 1
-                                if self.gojo.sd_hits >= 38: # 38 hits * 8 frames = Approx 5 seconds
+                                if self.gojo.sd_hits >= 30: 
                                     self.gojo.simple_domain_active = False
                                     self.gojo.sd_was_active = False
                                     self.gojo.sd_broken_timer = 120 # Reduced to 2 seconds cooldown
