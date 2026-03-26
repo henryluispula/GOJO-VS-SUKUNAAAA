@@ -232,6 +232,11 @@ class Fighter:
         self.energy = 3000 if name == "Sukuna" else (200 if name == "Gojo" else 2800)
         self.infinity = 1000 if name == "Gojo" else 0 
         
+        # --- OPTIMIZATION: Surface Caching ---
+        self.inf_surf = pygame.Surface((220, 320), pygame.SRCALPHA)
+        self.sd_surf = pygame.Surface((180, 180), pygame.SRCALPHA)
+        self.amp_surf = pygame.Surface((150, 250), pygame.SRCALPHA)
+        
         # --- NEW: DODGE METER LOGIC ---
         self.max_stamina = 100.0
         self.stamina = self.max_stamina
@@ -431,10 +436,13 @@ class Fighter:
         if self.is_dodging:
             self.trail_points.append([self.rect.centerx, self.rect.centery, 10]) # x, y, lifetime
         
-        for pt in self.trail_points[:]:
+        # OPTIMIZATION: List Comprehension for safe O(N) removal
+        active_trails = []
+        for pt in self.trail_points:
             pt[2] -= 1
-            if pt[2] <= 0:
-                self.trail_points.remove(pt)
+            if pt[2] > 0:
+                active_trails.append(pt)
+        self.trail_points = active_trails
         
         # --- FIXED: Gojo Infinity regen (Now respects the Dev Toggle!) ---
         if self.name == "Gojo" and self.infinity < 1000 and self.technique_burnout == 0 and not getattr(self, "dev_disable_infinity", False):
@@ -528,13 +536,13 @@ class Fighter:
 
         # Draw Simple Domain barrier behind character visuals
         if self.simple_domain_active:
-            sd_surf = pygame.Surface((180, 180), pygame.SRCALPHA)
-            pygame.draw.circle(sd_surf, (200, 200, 255, 40), (90, 90), 90)
-            pygame.draw.circle(sd_surf, (255, 255, 255, 120), (90, 90), 90, 3)
+            self.sd_surf.fill((0,0,0,0)) # OPTIMIZATION: Clear and reuse Surface
+            pygame.draw.circle(self.sd_surf, (200, 200, 255, 40), (90, 90), 90)
+            pygame.draw.circle(self.sd_surf, (255, 255, 255, 120), (90, 90), 90, 3)
             # A slight pulse to show it actively draining
             pulse = (math.sin(t * 10) + 1) * 0.5
-            pygame.draw.circle(sd_surf, (200, 200, 255, int(100 * pulse)), (90, 90), 85, 1)
-            surface.blit(sd_surf, (mid_x - 90, y + 80 - 90))
+            pygame.draw.circle(self.sd_surf, (200, 200, 255, int(100 * pulse)), (90, 90), 85, 1)
+            surface.blit(self.sd_surf, (mid_x - 90, y + 80 - 90))
 
         if self.name == "Gojo":
             # --- NEW: Check if Infinity is actually capable of being active right now ---
@@ -552,8 +560,7 @@ class Fighter:
                 alpha_base = 180 
                 pulse = math.sin(t * 20) * 15 
                 
-                # We increase the surface height to 320 to ensure the feet aren't cut off
-                inf_surf = pygame.Surface((220, 320), pygame.SRCALPHA) 
+                self.inf_surf.fill((0,0,0,0)) # OPTIMIZATION: Clear and reuse Surface
                 for i in range(2): 
                     layer_alpha = int(alpha_base / (i + 1))
                     thickness = int(pulse + 10 + (i * 5))
@@ -562,11 +569,11 @@ class Fighter:
                     # Changed the last two points from 160 to 240 to reach the feet
                     poly = [(60, 70), (140, 70), (135, 240), (65, 240)]
                     
-                    pygame.draw.polygon(inf_surf, (100, 200, 255, layer_alpha), poly, thickness)
-                    pygame.draw.circle(inf_surf, (150, 230, 255, layer_alpha), (110, 45), 35 + (thickness//2), thickness)
+                    pygame.draw.polygon(self.inf_surf, (100, 200, 255, layer_alpha), poly, thickness)
+                    pygame.draw.circle(self.inf_surf, (150, 230, 255, layer_alpha), (110, 45), 35 + (thickness//2), thickness)
                 
                 # Blit it slightly higher to account for the longer surface
-                surface.blit(inf_surf, (x - 75, y - 55))
+                surface.blit(self.inf_surf, (x - 75, y - 55))
 
             if self.purple_charge > 0:
                 ct = (120 - self.purple_charge) / 120.0
@@ -676,9 +683,10 @@ class Fighter:
             # --- CHANGED: Deleted the hard line border here! ---
             
             # Very faint inner fill to give it volume
-            amp_surf = pygame.Surface((glow_rect.width, glow_rect.height), pygame.SRCALPHA)
-            pygame.draw.rect(amp_surf, (100, 150, 255, 40), amp_surf.get_rect(), border_radius=15)
-            surface.blit(amp_surf, glow_rect.topleft)
+            self.amp_surf.fill((0,0,0,0)) # OPTIMIZATION: Reuse surface
+            temp_rect = pygame.Rect(0, 0, glow_rect.width, glow_rect.height)
+            pygame.draw.rect(self.amp_surf, (100, 150, 255, 40), temp_rect, border_radius=15)
+            surface.blit(self.amp_surf, glow_rect.topleft)
 
         # Draw Dharma Wheel for Mahoraga or Sukuna summoning
         if self.name == "Mahoraga" or (self.name == "Sukuna" and effect == "summoning"):
@@ -803,11 +811,35 @@ class Game:
         self.prev_gojo_burnout = 0
         self.prev_sukuna_burnout = 0
         self.gojo = Fighter(200, WORLD_HEIGHT - 300, "Gojo")
+        
+        # --- OPTIMIZATION: Fonts and Text Caching ---
+        self.font = pygame.font.SysFont("Impact", 26)
+        self.mini_font = pygame.font.SysFont("Impact", 16)
+        self.text_cache = {}
+        
         # New Tracking for Announcements
         self.prev_adaptations = {"blue": 1.0, "red": 1.0, "purple": 1.0, "punch": 1.0, "infinity": 0.0, "void": 1.0}
         self.maho_announcements = []        
-        # NEW: Generate coordinates for Unlimited Void stars once to save CPU
+        
+        # --- OPTIMIZATION: Pre-rendered Domain Assets ---
         self.uv_stars = [(random.randint(0, WORLD_WIDTH), random.randint(0, WORLD_HEIGHT), random.randint(1, 4)) for _ in range(400)]
+        self.star_layers = []
+        for _ in range(3):
+            star_surf = pygame.Surface((WORLD_WIDTH, WORLD_HEIGHT), pygame.SRCALPHA)
+            for sx, sy, r in self.uv_stars:
+                pygame.draw.circle(star_surf, (255, 255, 255, random.randint(100, 255)), (sx, sy), r)
+            self.star_layers.append(star_surf)
+            
+        self.cached_ms_bg = None
+        self.cached_ms_shrunk = False
+        self.cached_uv_bg = None
+        self.cached_uv_shrunk = False
+        
+        self.shared_flash_surf = pygame.Surface((WORLD_WIDTH, WORLD_HEIGHT), pygame.SRCALPHA)
+        self.shared_world_overlay = pygame.Surface((WORLD_WIDTH, WORLD_HEIGHT), pygame.SRCALPHA)
+        self.shared_ui_overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        self.shared_ui_overlay.fill((0, 0, 0, 200))
+        
         # Sukuna initialized with WHITE to represent his Heian/Meguna robe aesthetic!
         self.sukuna = Fighter(1000, WORLD_HEIGHT - 300, "Sukuna", color=WHITE)
         self.mahoraga = None
@@ -817,8 +849,6 @@ class Game:
         self.bf_words = [] # Track Black Flash word popups
         self.popups = [] # Track Dodged text popups
         self.gojo_combo_buffer = [] # NEW: Combo input tracking buffer
-        self.font = pygame.font.SysFont("Impact", 26)
-        self.mini_font = pygame.font.SysFont("Impact", 16)
         self.game_over = False
         self.paused = False
         self.mahoraga_summon_timer = 0 
@@ -830,13 +860,21 @@ class Game:
         self.prev_adaptations = {"blue": 1.0, "red": 1.0, "purple": 1.0, "punch": 1.0, "infinity": 0.0, "void": 1.0}
         self.maho_announcements = []
 
+    def get_text(self, text, color, font=None):
+        if font is None:
+            font = self.font
+        key = (text, color, font)
+        if key not in self.text_cache:
+            self.text_cache[key] = font.render(text, True, color)
+        return self.text_cache[key]
+
     def draw_bar_on(self, surf, x, y, val, max_val, color, width, height, label):
         pygame.draw.rect(surf, (40, 40, 50), (x, y, width, height)) 
         fill_w = int((max(0, val) / max_val) * width)
         pygame.draw.rect(surf, color, (x, y, fill_w, height))
         pygame.draw.rect(surf, (120, 120, 150), (x, y, width, height), 1)
         if label:
-            lbl = self.mini_font.render(label, True, WHITE)
+            lbl = self.get_text(label, WHITE, self.mini_font)
             surf.blit(lbl, (x, y - 18))
 
     def run(self):
@@ -1194,7 +1232,6 @@ class Game:
                         self.sukuna.domain_charge = 60
                         de_cost = 200 * self.sukuna.cost_mult
                         self.sukuna.energy -= de_cost
-                        print(f"[Sukuna CE Log] Domain Expansion consumed: {de_cost:.2f} CE")
 
                 elif self.gojo.domain_active and not self.sukuna.domain_active:
                     # AI smartly maintains Simple Domain inside Gojo's domain
@@ -1303,7 +1340,6 @@ class Game:
                             self.sukuna.domain_charge = 60
                             de_cost = 200 * self.sukuna.cost_mult
                             self.sukuna.energy -= de_cost
-                            print(f"[Sukuna CE Log] Defensive Retreat Domain Expansion consumed: {de_cost:.2f} CE")
 
                         # --- SMART CORNER DETECTION ---
                         speed = 18
@@ -1378,7 +1414,6 @@ class Game:
                             # --- FIXED: Now matches Purple's 195 CE cost! ---
                             fuga_cost = 195 * self.sukuna.cost_mult
                             self.sukuna.energy = max(0, self.sukuna.energy - fuga_cost)
-                            print(f"[Sukuna CE Log] Fuga Arrow consumed: {fuga_cost:.2f} CE")
                             
                             self.sukuna.fuga_cd = 720
                             self.sukuna.tech_hits = 0
@@ -1434,7 +1469,6 @@ class Game:
 
                                     cleave_cost_1 = 15 * self.sukuna.cost_mult
                                     self.sukuna.energy -= cleave_cost_1
-                                    print(f"[Sukuna CE Log] Cleave Hold (Start) consumed: {cleave_cost_1:.2f} CE")
                                     self.sukuna.cleave_cd = 600 # Increased
                                     
                                     # 3. Apply Conceptual Attrition burst (The rest of the stun is purely CC for Fuga setup)
@@ -1452,7 +1486,6 @@ class Game:
 
                                     cleave_cost_2 = 15 * self.sukuna.cost_mult
                                     self.sukuna.energy -= cleave_cost_2
-                                    print(f"[Sukuna CE Log] Cleave Hold (Burst) consumed: {cleave_cost_2:.2f} CE")
                                     self.sukuna.cleave_cd = 600 # Increased
                                     self.sukuna.grab_cd = 600
 
@@ -1467,7 +1500,6 @@ class Game:
                             self.sukuna.slash_type = "world_slash"
                             ws_cost = 80 * self.sukuna.cost_mult
                             self.sukuna.energy -= ws_cost
-                            print(f"[Sukuna CE Log] World Slash consumed: {ws_cost:.2f} CE")
                             self.sukuna.dismantle_cd = 180 
                             
                         # Priority 3: Standard Dismantle Spacing
@@ -1476,7 +1508,6 @@ class Game:
                             self.sukuna.slash_type = "dismantle"
                             dismantle_cost = 10 * self.sukuna.cost_mult
                             self.sukuna.energy -= dismantle_cost
-                            print(f"[Sukuna CE Log] Dismantle consumed: {dismantle_cost:.2f} CE")
                             self.sukuna.dismantle_cd = 40
 
                     if self.sukuna.slash_count > 0 and self.sukuna.slash_type != "cleave": # Add this check
@@ -1807,8 +1838,6 @@ class Game:
                             self.sukuna_clash_power = int(sukuna_power)
                             self.clash_power_timer = 120 # Keeps the numbers on the HUD for 2 seconds
                             
-                            print(f"[DOMAIN CLASH] Gojo Power: {self.gojo_clash_power} vs Sukuna Power: {self.sukuna_clash_power}")
-                            
                             if gojo_power >= sukuna_power:
                                 self.clash_winner = "GOJO WINS CLASH!"
                                 self.sukuna.end_domain()
@@ -2028,7 +2057,9 @@ class Game:
                         # Speed reduced to 5 so it persists for at least 1 frame inside the collision box
                         self.projectiles.append(Projectile(sx, sy, self.gojo.rect.centerx, self.gojo.rect.centery, 5, RED, size_mult=3.0, type=stype, is_sure_hit=True))
 
-                for p in self.projectiles[:]:
+                # OPTIMIZATION: Use list comprehension for projectiles
+                active_projectiles = []
+                for p in self.projectiles:
                     # Make the grab visual explicitly track Gojo while he is held
                     if getattr(p, "is_grab_cleave", False):
                         if self.gojo.grab_timer > 0:
@@ -2038,6 +2069,9 @@ class Game:
                             p.active = False # Kill it instantly when grab ends/goes on cooldown
                             
                     p.update()
+                    if not p.active:
+                        continue
+                        
                     # Recalculate target for projectiles to hit closest
                     p_target = min(enemies, key=lambda e: pygame.Vector2(e.rect.center).distance_to(p.pos))
                     
@@ -2255,8 +2289,10 @@ class Game:
                                     self.gojo.hp -= proj_dmg
                                     p.active = False
                                     self.blood_particles.append([self.gojo.rect.centerx, self.gojo.rect.centery, random.uniform(-5, 5), random.uniform(-5, 0), 30, random.randint(3, 6)])
-                            
-                    if not p.active: self.projectiles.remove(p)
+                    
+                    if p.active:
+                        active_projectiles.append(p)
+                self.projectiles = active_projectiles
 
                 # --- LINKED DEATH LOGIC ---
                 if self.sukuna.hp <= 0:
@@ -2330,122 +2366,123 @@ class Game:
             self.world_surf.fill(BLACK)
             
             # --- DOMAIN BACKGROUND VISUALS ---
+            is_shrunk = getattr(self.gojo, "domain_shrunk", False)
             if self.gojo.domain_active:
-                uv_bg = pygame.Surface((WORLD_WIDTH, WORLD_HEIGHT), pygame.SRCALPHA)
-                uv_bg.fill((5, 5, 12, 230)) # Deep space dark blue/black
-                
-                # 1. Draw twinkling stars
-                for sx, sy, r in self.uv_stars:
-                    alpha = random.randint(100, 255) # Creates a slight twinkling effect
-                    pygame.draw.circle(uv_bg, (255, 255, 255, alpha), (sx, sy), r)
-                
-                # 2. Huge, Static Black Hole (locks to world center or domain center)
-                if getattr(self.gojo, "domain_shrunk", False) and hasattr(self.gojo, "domain_center_x"):
-                    bh_x, bh_y = self.gojo.domain_center_x, self.gojo.domain_center_y - 200
-                else:
-                    bh_x, bh_y = WORLD_WIDTH // 2, WORLD_HEIGHT // 2 - 300
-                
-                # 3. Draw Huge Accretion Disk
-                pygame.draw.circle(uv_bg, (100, 50, 200, 80), (bh_x, bh_y), 500)
-                pygame.draw.circle(uv_bg, (150, 100, 255, 120), (bh_x, bh_y), 380)
-                pygame.draw.circle(uv_bg, (220, 200, 255, 180), (bh_x, bh_y), 280)
-                pygame.draw.circle(uv_bg, (255, 255, 255, 255), (bh_x, bh_y), 250)
-                
-                # 4. Draw Event Horizon
-                pygame.draw.circle(uv_bg, (0, 0, 0, 255), (bh_x, bh_y), 240)
-                
-                self.world_surf.blit(uv_bg, (0, 0))
-                
-                # --- NEW: Visual Background Shrinking Mask ---
-                if getattr(self.gojo, "domain_shrunk", False) and hasattr(self.gojo, "domain_center_x"):
-                    cx, cy = self.gojo.domain_center_x, self.gojo.domain_center_y
-                    # Draw solid black rectangles masking everything outside the 800x800 shrunk area
-                    pygame.draw.rect(self.world_surf, BLACK, (0, 0, cx - 400, WORLD_HEIGHT)) # Left
-                    pygame.draw.rect(self.world_surf, BLACK, (cx + 400, 0, WORLD_WIDTH, WORLD_HEIGHT)) # Right
-                    pygame.draw.rect(self.world_surf, BLACK, (0, 0, WORLD_WIDTH, cy - 400)) # Top
-                    pygame.draw.rect(self.world_surf, BLACK, (0, cy + 400, WORLD_WIDTH, WORLD_HEIGHT)) # Bottom
-                    pygame.draw.rect(self.world_surf, WHITE, (cx - 400, cy - 400, 800, 800), 4) # Domain Boundary
+                if self.cached_uv_bg is None or self.cached_uv_shrunk != is_shrunk:
+                    self.cached_uv_bg = pygame.Surface((WORLD_WIDTH, WORLD_HEIGHT), pygame.SRCALPHA)
+                    self.cached_uv_bg.fill((5, 5, 12, 230)) # Deep space dark blue/black
+                    
+                    # 2. Huge, Static Black Hole (locks to world center or domain center)
+                    if is_shrunk and hasattr(self.gojo, "domain_center_x"):
+                        bh_x, bh_y = self.gojo.domain_center_x, self.gojo.domain_center_y - 200
+                    else:
+                        bh_x, bh_y = WORLD_WIDTH // 2, WORLD_HEIGHT // 2 - 300
+                    
+                    # 3. Draw Huge Accretion Disk
+                    pygame.draw.circle(self.cached_uv_bg, (100, 50, 200, 80), (bh_x, bh_y), 500)
+                    pygame.draw.circle(self.cached_uv_bg, (150, 100, 255, 120), (bh_x, bh_y), 380)
+                    pygame.draw.circle(self.cached_uv_bg, (220, 200, 255, 180), (bh_x, bh_y), 280)
+                    pygame.draw.circle(self.cached_uv_bg, (255, 255, 255, 255), (bh_x, bh_y), 250)
+                    
+                    # 4. Draw Event Horizon
+                    pygame.draw.circle(self.cached_uv_bg, (0, 0, 0, 255), (bh_x, bh_y), 240)
+                    
+                    # --- NEW: Visual Background Shrinking Mask ---
+                    if is_shrunk and hasattr(self.gojo, "domain_center_x"):
+                        cx, cy = self.gojo.domain_center_x, self.gojo.domain_center_y
+                        # Draw solid black rectangles masking everything outside the 800x800 shrunk area
+                        pygame.draw.rect(self.cached_uv_bg, BLACK, (0, 0, cx - 400, WORLD_HEIGHT)) # Left
+                        pygame.draw.rect(self.cached_uv_bg, BLACK, (cx + 400, 0, WORLD_WIDTH, WORLD_HEIGHT)) # Right
+                        pygame.draw.rect(self.cached_uv_bg, BLACK, (0, 0, WORLD_WIDTH, cy - 400)) # Top
+                        pygame.draw.rect(self.cached_uv_bg, BLACK, (0, cy + 400, WORLD_WIDTH, WORLD_HEIGHT)) # Bottom
+                        pygame.draw.rect(self.cached_uv_bg, WHITE, (cx - 400, cy - 400, 800, 800), 4) # Domain Boundary
+
+                    self.cached_uv_shrunk = is_shrunk
+                    
+                self.world_surf.blit(self.cached_uv_bg, (0, 0))
+                # Render animated stars by cycling through pre-rendered alpha layers
+                self.world_surf.blit(self.star_layers[(pygame.time.get_ticks() // 200) % 3], (0, 0))
                 
                 # Fade effect
                 if self.gojo.domain_timer > 380:
                     flash_alpha = int(((self.gojo.domain_timer - 380) / 20.0) * 180)
-                    flash_surf = pygame.Surface((WORLD_WIDTH, WORLD_HEIGHT), pygame.SRCALPHA)
-                    flash_surf.fill((150, 200, 255, flash_alpha)) 
-                    self.world_surf.blit(flash_surf, (0, 0))
+                    self.shared_flash_surf.fill((150, 200, 255, flash_alpha)) 
+                    self.world_surf.blit(self.shared_flash_surf, (0, 0))
             
             elif self.sukuna.domain_active:
-                ms_bg = pygame.Surface((WORLD_WIDTH, WORLD_HEIGHT), pygame.SRCALPHA)
-                
-                # 1. Smoother Background Gradient (50 steps instead of 10)
-                num_steps = 50
-                step_height = WORLD_HEIGHT / num_steps
-                for i in range(num_steps):
-                    # Smoothly fades from deep red to pitch black
-                    color_val = max(0, 120 - (i * 2.4)) 
-                    alpha_val = min(255, 150 + (i * 2))
-                    pygame.draw.rect(ms_bg, (int(color_val), 0, 0, int(alpha_val)), (0, int(i * step_height), WORLD_WIDTH, int(step_height) + 2))
-                
-                # 2. Determine Shrine Position (Brought down to ground level)
-                if getattr(self.gojo, "domain_shrunk", False) and hasattr(self.gojo, "domain_center_x"):
-                    # Centered in the shrunken domain, lowered to the floor
-                    shrine_x, shrine_y = self.gojo.domain_center_x, self.gojo.domain_center_y + 50 
-                else:
-                    # Centered in the world, brought down right behind the characters
-                    shrine_x, shrine_y = WORLD_WIDTH // 2, WORLD_HEIGHT - 400 
+                if self.cached_ms_bg is None or self.cached_ms_shrunk != is_shrunk:
+                    self.cached_ms_bg = pygame.Surface((WORLD_WIDTH, WORLD_HEIGHT), pygame.SRCALPHA)
                     
-                # 3. Draw Blood Moon (Scaled up to match the bigger shrine)
-                pygame.draw.circle(ms_bg, (150, 0, 0, 150), (shrine_x, shrine_y - 250), 450)
-                pygame.draw.circle(ms_bg, (200, 30, 30, 200), (shrine_x, shrine_y - 250), 330)
-                pygame.draw.circle(ms_bg, (255, 150, 150, 255), (shrine_x, shrine_y - 250), 240)
-                
-                # 4. Draw the BIGGER Malevolent Shrine (Scaled up by ~1.5x)
-                shrine_color = (15, 5, 5) # Extremely dark red/pitch black silhouette
-                
-                # Main base structure (Wider and Taller)
-                pygame.draw.rect(ms_bg, shrine_color, (shrine_x - 270, shrine_y - 150, 540, 750))
-                
-                # Roof Tiers (Expanded outward and upward for a towering pagoda look)
-                pygame.draw.polygon(ms_bg, shrine_color, [(shrine_x - 450, shrine_y - 120), (shrine_x + 450, shrine_y - 120), (shrine_x + 270, shrine_y - 240), (shrine_x - 270, shrine_y - 240)])
-                pygame.draw.polygon(ms_bg, shrine_color, [(shrine_x - 360, shrine_y - 240), (shrine_x + 360, shrine_y - 240), (shrine_x + 180, shrine_y - 345), (shrine_x - 180, shrine_y - 345)])
-                pygame.draw.polygon(ms_bg, shrine_color, [(shrine_x - 240, shrine_y - 345), (shrine_x + 240, shrine_y - 345), (shrine_x + 90, shrine_y - 450), (shrine_x - 90, shrine_y - 450)])
-                
-                # 5. The BIGGER Gaping Open Mouth
-                mouth_rect = (shrine_x - 165, shrine_y - 20, 330, 420)
-                pygame.draw.ellipse(ms_bg, BLACK, mouth_rect)
-                
-                # Draw terrifying teeth lining the mouth (Adjusted to new scale)
-                teeth_color = (220, 220, 200) # Bone white
-                
-                # Top teeth pointing down
-                for tx in range(int(shrine_x - 135), int(shrine_x + 135), 35):
-                    pygame.draw.polygon(ms_bg, teeth_color, [(tx, shrine_y + 25), (tx + 35, shrine_y + 25), (tx + 17, shrine_y + 115)])
-                
-                # Bottom teeth pointing up
-                for tx in range(int(shrine_x - 135), int(shrine_x + 135), 35):
-                    pygame.draw.polygon(ms_bg, teeth_color, [(tx, shrine_y + 360), (tx + 35, shrine_y + 360), (tx + 17, shrine_y + 270)])
-                
-                # Side teeth (left pointing right)
-                for ty in range(int(shrine_y + 70), int(shrine_y + 320), 45):
-                    pygame.draw.polygon(ms_bg, teeth_color, [(shrine_x - 150, ty), (shrine_x - 150, ty + 35), (shrine_x - 75, ty + 17)])
-                
-                # Side teeth (right pointing left)
-                for ty in range(int(shrine_y + 70), int(shrine_y + 320), 45):
-                    pygame.draw.polygon(ms_bg, teeth_color, [(shrine_x + 150, ty), (shrine_x + 150, ty + 35), (shrine_x + 75, ty + 17)])
+                    # 1. Smoother Background Gradient
+                    num_steps = 50
+                    step_height = WORLD_HEIGHT / num_steps
+                    for i in range(num_steps):
+                        # Smoothly fades from deep red to pitch black
+                        color_val = max(0, 120 - (i * 2.4)) 
+                        alpha_val = min(255, 150 + (i * 2))
+                        pygame.draw.rect(self.cached_ms_bg, (int(color_val), 0, 0, int(alpha_val)), (0, int(i * step_height), WORLD_WIDTH, int(step_height) + 2))
+                    
+                    # 2. Determine Shrine Position (Brought down to ground level)
+                    if is_shrunk and hasattr(self.gojo, "domain_center_x"):
+                        # Centered in the shrunken domain, lowered to the floor
+                        shrine_x, shrine_y = self.gojo.domain_center_x, self.gojo.domain_center_y + 50 
+                    else:
+                        # Centered in the world, brought down right behind the characters
+                        shrine_x, shrine_y = WORLD_WIDTH // 2, WORLD_HEIGHT - 400 
+                        
+                    # 3. Draw Blood Moon (Scaled up to match the bigger shrine)
+                    pygame.draw.circle(self.cached_ms_bg, (150, 0, 0, 150), (shrine_x, shrine_y - 250), 450)
+                    pygame.draw.circle(self.cached_ms_bg, (200, 30, 30, 200), (shrine_x, shrine_y - 250), 330)
+                    pygame.draw.circle(self.cached_ms_bg, (255, 150, 150, 255), (shrine_x, shrine_y - 250), 240)
+                    
+                    # 4. Draw the BIGGER Malevolent Shrine (Scaled up by ~1.5x)
+                    shrine_color = (15, 5, 5) # Extremely dark red/pitch black silhouette
+                    
+                    # Main base structure (Wider and Taller)
+                    pygame.draw.rect(self.cached_ms_bg, shrine_color, (shrine_x - 270, shrine_y - 150, 540, 750))
+                    
+                    # Roof Tiers (Expanded outward and upward for a towering pagoda look)
+                    pygame.draw.polygon(self.cached_ms_bg, shrine_color, [(shrine_x - 450, shrine_y - 120), (shrine_x + 450, shrine_y - 120), (shrine_x + 270, shrine_y - 240), (shrine_x - 270, shrine_y - 240)])
+                    pygame.draw.polygon(self.cached_ms_bg, shrine_color, [(shrine_x - 360, shrine_y - 240), (shrine_x + 360, shrine_y - 240), (shrine_x + 180, shrine_y - 345), (shrine_x - 180, shrine_y - 345)])
+                    pygame.draw.polygon(self.cached_ms_bg, shrine_color, [(shrine_x - 240, shrine_y - 345), (shrine_x + 240, shrine_y - 345), (shrine_x + 90, shrine_y - 450), (shrine_x - 90, shrine_y - 450)])
+                    
+                    # 5. The BIGGER Gaping Open Mouth
+                    mouth_rect = (shrine_x - 165, shrine_y - 20, 330, 420)
+                    pygame.draw.ellipse(self.cached_ms_bg, BLACK, mouth_rect)
+                    
+                    # Draw terrifying teeth lining the mouth (Adjusted to new scale)
+                    teeth_color = (220, 220, 200) # Bone white
+                    
+                    # Top teeth pointing down
+                    for tx in range(int(shrine_x - 135), int(shrine_x + 135), 35):
+                        pygame.draw.polygon(self.cached_ms_bg, teeth_color, [(tx, shrine_y + 25), (tx + 35, shrine_y + 25), (tx + 17, shrine_y + 115)])
+                    
+                    # Bottom teeth pointing up
+                    for tx in range(int(shrine_x - 135), int(shrine_x + 135), 35):
+                        pygame.draw.polygon(self.cached_ms_bg, teeth_color, [(tx, shrine_y + 360), (tx + 35, shrine_y + 360), (tx + 17, shrine_y + 270)])
+                    
+                    # Side teeth (left pointing right)
+                    for ty in range(int(shrine_y + 70), int(shrine_y + 320), 45):
+                        pygame.draw.polygon(self.cached_ms_bg, teeth_color, [(shrine_x - 150, ty), (shrine_x - 150, ty + 35), (shrine_x - 75, ty + 17)])
+                    
+                    # Side teeth (right pointing left)
+                    for ty in range(int(shrine_y + 70), int(shrine_y + 320), 45):
+                        pygame.draw.polygon(self.cached_ms_bg, teeth_color, [(shrine_x + 150, ty), (shrine_x + 150, ty + 35), (shrine_x + 75, ty + 17)])
 
-                self.world_surf.blit(ms_bg, (0, 0))
-                
-                # --- Visual Background Shrinking Mask for Sukuna ---
-                if getattr(self.gojo, "domain_shrunk", False) and hasattr(self.gojo, "domain_center_x"):
-                    cx, cy = self.gojo.domain_center_x, self.gojo.domain_center_y
-                    
-                    # Draw solid black rectangles masking everything outside the 800x800 shrunk area
-                    pygame.draw.rect(self.world_surf, BLACK, (0, 0, cx - 400, WORLD_HEIGHT)) # Left
-                    pygame.draw.rect(self.world_surf, BLACK, (cx + 400, 0, WORLD_WIDTH, WORLD_HEIGHT)) # Right
-                    pygame.draw.rect(self.world_surf, BLACK, (0, 0, WORLD_WIDTH, cy - 400)) # Top
-                    pygame.draw.rect(self.world_surf, BLACK, (0, cy + 400, WORLD_WIDTH, WORLD_HEIGHT)) # Bottom
-                    
-                    # Red Domain Boundary box for Sukuna
-                    pygame.draw.rect(self.world_surf, (255, 50, 50), (cx - 400, cy - 400, 800, 800), 4) 
+                    # --- Visual Background Shrinking Mask for Sukuna ---
+                    if is_shrunk and hasattr(self.gojo, "domain_center_x"):
+                        cx, cy = self.gojo.domain_center_x, self.gojo.domain_center_y
+                        # Draw solid black rectangles masking everything outside the 800x800 shrunk area
+                        pygame.draw.rect(self.cached_ms_bg, BLACK, (0, 0, cx - 400, WORLD_HEIGHT)) # Left
+                        pygame.draw.rect(self.cached_ms_bg, BLACK, (cx + 400, 0, WORLD_WIDTH, WORLD_HEIGHT)) # Right
+                        pygame.draw.rect(self.cached_ms_bg, BLACK, (0, 0, WORLD_WIDTH, cy - 400)) # Top
+                        pygame.draw.rect(self.cached_ms_bg, BLACK, (0, cy + 400, WORLD_WIDTH, WORLD_HEIGHT)) # Bottom
+                        # Red Domain Boundary box for Sukuna
+                        pygame.draw.rect(self.cached_ms_bg, (255, 50, 50), (cx - 400, cy - 400, 800, 800), 4) 
+
+                    self.cached_ms_shrunk = is_shrunk
+
+                self.world_surf.blit(self.cached_ms_bg, (0, 0))
                 
                 # Initial Flash Effect
                 if self.sukuna.domain_timer > 390: self.world_surf.fill((200, 0, 0))
@@ -2453,10 +2490,11 @@ class Game:
             pygame.draw.rect(self.world_surf, (15, 15, 25), (0, WORLD_HEIGHT - 100, WORLD_WIDTH, 100))
             
             # Draw Black Flash Popups behind the characters
+            active_bf_words = []
             for bw in self.bf_words:
                 scale_f = 1.0 + (45 - bw["timer"]) * 0.05
-                txt = self.font.render("BLACK FLASH!", True, BLACK)
-                out = self.font.render("BLACK FLASH!", True, RED)
+                txt = self.get_text("BLACK FLASH!", BLACK)
+                out = self.get_text("BLACK FLASH!", RED)
                 
                 s_out = pygame.transform.scale(out, (int(out.get_width() * scale_f), int(out.get_height() * scale_f)))
                 s_txt = pygame.transform.scale(txt, (int(txt.get_width() * scale_f), int(txt.get_height() * scale_f)))
@@ -2469,13 +2507,16 @@ class Game:
                 
                 self.world_surf.blit(s_txt, (bw["x"] - s_txt.get_width()//2, bw["y"] - s_txt.get_height()//2))
                 bw["timer"] -= 1
-            self.bf_words = [bw for bw in self.bf_words if bw["timer"] > 0]
+                if bw["timer"] > 0:
+                    active_bf_words.append(bw)
+            self.bf_words = active_bf_words
             
             # Draw Dodged Popups
+            active_popups = []
             for p_up in self.popups:
                 scale_f = 1.0 + (45 - p_up["timer"]) * 0.02
-                txt = self.font.render(p_up["text"], True, BLACK)
-                out = self.font.render(p_up["text"], True, p_up["color"])
+                txt = self.get_text(p_up["text"], BLACK)
+                out = self.get_text(p_up["text"], p_up["color"])
                 
                 s_out = pygame.transform.scale(out, (int(out.get_width() * scale_f), int(out.get_height() * scale_f)))
                 s_txt = pygame.transform.scale(txt, (int(txt.get_width() * scale_f), int(txt.get_height() * scale_f)))
@@ -2487,19 +2528,21 @@ class Game:
                 
                 self.world_surf.blit(s_txt, (p_up["x"] - s_txt.get_width()//2, p_up["y"] - s_txt.get_height()//2))
                 p_up["timer"] -= 1
-            self.popups = [p for p in self.popups if p["timer"] > 0]
+                if p_up["timer"] > 0:
+                    active_popups.append(p_up)
+            self.popups = active_popups
                         
             
             if self.mahoraga_summon_timer > 0:
-                overlay = pygame.Surface((WORLD_WIDTH, WORLD_HEIGHT), pygame.SRCALPHA); overlay.fill((0, 0, 0, 150))
-                self.world_surf.blit(overlay, (0,0))
+                self.shared_world_overlay.fill((0, 0, 0, 150))
+                self.world_surf.blit(self.shared_world_overlay, (0,0))
                 chants = ["With this treasure I summon...", "Eight-Handled Sword...", "Divergent Sila...", "Divine General Mahoraga!"]
                 
                 # Math updated for 84 frames. 84 / 4 parts = 21 frames per chant.
                 idx = 3 - (self.mahoraga_summon_timer // 22) 
                 idx = max(0, min(3, idx)) # Safety clamp so the list index never goes out of bounds
                 
-                txt = self.font.render(chants[idx], True, MAHO_COLOR)
+                txt = self.get_text(chants[idx], MAHO_COLOR)
                 self.world_surf.blit(txt, (self.sukuna.rect.centerx - txt.get_width()//2, self.sukuna.rect.y - 120))
                 self.sukuna.draw_detailed(self.world_surf, effect="summoning")
             else:
@@ -2510,24 +2553,28 @@ class Game:
 
             for p in self.projectiles: p.draw(self.world_surf)
 
-            # Draw Blood Particles
-            for bp in self.blood_particles[:]:
+            # Draw Blood Particles (Optimized O(N) Loop)
+            active_blood = []
+            for bp in self.blood_particles:
                 bp[0] += bp[2] # x + vx
                 bp[1] += bp[3] # y + vy
                 bp[3] += GRAVITY # Apply gravity to blood
                 bp[4] -= 1 # Reduce lifetime
                 pygame.draw.circle(self.world_surf, BLOOD, (int(bp[0]), int(bp[1])), bp[5])
-                if bp[4] <= 0:
-                    self.blood_particles.remove(bp)
+                if bp[4] > 0:
+                    active_blood.append(bp)
+            self.blood_particles = active_blood
 
-            # Draw Hit Sparks
-            for spark in self.hit_sparks[:]:
+            # Draw Hit Sparks (Optimized O(N) Loop)
+            active_sparks = []
+            for spark in self.hit_sparks:
                 spark[0] += spark[2] # x + vx
                 spark[1] += spark[3] # y + vy
                 spark[4] -= 1 # lifetime
                 pygame.draw.circle(self.world_surf, spark[5], (int(spark[0]), int(spark[1])), max(1, int(spark[4] * 0.25)))
-                if spark[4] <= 0:
-                    self.hit_sparks.remove(spark)
+                if spark[4] > 0:
+                    active_sparks.append(spark)
+            self.hit_sparks = active_sparks
 
             # --- CAMERA SYSTEM AND WORLD ZOOM ---
             active_f = [self.gojo, self.sukuna]
@@ -2584,7 +2631,6 @@ class Game:
             cam_left = self.cam_x - self.cam_width / 2
             cam_top = self.cam_y - self.cam_height / 2
 
-            # --- MISSING VARIABLES RESTORED HERE ---
             # Keep camera strictly inside world bounds to prevent crashing
             c_left = int(max(0, min(WORLD_WIDTH - self.cam_width, cam_left)))
             c_top = int(max(0, min(WORLD_HEIGHT - self.cam_height, cam_top)))
@@ -2608,7 +2654,7 @@ class Game:
                     prompt_text = "MISSED TIMING!"
                     prompt_color = (150, 150, 150)
                 
-                shrink_txt = self.font.render(prompt_text, True, prompt_color) 
+                shrink_txt = self.get_text(prompt_text, prompt_color) 
                 render_surf.blit(shrink_txt, (WIDTH//2 - shrink_txt.get_width()//2, 80))
 
                 # 2. Draw the Progress Bar directly into the HUD
@@ -2638,7 +2684,7 @@ class Game:
                     
                     # Create the base text
                     domain_name = "UNLIMITED VOID" if fighter.name == "Gojo" else "MALEVOLENT SHRINE"
-                    base_txt = self.font.render(f"DOMAIN EXPANSION: {domain_name}", True, WHITE)
+                    base_txt = self.get_text(f"DOMAIN EXPANSION: {domain_name}", WHITE)
                     
                     # ADJUSTMENT: Scale it up over time (starts at 0.5x, ends at 1.0x instead of 1.8x)
                     scale_factor = 0.5 + (charge_progress * 0.5)
@@ -2648,7 +2694,7 @@ class Game:
                     
                     # Set color based on the caster for a cool drop shadow
                     shadow_color = (200, 0, 0) if fighter.name == "Sukuna" else (0, 0, 200)
-                    shadow_txt = self.font.render(f"DOMAIN EXPANSION: {domain_name}", True, shadow_color)
+                    shadow_txt = self.get_text(f"DOMAIN EXPANSION: {domain_name}", shadow_color)
                     scaled_shadow = pygame.transform.scale(shadow_txt, (new_w, new_h))
                     
                     # Center the text dynamically on screen
@@ -2666,10 +2712,12 @@ class Game:
             # 1. Draw the "Who Wins" text
             if self.clash_msg_timer > 0:
                 self.clash_msg_timer -= 1
-                clash_txt = self.font.render(self.clash_winner, True, WHITE)
-                clash_bg = pygame.Surface((clash_txt.get_width() + 40, clash_txt.get_height() + 20), pygame.SRCALPHA)
-                clash_bg.fill((0, 0, 0, 180))
-                render_surf.blit(clash_bg, (WIDTH//2 - clash_bg.get_width()//2, HEIGHT//2 - 100))
+                clash_txt = self.get_text(self.clash_winner, WHITE)
+                # Instead of creating a new surface every frame, use draw.rect
+                bg_w, bg_h = clash_txt.get_width() + 40, clash_txt.get_height() + 20
+                rect_bg = pygame.Surface((bg_w, bg_h), pygame.SRCALPHA)
+                rect_bg.fill((0, 0, 0, 180))
+                render_surf.blit(rect_bg, (WIDTH//2 - bg_w//2, HEIGHT//2 - 100))
                 render_surf.blit(clash_txt, (WIDTH//2 - clash_txt.get_width()//2, HEIGHT//2 - 90))
 
             # 2. Draw the Exact Power Numbers in the upper HUD
@@ -2680,9 +2728,9 @@ class Game:
                 g_color = (0, 255, 255) if self.gojo_clash_power >= self.sukuna_clash_power else (150, 150, 150)
                 s_color = RED if self.sukuna_clash_power > self.gojo_clash_power else (150, 150, 150)
                 
-                g_txt = self.font.render(f"GOJO: {self.gojo_clash_power}", True, g_color)
-                vs_txt = self.font.render(" VS ", True, WHITE)
-                s_txt = self.font.render(f"SUKUNA: {self.sukuna_clash_power}", True, s_color)
+                g_txt = self.get_text(f"GOJO: {self.gojo_clash_power}", g_color)
+                vs_txt = self.get_text(" VS ", WHITE)
+                s_txt = self.get_text(f"SUKUNA: {self.sukuna_clash_power}", s_color)
                 
                 # Calculate positions to center them dynamically
                 total_w = g_txt.get_width() + vs_txt.get_width() + s_txt.get_width() + 40
@@ -2705,9 +2753,9 @@ class Game:
             pygame.draw.rect(g_bg, (100, 150, 255), (0, 0, 340, 210), 2)
             render_surf.blit(g_bg, (10, 10))
             
-            render_surf.blit(self.font.render("SATORU GOJO", True, (200, 230, 255)), (25, 15))
+            render_surf.blit(self.get_text("SATORU GOJO", (200, 230, 255)), (25, 15))
             if self.gojo.potential_timer > 0:
-                render_surf.blit(self.mini_font.render("120% POT", True, (255, 215, 0)), (260, 20))
+                render_surf.blit(self.get_text("120% POT", (255, 215, 0), font=self.mini_font), (260, 20))
 
             self.draw_bar_on(render_surf, 25, 60, self.gojo.hp, self.gojo.max_hp, RED, 310, 10, "HEALTH")
             self.draw_bar_on(render_surf, 25, 95, self.gojo.energy, 200, PURPLE, 145, 8, "CURSE ENERGY")
@@ -2742,9 +2790,9 @@ class Game:
             use_txt = f"USES: {self.gojo.domain_uses}/3"
 
             # --- RENDERING (Shifted down) ---
-            render_surf.blit(self.mini_font.render(f"{b_cd} | {r_cd} | ", True, (200, 220, 255)), (25, 170))
-            render_surf.blit(self.mini_font.render(p_label, True, p_color), (180, 170)) 
-            render_surf.blit(self.mini_font.render(f"{d_cd} | {use_txt}", True, WHITE), (25, 190))
+            render_surf.blit(self.get_text(f"{b_cd} | {r_cd} | ", (200, 220, 255), font=self.mini_font), (25, 170))
+            render_surf.blit(self.get_text(p_label, p_color, font=self.mini_font), (180, 170)) 
+            render_surf.blit(self.get_text(f"{d_cd} | {use_txt}", WHITE, font=self.mini_font), (25, 190))
 
             # 2. Sukuna HUD (Top Right)
             s_height = 290 if (self.mahoraga and self.mahoraga.hp > 0) else 210 # Expanded height
@@ -2753,10 +2801,10 @@ class Game:
             pygame.draw.rect(s_bg, (255, 100, 100), (0, 0, 340, s_height), 2)
             render_surf.blit(s_bg, (WIDTH - 350, 10))
             
-            s_label = self.font.render("RYOMEN SUKUNA", True, (255, 100, 100))
+            s_label = self.get_text("RYOMEN SUKUNA", (255, 100, 100))
             render_surf.blit(s_label, (WIDTH - 335, 15))
             if self.sukuna.potential_timer > 0:
-                render_surf.blit(self.mini_font.render("120% POT", True, (255, 215, 0)), (WIDTH - 100, 20))
+                render_surf.blit(self.get_text("120% POT", (255, 215, 0), font=self.mini_font), (WIDTH - 100, 20))
 
             self.draw_bar_on(render_surf, WIDTH - 335, 60, self.sukuna.hp, self.sukuna.max_hp, RED, 310, 10, "HEALTH")
             self.draw_bar_on(render_surf, WIDTH - 335, 95, self.sukuna.energy, 3000, BLUE, 310, 8, "CURSE ENERGY")
@@ -2790,19 +2838,19 @@ class Game:
             sd_cd = f"SHRINE: {'BURN' if sukuna_is_burned_out else 'ACT' if self.sukuna.domain_active else 'RDY' if self.sukuna.domain_cd==0 else str(self.sukuna.domain_cd//60)+'s'}"
 
             # Render Domain Amp (Shifted down)
-            da_txt = self.mini_font.render(da_cd, True, (150, 220, 255))
+            da_txt = self.get_text(da_cd, (150, 220, 255), font=self.mini_font)
             render_surf.blit(da_txt, (WIDTH - 335, 170))
             
             # Render the rest of the slashes next to it
             slash_str = f" | {di_cd} | {cl_cd}"
-            slash_txt = self.mini_font.render(slash_str, True, (255, 150, 150))
+            slash_txt = self.get_text(slash_str, (255, 150, 150), font=self.mini_font)
             render_surf.blit(slash_txt, (WIDTH - 335 + da_txt.get_width(), 170))
 
             # --- RENDER FUGA AND SHRINE ---
             # Split Fuga and Shrine so Fuga can have dynamic colors like Purple!
-            fu_txt = self.mini_font.render(f"{fu_label} | ", True, fu_color)
+            fu_txt = self.get_text(f"{fu_label} | ", fu_color, font=self.mini_font)
             render_surf.blit(fu_txt, (WIDTH - 335, 190))
-            render_surf.blit(self.mini_font.render(sd_cd, True, WHITE), (WIDTH - 335 + fu_txt.get_width(), 190))
+            render_surf.blit(self.get_text(sd_cd, WHITE, font=self.mini_font), (WIDTH - 335 + fu_txt.get_width(), 190))
 
             # 3. Mahoraga HUD (Extension of Sukuna's Box)
             if self.mahoraga and self.mahoraga.hp > 0:
@@ -2820,7 +2868,7 @@ class Game:
                     ad_txt = "WORLD SLASH BLUEPRINT ACQUIRED!"
                     ad_color = (255, 255, 150)
                     
-                render_surf.blit(self.mini_font.render(ad_txt, True, ad_color), (WIDTH - 335, 250))
+                render_surf.blit(self.get_text(ad_txt, ad_color, font=self.mini_font), (WIDTH - 335, 250))
                 
                 # Tiny text for adaptation percentages to avoid overlap
                 p_p = int((1.0 - self.mahoraga.adaptation["punch"]) * 100)
@@ -2832,29 +2880,32 @@ class Game:
                 sm_txt = f"PN:{p_p}% BL:{b_p}% RD:{r_p}% PR:{pu_p}% IN:{i_p}% VD:{v_p}%"
                 
                 # Render using a slightly smaller system font for layout safety
-                render_surf.blit(pygame.font.SysFont("Impact", 13).render(sm_txt, True, WHITE), (WIDTH - 335, 270))
+                render_surf.blit(self.get_text(sm_txt, WHITE, font=pygame.font.SysFont("Impact", 13)), (WIDTH - 335, 270))
 
             # 4. Center Announcements (Mahoraga Full Adaptations)
             y_offset = HEIGHT // 2 - 150
+            active_ann = []
             for ann in self.maho_announcements:
-                txt = self.font.render(ann["text"], True, MAHO_COLOR)
-                render_surf.blit(self.font.render(ann["text"], True, BLACK), (WIDTH//2 - txt.get_width()//2 + 2, y_offset + 2))
+                txt = self.get_text(ann["text"], MAHO_COLOR)
+                render_surf.blit(self.get_text(ann["text"], BLACK), (WIDTH//2 - txt.get_width()//2 + 2, y_offset + 2))
                 render_surf.blit(txt, (WIDTH//2 - txt.get_width()//2, y_offset))
                 ann["timer"] -= 1
                 y_offset += 40
-            self.maho_announcements = [a for a in self.maho_announcements if a["timer"] > 0]
+                if ann["timer"] > 0:
+                    active_ann.append(ann)
+            self.maho_announcements = active_ann
             
-            render_surf.blit(self.mini_font.render("PRESS 'P' TO PAUSE / VIEW CONTROLS", True, (200, 200, 200)), (WIDTH//2 - 100, 20))
+            render_surf.blit(self.get_text("PRESS 'P' TO PAUSE / VIEW CONTROLS", (200, 200, 200), font=self.mini_font), (WIDTH//2 - 100, 20))
             
             if self.paused:
-                overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA); overlay.fill((0, 0, 0, 200))
-                render_surf.blit(overlay, (0, 0))
+                self.shared_ui_overlay.fill((0, 0, 0, 200))
+                render_surf.blit(self.shared_ui_overlay, (0, 0))
                 
                 instr_bg = pygame.Rect(WIDTH//2 - 320, HEIGHT//2 - 250, 640, 500)
                 pygame.draw.rect(render_surf, (30, 30, 60), instr_bg, border_radius=20)
                 pygame.draw.rect(render_surf, (200, 200, 255), instr_bg, 3, border_radius=20)
                 
-                title = self.font.render("CONTROLS & INSTRUCTIONS", True, (255, 255, 255))
+                title = self.get_text("CONTROLS & INSTRUCTIONS", (255, 255, 255))
                 render_surf.blit(title, (WIDTH//2 - title.get_width()//2, HEIGHT//2 - 230))
                 
                 lines = [
@@ -2877,20 +2928,20 @@ class Game:
                 ]
                 
                 for i, line in enumerate(lines):
-                    text = self.mini_font.render(line, True, (200, 220, 255))
+                    text = self.get_text(line, (200, 220, 255), font=self.mini_font)
                     render_surf.blit(text, (WIDTH//2 - 290, HEIGHT//2 - 180 + i*25))
             
             if self.game_over:
-                overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA); overlay.fill((0, 0, 0, 230))
-                render_surf.blit(overlay, (0,0))
+                self.shared_ui_overlay.fill((0, 0, 0, 230))
+                render_surf.blit(self.shared_ui_overlay, (0,0))
                 msg = "THE KING REIGNS" if self.gojo.is_split else "THE STRONGEST SURVIVED"
-                msg_surf = self.font.render(msg, True, WHITE)
+                msg_surf = self.get_text(msg, WHITE)
                 render_surf.blit(msg_surf, (WIDTH//2 - msg_surf.get_width()//2, HEIGHT//2 - 50))
                 
                 btn_rect = pygame.Rect(WIDTH//2 - 100, HEIGHT//2 + 50, 200, 60)
                 pygame.draw.rect(render_surf, (60, 60, 80), btn_rect, border_radius=10)
                 pygame.draw.rect(render_surf, WHITE, btn_rect, 2, border_radius=10)
-                btn_txt = self.font.render("EXIT GAME", True, WHITE)
+                btn_txt = self.get_text("EXIT GAME", WHITE)
                 render_surf.blit(btn_txt, (WIDTH//2 - btn_txt.get_width()//2, HEIGHT//2 + 80 - btn_txt.get_height()//2))
             
             self.screen.blit(render_surf, display_offset)
