@@ -973,10 +973,16 @@ class Game:
                     self.gojo.red_cd = 240  
                     self.gojo.tech_hits = min(500, self.gojo.tech_hits + 25) # Adds to Purple Pool
                     
+                    # --- NEW: Clear Sukuna's domain charge so he doesn't get a fake interrupt! ---
+                    self.sukuna.domain_charge = 0
+                    
                     # Damage: 30.0 (2x PB Blue)
                     pb_red_dmg = 150.0
                     if self.sukuna.amp_duration > 0: pb_red_dmg *= 0.3 # DA absorbs 70%
                     self.sukuna.hp -= pb_red_dmg 
+                    
+                    # --- NEW: Apply hit-stun so Sukuna's AI doesn't instantly cast a domain while flying backward! ---
+                    self.sukuna.attack_cooldown = 45
                     
                     # --- FIXED: PUSH BOTH FIGHTERS AWAY FROM EACH OTHER ---
                     push_force = 250
@@ -1165,7 +1171,9 @@ class Game:
                 fuga_priority = (self.sukuna.tech_hits >= 500 and self.sukuna.fuga_cd == 0 and self.sukuna.energy >= 195 * self.sukuna.cost_mult) or self.sukuna.fuga_charge > 0
                 
                 # --- SUKUNA DOMAIN CLASH & SIMPLE DOMAIN LOGIC ---
-                if self.sukuna.energy >= 200 * self.sukuna.cost_mult and self.sukuna.domain_cd == 0 and self.sukuna.technique_burnout == 0 and self.sukuna.domain_charge == 0 and not self.sukuna.domain_active and not self.sukuna.is_paralyzed:
+                # --- FIXED: Added self.gojo.grab_timer <= 0 so he doesn't try to cast Domain while holding Gojo! ---
+                # --- FIXED: Added attack_cooldown <= 0 so he doesn't cast Domain while reeling from PB Red! ---
+                if self.sukuna.energy >= 200 * self.sukuna.cost_mult and self.sukuna.domain_cd == 0 and self.sukuna.technique_burnout == 0 and self.sukuna.domain_charge == 0 and not self.sukuna.domain_active and not self.sukuna.is_paralyzed and self.gojo.grab_timer <= 0 and self.sukuna.attack_cooldown <= 0:
                     
                     # Evaluate if Sukuna can physically interrupt Gojo's cast before committing to a clash!
                     gojo_has_inf = self.gojo.infinity > 0 and self.gojo.technique_burnout == 0
@@ -1290,7 +1298,8 @@ class Game:
                     
                     if retreating and self.gojo.grab_timer <= 0:
                         # --- MODIFIED: Attempt Domain Expansion as a defensive counter-measure while retreating! ---
-                        if self.sukuna.energy >= 200 * self.sukuna.cost_mult and self.sukuna.domain_cd == 0 and self.sukuna.technique_burnout == 0 and self.sukuna.domain_charge == 0 and not self.sukuna.domain_active:
+                        # --- FIXED: Added attack_cooldown <= 0 so he doesn't panic-cast while flying backwards! ---
+                        if self.sukuna.energy >= 200 * self.sukuna.cost_mult and self.sukuna.domain_cd == 0 and self.sukuna.technique_burnout == 0 and self.sukuna.domain_charge == 0 and not self.sukuna.domain_active and self.sukuna.attack_cooldown <= 0:
                             self.sukuna.domain_charge = 60
                             de_cost = 200 * self.sukuna.cost_mult
                             self.sukuna.energy -= de_cost
@@ -1321,6 +1330,20 @@ class Game:
                             self.sukuna.direction = run_dir # Dash in the smart escape direction!
                             self.sukuna.dodge()
                             self.sukuna.dodge_cd = 25 # Short cooldown so he strings multiple dashes together
+                        # --- NEW: ANTI-BLUE DEFENSES ---
+                        # 1. Covering Fire: Throw a quick Dismantle backward to interrupt Gojo's pursuit!
+                        if self.sukuna.dismantle_cd <= 0 and self.sukuna.energy >= 10 * self.sukuna.cost_mult and random.random() < 0.04 and self.sukuna.technique_burnout == 0:
+                            self.sukuna.slash_count = 1
+                            self.sukuna.slash_type = "dismantle"
+                            self.sukuna.energy -= 10 * self.sukuna.cost_mult
+                            self.sukuna.dismantle_cd = 80 # Longer cooldown so he doesn't spam it while running
+                            self.sukuna.direction = -run_dir # Face backwards at Gojo to fire!
+                            
+                        # 2. Defensive Aura: Turn on Domain Amplification while healing to tank ALL incoming damage!
+                        if self.sukuna.energy > 15 * self.sukuna.cost_mult and self.sukuna.amp_cd <= 0:
+                            # max() ensures the duration is constantly refreshed so the shield doesn't flicker off!
+                            self.sukuna.amp_duration = max(self.sukuna.amp_duration, 60) 
+                            is_amp = True
 
                     elif dist > rush_distance or self.gojo.grab_timer > 0:
                         # Magnetic Lunge to trigger Cleave Hold (speed 28) or normal relentless walking (speed 9)
@@ -1379,7 +1402,7 @@ class Game:
                                     self.gojo.purple_charge = 0
                                     self.gojo.domain_charge = 0
                                     
-                                    self.popups.append({"x": self.sukuna.rect.centerx, "y": self.sukuna.rect.centery - 80, "timer": 45, "text": "DA BEATDOWN!", "color": (255, 255, 0)})
+                                    self.popups.append({"x": self.sukuna.rect.centerx, "y": self.sukuna.rect.centery - 80, "timer": 45, "text": "DOM AMP BEATDOWN!", "color": (255, 255, 0)})
                                     
                                     self.gojo.rect.centerx = self.sukuna.rect.centerx + (40 * self.sukuna.direction)
                                     self.gojo.rect.centery = self.sukuna.rect.centery
@@ -2784,9 +2807,20 @@ class Game:
             # 3. Mahoraga HUD (Extension of Sukuna's Box)
             if self.mahoraga and self.mahoraga.hp > 0:
                 self.draw_bar_on(render_surf, WIDTH - 335, 235, self.mahoraga.hp, self.mahoraga.max_hp, MAHO_COLOR, 310, 8, "MAHORAGA")
-                ad_txt = f"ADAPT: {self.mahoraga.adapting_to.upper() if self.mahoraga.adapting_to else 'NONE'}"
-                if self.sukuna.world_slash_unlocked: ad_txt = "WORLD SLASH BLUEPRINT ACQUIRED!"
-                render_surf.blit(self.mini_font.render(ad_txt, True, (255, 255, 150)), (WIDTH - 335, 250))
+                
+                # --- NEW: Check if Domain Amp is pausing adaptation ---
+                if self.sukuna.amp_duration > 0:
+                    ad_txt = "ADAPT: PAUSED (DOMAIN AMP)"
+                    ad_color = (255, 100, 100) # Red to show it's unable
+                else:
+                    ad_txt = f"ADAPT: {self.mahoraga.adapting_to.upper() if self.mahoraga.adapting_to else 'NONE'}"
+                    ad_color = (255, 255, 150)
+                    
+                if self.sukuna.world_slash_unlocked: 
+                    ad_txt = "WORLD SLASH BLUEPRINT ACQUIRED!"
+                    ad_color = (255, 255, 150)
+                    
+                render_surf.blit(self.mini_font.render(ad_txt, True, ad_color), (WIDTH - 335, 250))
                 
                 # Tiny text for adaptation percentages to avoid overlap
                 p_p = int((1.0 - self.mahoraga.adaptation["punch"]) * 100)
