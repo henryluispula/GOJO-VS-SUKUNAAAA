@@ -1296,17 +1296,29 @@ class Game:
                             self.sukuna.energy -= de_cost
                             print(f"[Sukuna CE Log] Defensive Retreat Domain Expansion consumed: {de_cost:.2f} CE")
 
-                        # Run away from Gojo to buy time for RCT!
+                        # --- SMART CORNER DETECTION ---
                         speed = 18
-                        self.sukuna.rect.x += speed if self.sukuna.rect.x > self.gojo.rect.x else -speed
+                        run_dir = 1 if self.sukuna.rect.x > self.gojo.rect.x else -1
                         
-                        # Occasionally jump to evade Orbs while retreating
-                        if self.sukuna.on_ground and random.random() < 0.03:
-                            self.sukuna.jump()
+                        # If he is within 150 pixels of the left wall and trying to run left, 
+                        # OR within 150 pixels of the right wall and trying to run right...
+                        if (self.sukuna.rect.left < 150 and run_dir == -1) or (self.sukuna.rect.right > WORLD_WIDTH - 150 and run_dir == 1):
+                            # He realizes he is cornered! Reverse direction to escape THROUGH Gojo.
+                            run_dir *= -1 
+                            # Force a jump to leap over Gojo's head!
+                            if self.sukuna.on_ground:
+                                self.sukuna.jump()
+                        else:
+                            # Occasionally jump to evade Orbs while retreating normally in the open
+                            if self.sukuna.on_ground and random.random() < 0.03:
+                                self.sukuna.jump()
+                                
+                        # Apply the smart movement
+                        self.sukuna.rect.x += speed * run_dir
                             
                         # Aggressively spam dodge to escape and heal!
                         if self.sukuna.dodge_cd <= 0 and self.sukuna.stamina >= 20 and not self.sukuna.stamina_exhausted:
-                            self.sukuna.direction = 1 if self.sukuna.rect.x > self.gojo.rect.x else -1
+                            self.sukuna.direction = run_dir # Dash in the smart escape direction!
                             self.sukuna.dodge()
                             self.sukuna.dodge_cd = 25 # Short cooldown so he strings multiple dashes together
 
@@ -1667,8 +1679,14 @@ class Game:
                                     self.hit_sparks.append([self.gojo.rect.centerx + random.randint(-15, 15), self.gojo.rect.centery + random.randint(-20, 20), random.uniform(-8, 8), random.uniform(-8, 8), random.randint(15, 30), spark_color])
                                     
                         elif grab_type == "cleave":
-                            # LORE MECHANIC: Infinity is down. Cleave shreds flesh mercilessly!
-                            self.gojo.hp -= 0.4 # Adds up to exactly 120 damage over 300 frames
+                            # LORE MECHANIC: Infinity is down, but Gojo reinforces his body with CE!
+                            cleave_dmg = 0.4
+                            
+                            # --- GOJO'S CE REINFORCEMENT DEFENSE ---
+                            if self.gojo.energy > 0:
+                                cleave_dmg *= random.uniform(0.5, 0.8)
+                                
+                            self.gojo.hp -= cleave_dmg # Adds up to ~60-96 damage over 300 frames with CE, or 120 without
                             self.sukuna.tech_hits = min(500, self.sukuna.tech_hits + 0.5) 
                             
                             if self.gojo.grab_timer % 10 == 0:
@@ -1686,7 +1704,13 @@ class Game:
                                 self.hit_sparks.append([self.gojo.rect.centerx + random.randint(-20, 20), self.gojo.rect.centery + random.randint(-30, 30), random.uniform(-5, 5), random.uniform(-5, 5), random.randint(15, 25), INF_COLOR])
                         else:
                             # If Infinity drops (CE exhausted), Cleave directly targets flesh!
-                            self.gojo.hp -= 0.4 
+                            cleave_dmg = 0.4
+                            
+                            # --- GOJO'S CE REINFORCEMENT DEFENSE ---
+                            if self.gojo.energy > 0:
+                                cleave_dmg *= random.uniform(0.5, 0.8)
+                                
+                            self.gojo.hp -= cleave_dmg 
                             self.sukuna.tech_hits = min(500, self.sukuna.tech_hits + 0.5) 
                             if self.gojo.grab_timer % 10 == 0:
                                 self.shake_timer = 5
