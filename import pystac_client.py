@@ -1310,7 +1310,7 @@ class Game:
                                     self.gojo.rect.centery = self.sukuna.rect.centery
                                     
                                     self.sukuna.energy -= 15 * self.sukuna.cost_mult
-                                    self.sukuna.grab_cd = 450 # FIXED: Cleave HUD stays ready!
+                                    self.sukuna.grab_cd = 600 # Increased to 10 seconds
                             else:
                                 # HOLD 2: Cleave Dismemberment (Infinity is DOWN)
                                 if self.sukuna.energy >= 30 * self.sukuna.cost_mult and self.sukuna.cleave_cd <= 0: 
@@ -1335,8 +1335,8 @@ class Game:
                                     self.projectiles.append(p)
 
                                     self.sukuna.energy -= 30 * self.sukuna.cost_mult
-                                    self.sukuna.cleave_cd = 450
-                                    self.sukuna.grab_cd = 450 # Both go on cooldown
+                                    self.sukuna.cleave_cd = 600 # Increased
+                                    self.sukuna.grab_cd = 600 # Increased
                                 # 1. ONLY Gojo gets the 5-second (300 frames) stun. Sukuna is free to drag him!
                                 self.gojo.grab_timer = 300
                                 self.gojo.purple_charge = 0
@@ -1358,7 +1358,7 @@ class Game:
                                 cleave_cost_1 = 15 * self.sukuna.cost_mult
                                 self.sukuna.energy -= cleave_cost_1
                                 print(f"[Sukuna CE Log] Cleave Hold (Start) consumed: {cleave_cost_1:.2f} CE")
-                                self.sukuna.cleave_cd = 450 # Huge cooldown so he relies on the tactical 5 second stun
+                                self.sukuna.cleave_cd = 600 # Increased
                                 
                                 # 3. Apply Conceptual Attrition burst (The rest of the stun is purely CC for Fuga setup)
                                 if self.gojo.infinity > 0 and self.gojo.energy > 0 and self.gojo.technique_burnout == 0:
@@ -1376,7 +1376,7 @@ class Game:
                                 cleave_cost_2 = 15 * self.sukuna.cost_mult
                                 self.sukuna.energy -= cleave_cost_2
                                 print(f"[Sukuna CE Log] Cleave Hold (Burst) consumed: {cleave_cost_2:.2f} CE")
-                                self.sukuna.cleave_cd = 450 # Huge cooldown so he relies on the tactical 5 second stun
+                                self.sukuna.cleave_cd = 600 # Increased
 
                     if self.sukuna.slash_count > 0 and self.sukuna.slash_type != "cleave": # Add this check
                         if self.sukuna.slash_delay <= 0:
@@ -1844,7 +1844,7 @@ class Game:
                                 if enemy.sd_hits >= 150: # 60 fps * 5 seconds = 300 frames/hits
                                     enemy.simple_domain_active = False
                                     enemy.sd_was_active = False
-                                    enemy.sd_broken_timer = 180 # 3 seconds cooldown
+                                    enemy.sd_broken_timer = 120 # Reduced to 2 seconds cooldown
                                     self.popups.append({"x": enemy.rect.centerx, "y": enemy.rect.centery - 100, "timer": 45, "text": "SD CRUMBLED!", "color": RED})
                                     self.shake_timer = 15
                             elif is_touching_gojo:
@@ -2064,7 +2064,7 @@ class Game:
                                 if self.gojo.sd_hits >= 38: # 38 hits * 8 frames = Approx 5 seconds
                                     self.gojo.simple_domain_active = False
                                     self.gojo.sd_was_active = False
-                                    self.gojo.sd_broken_timer = 180 # 3 seconds cooldown
+                                    self.gojo.sd_broken_timer = 120 # Reduced to 2 seconds cooldown
                                     self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 100, "timer": 45, "text": "SD CRUMBLED!", "color": RED})
                                     self.shake_timer = 15
                             else:
