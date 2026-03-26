@@ -1426,7 +1426,12 @@ class Game:
                                 # LORE ACCURACY: Domain Amplification Bypass ignores Infinity.
                                 # CE Imbue still buffs damage since DA doesn't stop CE output!
                                 if not self.gojo.is_dodging: 
-                                    self.gojo.hp -= melee_dmg
+                                    actual_dmg = melee_dmg
+                                    # --- GOJO'S CE REINFORCEMENT DEFENSE ---
+                                    if self.gojo.energy > 0:
+                                        actual_dmg *= random.uniform(0.5, 0.8) 
+                                        
+                                    self.gojo.hp -= actual_dmg
                                     
                                     # Spawn Punch Hit Sparks
                                     spark_color = (255, 0, 0) if self.sukuna.black_flash_timer > 0 else RED
@@ -1445,7 +1450,12 @@ class Game:
                                     self.gojo.rect.x += kb_dir * 5
                                 else:
                                     if not self.gojo.is_dodging: 
-                                        self.gojo.hp -= melee_dmg 
+                                        actual_dmg = melee_dmg
+                                        # --- GOJO'S CE REINFORCEMENT DEFENSE ---
+                                        if self.gojo.energy > 0:
+                                            actual_dmg *= random.uniform(0.5, 0.8) 
+                                            
+                                        self.gojo.hp -= actual_dmg 
                                         
                                         # Spawn Punch Hit Sparks
                                         spark_color = (255, 0, 0) if self.sukuna.black_flash_timer > 0 else RED
@@ -1564,12 +1574,24 @@ class Game:
                         
                         if grab_type == "amp_punch":
                             # LORE MECHANIC: Domain Amplification neutralizes Infinity.
-                            # Sukuna violently pummels Gojo, directly damaging his HP while maintaining the hold!
+                            # Sukuna violently pummels Gojo. Damage comes strictly from base + CE Imbue!
                             self.sukuna.amp_duration = max(self.sukuna.amp_duration, 10) # Ensure DA stays locked ON
                             
+                            beatdown_dmg = 0.2
+                            
+                            # --- CE IMBUE FOR BEATDOWN PUNCHES ---
+                            imbue_cost = 0.5 * self.sukuna.cost_mult
+                            if self.sukuna.energy >= imbue_cost:
+                                self.sukuna.energy -= imbue_cost
+                                beatdown_dmg *= 1.6 # CE Imbue Damage Boost!
+                                
+                            # --- GOJO'S CE REINFORCEMENT DEFENSE ---
+                            if self.gojo.energy > 0:
+                                beatdown_dmg *= random.uniform(0.5, 0.8)
+
                             # Deal steady melee damage directly to HP
-                            self.gojo.hp -= 0.3 
-                            self.sukuna.tech_hits = min(500, self.sukuna.tech_hits + 0.3)
+                            self.gojo.hp -= beatdown_dmg 
+                            self.sukuna.tech_hits = min(500, self.sukuna.tech_hits + beatdown_dmg)
                             
                             # Visual: Rapid brutal punches and hit sparks!
                             if self.gojo.grab_timer % 8 == 0:
@@ -1776,10 +1798,18 @@ class Game:
                                 hit_connected = False
                                 if self.gojo.infinity > 0 and self.gojo.energy > 0 and self.gojo.technique_burnout == 0:
                                     self.gojo.infinity -= to_inf * 0.5 
+                                    
+                                    # --- GOJO'S CE REINFORCEMENT DEFENSE ---
+                                    if self.gojo.energy > 0: to_hp *= random.uniform(0.5, 0.8)
+                                    
                                     self.gojo.hp -= to_hp 
                                     if to_hp > 0: hit_connected = True
                                 else:
-                                    self.gojo.hp -= base_dmg
+                                    # --- GOJO'S CE REINFORCEMENT DEFENSE ---
+                                    actual_dmg = base_dmg
+                                    if self.gojo.energy > 0: actual_dmg *= random.uniform(0.5, 0.8)
+                                    
+                                    self.gojo.hp -= actual_dmg
                                     hit_connected = True
                                     
                                 if hit_connected:
@@ -2041,6 +2071,10 @@ class Game:
                                 dmg_perc = random.uniform(0.25, 0.45)
                                 
                             fuga_hp_dmg = (self.gojo.max_hp * dmg_perc)
+                            
+                            # --- GOJO'S CE REINFORCEMENT DEFENSE ---
+                            if self.gojo.energy > 0: fuga_hp_dmg *= random.uniform(0.5, 0.8)
+                            
                             fuga_ce_dmg = (200 * dmg_perc) # Gojo's Max CE
                             
                             if self.gojo.infinity > 0 and self.gojo.energy > 0 and self.gojo.technique_burnout == 0:
@@ -2083,6 +2117,9 @@ class Game:
                             # 2. Domain Expansion Sure-Hits (If SD is down)
                             elif getattr(p, "is_sure_hit", False):
                                 proj_dmg = 80.0 if p.type == "cleave" else 32.0
+                                # --- GOJO'S CE REINFORCEMENT DEFENSE ---
+                                if self.gojo.energy > 0: proj_dmg *= random.uniform(0.5, 0.8)
+                                
                                 self.gojo.hp -= proj_dmg
                                 p.active = False
                                 self.blood_particles.append([self.gojo.rect.centerx, self.gojo.rect.centery, random.uniform(-5, 5), random.uniform(-5, 0), 30, random.randint(3, 6)])
@@ -2099,6 +2136,9 @@ class Game:
                                     # Direct HP hit also counts!
                                     self.sukuna.tech_hits = min(500, self.sukuna.tech_hits + 2) 
                                     proj_dmg = 80.0 if p.type == "cleave" else 32.0
+                                    # --- GOJO'S CE REINFORCEMENT DEFENSE ---
+                                    if self.gojo.energy > 0: proj_dmg *= random.uniform(0.5, 0.8)
+                                    
                                     self.gojo.hp -= proj_dmg
                                     p.active = False
                                     self.blood_particles.append([self.gojo.rect.centerx, self.gojo.rect.centery, random.uniform(-5, 5), random.uniform(-5, 0), 30, random.randint(3, 6)])
