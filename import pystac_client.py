@@ -2446,8 +2446,113 @@ class Game:
                     fighter.prev_hp = fighter.hp
 
             # --- RENDERING (World Surf handling) ---
-            self.world_surf.fill(BLACK)
-            
+            if not hasattr(self, "cached_shinjuku_bg"):
+                self.cached_shinjuku_bg = pygame.Surface((WORLD_WIDTH, WORLD_HEIGHT))
+                
+                # DIMMER, HIGH-CONTRAST DUSK PALETTE
+                M_SKY_TOP = (25, 27, 30)   # Deep, moody upper sky
+                M_SKY_BOT = (160, 165, 170) # Glowing lower horizon
+                M_WHITE = (245, 245, 250)   # Piercing light elements (Sun)
+                M_LIGHT = (110, 115, 120)   # Dimmer highlights
+                M_MID = (65, 68, 72)        # Heavy midtones
+                M_DARK = (30, 32, 35)       # Deep shadows
+                M_INK = (5, 5, 8)           # Almost pitch black for harsh contrast
+
+                # 1. Sky Background (High-Contrast Gradient Curve)
+                for y in range(WORLD_HEIGHT):
+                    ratio = y / WORLD_HEIGHT
+                    # Applying a power curve to make the dark top drag down further
+                    curve = ratio ** 1.8 
+                    r = int(M_SKY_TOP[0] * (1 - curve) + M_SKY_BOT[0] * curve)
+                    g = int(M_SKY_TOP[1] * (1 - curve) + M_SKY_BOT[1] * curve)
+                    b = int(M_SKY_TOP[2] * (1 - curve) + M_SKY_BOT[2] * curve)
+                    pygame.draw.line(self.cached_shinjuku_bg, (r, g, b), (0, y), (WORLD_WIDTH, y))
+                
+                # Setting Sun (Low on the horizon with layered glowing halos)
+                sun_x, sun_y = WORLD_WIDTH - 700, WORLD_HEIGHT - 700
+                pygame.draw.circle(self.cached_shinjuku_bg, (70, 75, 80), (sun_x, sun_y), 260) # Outer glow
+                pygame.draw.circle(self.cached_shinjuku_bg, (110, 115, 120), (sun_x, sun_y), 210) # Mid glow
+                pygame.draw.circle(self.cached_shinjuku_bg, (180, 185, 190), (sun_x, sun_y), 175) # Inner glow
+                pygame.draw.circle(self.cached_shinjuku_bg, M_WHITE, (sun_x, sun_y), 150) # Core
+                
+                # 2. Distant Cityscape (Grid Buildings)
+                for bx in range(-100, WORLD_WIDTH, 300):
+                    bx += random.randint(-50, 50)
+                    bw = random.randint(200, 450)
+                    bh = random.randint(800, 1500)
+                    
+                    pygame.draw.rect(self.cached_shinjuku_bg, M_LIGHT, (bx, WORLD_HEIGHT - 100 - bh, bw, bh))
+                    pygame.draw.rect(self.cached_shinjuku_bg, M_INK, (bx, WORLD_HEIGHT - 100 - bh, bw, bh), 4) 
+                    
+                    # Window Grid (Random chance removed, now applies to 100% of buildings)
+                    for wy in range(WORLD_HEIGHT - 100 - bh + 40, WORLD_HEIGHT - 100, 60):
+                        pygame.draw.line(self.cached_shinjuku_bg, M_MID, (bx, wy), (bx + bw, wy), 3)
+                    for wx in range(bx + 30, bx + bw - 10, 40):
+                        pygame.draw.line(self.cached_shinjuku_bg, M_MID, (wx, WORLD_HEIGHT - 100 - bh), (wx, WORLD_HEIGHT - 100), 3)
+
+                # 3. Midground Silhouettes (Trees & Street details)
+                for tx in range(150, WORLD_WIDTH, 400):
+                    if random.random() > 0.4:
+                        pygame.draw.circle(self.cached_shinjuku_bg, M_DARK, (tx, WORLD_HEIGHT - 250), 70)
+                        pygame.draw.circle(self.cached_shinjuku_bg, M_INK, (tx, WORLD_HEIGHT - 250), 70, 3)
+                        pygame.draw.circle(self.cached_shinjuku_bg, M_DARK, (tx - 40, WORLD_HEIGHT - 180), 50)
+                        pygame.draw.circle(self.cached_shinjuku_bg, M_INK, (tx - 40, WORLD_HEIGHT - 180), 50, 3)
+                        pygame.draw.rect(self.cached_shinjuku_bg, M_INK, (tx - 10, WORLD_HEIGHT - 250, 20, 150))
+                    
+                    if random.random() > 0.6:
+                        px = tx + 180
+                        pygame.draw.rect(self.cached_shinjuku_bg, M_INK, (px, WORLD_HEIGHT - 450, 8, 350))
+                        pygame.draw.circle(self.cached_shinjuku_bg, M_INK, (px - 20, WORLD_HEIGHT - 400), 20)
+                        pygame.draw.circle(self.cached_shinjuku_bg, (180, 180, 185), (px - 20, WORLD_HEIGHT - 400), 12)
+
+                # 4. The Massive Overpass Bridge
+                bridge_y = WORLD_HEIGHT - 650
+                bridge_h = 160
+                
+                pygame.draw.rect(self.cached_shinjuku_bg, M_MID, (0, bridge_y, WORLD_WIDTH, bridge_h))
+                pygame.draw.rect(self.cached_shinjuku_bg, M_INK, (0, bridge_y, WORLD_WIDTH, bridge_h), 6)
+                pygame.draw.line(self.cached_shinjuku_bg, M_INK, (0, bridge_y + 40), (WORLD_WIDTH, bridge_y + 40), 4)
+                pygame.draw.line(self.cached_shinjuku_bg, M_INK, (0, bridge_y + 50), (WORLD_WIDTH, bridge_y + 50), 10) 
+                
+                under_y = bridge_y + bridge_h
+                pygame.draw.rect(self.cached_shinjuku_bg, M_DARK, (0, under_y, WORLD_WIDTH, 80))
+                pygame.draw.rect(self.cached_shinjuku_bg, M_INK, (0, under_y, WORLD_WIDTH, 80), 5)
+                for gx in range(0, WORLD_WIDTH, 60):
+                    pygame.draw.line(self.cached_shinjuku_bg, M_INK, (gx, under_y), (gx, under_y + 80), 5)
+                    if gx % 180 == 0:
+                        pygame.draw.line(self.cached_shinjuku_bg, M_INK, (gx, under_y), (gx + 120, under_y + 80), 8)
+
+                pygame.draw.line(self.cached_shinjuku_bg, M_INK, (0, bridge_y - 80), (WORLD_WIDTH, bridge_y - 80), 5)
+                pygame.draw.line(self.cached_shinjuku_bg, M_INK, (0, bridge_y - 40), (WORLD_WIDTH, bridge_y - 40), 4)
+                for rx in range(0, WORLD_WIDTH, 40):
+                    pygame.draw.line(self.cached_shinjuku_bg, M_INK, (rx, bridge_y), (rx, bridge_y - 80), 3)
+
+                # 5. Heavy Concrete Support Pillars
+                for px in range(200, WORLD_WIDTH, 1000):
+                    pil_w = 180
+                    
+                    pygame.draw.polygon(self.cached_shinjuku_bg, M_MID, [(px - 30, under_y + 80), (px + pil_w + 30, under_y + 80), (px + pil_w, under_y + 180), (px, under_y + 180)])
+                    pygame.draw.polygon(self.cached_shinjuku_bg, M_INK, [(px - 30, under_y + 80), (px + pil_w + 30, under_y + 80), (px + pil_w, under_y + 180), (px, under_y + 180)], 5)
+                    
+                    pygame.draw.rect(self.cached_shinjuku_bg, M_LIGHT, (px, under_y + 180, pil_w, WORLD_HEIGHT))
+                    pygame.draw.rect(self.cached_shinjuku_bg, M_INK, (px, under_y + 180, pil_w, WORLD_HEIGHT), 6)
+                    
+                    pygame.draw.rect(self.cached_shinjuku_bg, M_DARK, (px + pil_w - 50, under_y + 180, 50, WORLD_HEIGHT))
+                    pygame.draw.line(self.cached_shinjuku_bg, M_INK, (px + pil_w - 50, under_y + 180), (px + pil_w - 50, WORLD_HEIGHT), 4)
+                    
+                    for dy in range(int(under_y) + 300, WORLD_HEIGHT - 100, 150):
+                        pygame.draw.line(self.cached_shinjuku_bg, M_INK, (px, dy), (px + pil_w, dy), 3)
+
+                # 6. Street Level Foreground (Guardrails & Road)
+                street_y = WORLD_HEIGHT - 100
+                
+                pygame.draw.rect(self.cached_shinjuku_bg, M_MID, (0, street_y - 40, WORLD_WIDTH, 40))
+                pygame.draw.line(self.cached_shinjuku_bg, M_INK, (0, street_y - 40), (WORLD_WIDTH, street_y - 40), 4)
+                
+                for gx in range(0, WORLD_WIDTH, 120):
+                    pygame.draw.rect(self.cached_shinjuku_bg, M_INK, (gx, street_y - 90, 15, 50))
+                pygame.draw.line(self.cached_shinjuku_bg, M_INK, (0, street_y - 80), (WORLD_WIDTH, street_y - 80), 8)
+                pygame.draw.line(self.cached_shinjuku_bg, M_INK, (0, street_y - 55), (WORLD_WIDTH, street_y - 55), 6)
             # --- DOMAIN BACKGROUND VISUALS ---
             is_shrunk = getattr(self.gojo, "domain_shrunk", False)
             if self.gojo.domain_active:
@@ -2570,7 +2675,20 @@ class Game:
                 # Initial Flash Effect
                 if self.sukuna.domain_timer > 390: self.world_surf.fill((200, 0, 0))
             
-            pygame.draw.rect(self.world_surf, (15, 15, 25), (0, WORLD_HEIGHT - 100, WORLD_WIDTH, 100))
+            else:
+                self.world_surf.blit(self.cached_shinjuku_bg, (0, 0))
+
+            # --- DYNAMIC MANGA FLOOR (HIGH CONTRAST DUSK) ---
+            if self.gojo.domain_active or self.sukuna.domain_active:
+                pygame.draw.rect(self.world_surf, (15, 15, 25), (0, WORLD_HEIGHT - 100, WORLD_WIDTH, 100))
+            else:
+                # Heavy, shadowed street ground
+                pygame.draw.rect(self.world_surf, (80, 85, 90), (0, WORLD_HEIGHT - 100, WORLD_WIDTH, 100))
+                pygame.draw.line(self.world_surf, (10, 10, 12), (0, WORLD_HEIGHT - 100), (WORLD_WIDTH, WORLD_HEIGHT - 100), 6)
+                
+                # Darker speed lines trailing off
+                for fx in range(0, WORLD_WIDTH, 180):
+                    pygame.draw.line(self.world_surf, (50, 50, 55), (fx, WORLD_HEIGHT - 80), (fx + 80, WORLD_HEIGHT - 80), 8)
             
             # Draw Black Flash Popups behind the characters
             active_bf_words = []
@@ -2861,10 +2979,10 @@ class Game:
             # --- FANCY PURPLE STATUS ---
             p_status = "BURN" if is_burned_out else ("RDY" if self.gojo.purple_cd == 0 else f"{self.gojo.purple_cd//60}s")
             if self.gojo.tech_hits < 500:
-                p_label = f"PURPLE: LOCKED ({self.gojo.tech_hits}/500)"
+                p_label = f"PRPLE: LOCKED ({self.gojo.tech_hits}/500)"
                 p_color = (150, 150, 150) # Grey when locked
             else:
-                p_label = f"PURPLE: {p_status}"
+                p_label = f"PRPLE: {p_status}"
                 # If burned out, make it red to indicate an error state, otherwise bright purple
                 p_color = RED if is_burned_out else (200, 100, 255) 
 
