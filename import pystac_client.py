@@ -335,7 +335,8 @@ class Fighter:
 
     def jump(self):
         if self.on_ground and not self.is_paralyzed:
-            self.vel_y = -45 if self.name == "Mahoraga" else -35
+            # INCREASED JUMP HEIGHT: Stronger negative velocity shoots them higher!
+            self.vel_y = -55 if self.name == "Mahoraga" else -45
             self.on_ground = False
 
     def dodge(self):
@@ -393,8 +394,8 @@ class Fighter:
 
             if self.dodge_timer > 0:
                 self.dodge_timer -= 1
-                # REFINEMENT: Double speed for Gojo's shorter duration dodge simulates teleportation. Mahoraga gets max velocity.
-                dash_speed = 72 if self.name == "Gojo" else (45 if self.name == "Mahoraga" else 18)
+                # REFINEMENT: Gojo teleports (72). Sukuna and Mahoraga share the same heavy burst speed (45).
+                dash_speed = 72 if self.name == "Gojo" else 45
                 self.rect.x += self.direction * dash_speed
             else: self.is_dodging = False
             
@@ -1553,18 +1554,32 @@ class Game:
                                 self.sukuna.dodge()
                                 self.sukuna.dodge_cd = 25
                         else:
-                            if self.sukuna.on_ground and random.random() < 0.02:
-                                self.sukuna.jump()
-                                
-                            if self.sukuna.dodge_cd == 0 and random.random() < 0.03 and self.gojo.grab_timer <= 0:
+                            # --- SMARTER PURSUIT: JUMP-DASH BLITZ COMBO ---
+                            if self.sukuna.dodge_cd == 0 and random.random() < 0.04 and self.gojo.grab_timer <= 0:
                                 self.sukuna.direction = -1 if self.sukuna.rect.x > self.gojo.rect.x else 1
                                 self.sukuna.dodge()
+                                if self.sukuna.on_ground:
+                                    self.sukuna.jump() # Air Blitz combo!
                                 self.sukuna.dodge_cd = 70
+                            elif self.sukuna.on_ground and random.random() < 0.02:
+                                self.sukuna.jump()
 
-                    # FUGA LOGIC
+                    # --- SMARTER FUGA AI ---
+                    # With the 30% HP Binding Vow, Fuga is extremely dangerous to Sukuna. He must calculate!
                     if self.sukuna.energy >= 195 * self.sukuna.cost_mult and self.sukuna.fuga_cd == 0 and self.sukuna.fuga_charge == 0 and self.sukuna.technique_burnout == 0:
                         if self.sukuna.tech_hits >= self.sukuna.max_tech_hits:
-                            self.sukuna.fuga_charge = 120
+                            # 1. Calculate HP Cost Survivability (Needs at least 30% + 20 HP buffer)
+                            vow_hp_cost = self.sukuna.max_hp * 0.30
+                            can_survive_vow = self.sukuna.hp > (vow_hp_cost + 20)
+                            
+                            # 2. Tactical Benefit Checks
+                            gojo_is_vulnerable = self.gojo.infinity <= 0 or self.gojo.technique_burnout > 0 or self.gojo.ce_exhausted
+                            is_guaranteed_kill = self.gojo.hp < 150 and gojo_is_vulnerable # Fuga will definitively end it
+                            
+                            # 3. Decision
+                            # Pop Fuga IF he can survive it AND (Gojo is vulnerable to it OR it's a guaranteed kill OR Sukuna is very healthy and wants to strip Gojo's CE)
+                            if can_survive_vow and (gojo_is_vulnerable or is_guaranteed_kill or self.sukuna.hp > self.sukuna.max_hp * 0.7):
+                                self.sukuna.fuga_charge = 120
                     
                     if self.sukuna.fuga_charge > 0:
                         self.sukuna.fuga_charge -= 1
@@ -1574,6 +1589,15 @@ class Game:
                             # --- FIXED: Now matches Purple's 195 CE cost! ---
                             fuga_cost = 195 * self.sukuna.cost_mult
                             self.sukuna.energy = max(0, self.sukuna.energy - fuga_cost)
+                            
+                            # --- NEW BINDING VOW: Costs 30% Max HP! ---
+                            vow_hp_cost = self.sukuna.max_hp * 0.30
+                            self.sukuna.hp -= vow_hp_cost
+                            self.shake_timer = 20
+                            for _ in range(30): # Spawns a massive burst of blood from Sukuna for the vow
+                                bx, by = self.sukuna.rect.center
+                                self.blood_particles.append([bx, by, random.uniform(-8, 8), random.uniform(-10, 0), 50, random.randint(4, 7)])
+                            self.popups.append({"x": self.sukuna.rect.centerx, "y": self.sukuna.rect.centery - 120, "timer": 60, "text": "BINDING VOW: HP OFFERED!", "color": RED})
                             
                             self.sukuna.fuga_cd = 720
                             self.sukuna.tech_hits = 0
@@ -1779,9 +1803,9 @@ class Game:
                         if random.random() < 0.15: self.sukuna.jump()
 
                     # LORE ACCURACY: If Sukuna drops below 50% HP and hasn't unlocked the World Slash yet, bring out Big Raga!
-                    # NEW CONDITION: Sukuna will strictly wait until Gojo's Domain is on cooldown, NOT during a Domain Clash window, AND NOT during a Domain cast animation!
-                    if self.sukuna.hp < (self.sukuna.max_hp * 0.5) and self.mahoraga is None and not self.sukuna.world_slash_unlocked and self.gojo.domain_cd > 0 and getattr(self, "clash_decision_timer", 0) == 0 and self.gojo.domain_charge == 0 and self.sukuna.domain_charge == 0:
-                        self.mahoraga_summon_timer = 84
+                    # NEW CONDITION: Sukuna will wait until Gojo's Domain Expansion completely ends so Mahoraga doesn't instantly die paralyzed!
+                    if self.sukuna.hp < (self.sukuna.max_hp * 0.5) and self.mahoraga is None and not self.sukuna.world_slash_unlocked and self.gojo.domain_cd > 0 and getattr(self, "clash_decision_timer", 0) == 0 and self.gojo.domain_charge == 0 and self.sukuna.domain_charge == 0 and not self.gojo.domain_active:
+                        self.mahoraga_summon_timer = 160
 
                 # Sukuna Domain Execution Timer
                 if self.sukuna.domain_charge > 0:
@@ -2076,12 +2100,15 @@ class Game:
                         # ------------------------------------
                         
                         if abs(self.mahoraga.rect.centerx - self.gojo.rect.centerx) > 150:
-                            if self.mahoraga.on_ground and random.random() < 0.025:
-                                self.mahoraga.jump()
-                            if self.mahoraga.dodge_cd == 0 and random.random() < 0.04:
+                            # --- SMARTER PURSUIT: JUMP-DASH BLITZ COMBO ---
+                            if self.mahoraga.dodge_cd == 0 and random.random() < 0.05:
                                 self.mahoraga.direction = -1 if self.mahoraga.rect.x > self.gojo.rect.x else 1
                                 self.mahoraga.dodge()
+                                if self.mahoraga.on_ground:
+                                    self.mahoraga.jump() # Combos dodge and jump to launch horizontally!
                                 self.mahoraga.dodge_cd = 60
+                            elif self.mahoraga.on_ground and random.random() < 0.025:
+                                self.mahoraga.jump()
 
                         m_dist = abs(self.mahoraga.rect.centerx - self.gojo.rect.centerx)
                         if m_dist < 150:
