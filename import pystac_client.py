@@ -906,31 +906,31 @@ class Game:
                         if event.key == pygame.K_LSHIFT or event.key == pygame.K_RSHIFT: self.gojo.dodge()
                         
                         # # # --- NEW: GOJO DEV CONTROLS ---
-                        # if event.key == pygame.K_1: 
-                        #     self.gojo.dev_immortal = not self.gojo.dev_immortal
-                        #     self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 120, "timer": 60, "text": f"IMMORTAL: {self.gojo.dev_immortal}", "color": HEAL_GREEN})
+                        if event.key == pygame.K_1: 
+                            self.gojo.dev_immortal = not self.gojo.dev_immortal
+                            self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 120, "timer": 60, "text": f"IMMORTAL: {self.gojo.dev_immortal}", "color": HEAL_GREEN})
                         
-                        # if event.key == pygame.K_2:
-                        #     self.gojo.dev_inf_ce = not self.gojo.dev_inf_ce
-                        #     self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 120, "timer": 60, "text": f"INF CE: {self.gojo.dev_inf_ce}", "color": BLUE})
+                        if event.key == pygame.K_2:
+                            self.gojo.dev_inf_ce = not self.gojo.dev_inf_ce
+                            self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 120, "timer": 60, "text": f"INF CE: {self.gojo.dev_inf_ce}", "color": BLUE})
                         
-                        # if event.key == pygame.K_3:
-                        #     # Toggles the state between True and False
-                        #     self.gojo.dev_disable_infinity = not getattr(self.gojo, "dev_disable_infinity", False)
+                        if event.key == pygame.K_3:
+                            # Toggles the state between True and False
+                            self.gojo.dev_disable_infinity = not getattr(self.gojo, "dev_disable_infinity", False)
                             
-                        #     # Give a clear popup so you know if it's OFF or NORMAL
-                        #     state_text = "OFF" if self.gojo.dev_disable_infinity else "NORMAL"
-                        #     self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 120, "timer": 60, "text": f"INFINITY: {state_text}", "color": INF_COLOR})
+                            # Give a clear popup so you know if it's OFF or NORMAL
+                            state_text = "OFF" if self.gojo.dev_disable_infinity else "NORMAL"
+                            self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 120, "timer": 60, "text": f"INFINITY: {state_text}", "color": INF_COLOR})
                         
-                        # if event.key == pygame.K_4:
-                        #     self.gojo.blue_cd = 0
-                        #     self.gojo.red_cd = 0
-                        #     self.gojo.purple_cd = 0
-                        #     self.gojo.domain_cd = 0
-                        #     self.gojo.technique_burnout = 0
-                        #     self.gojo.sd_broken_timer = 0
-                        #     self.gojo.attack_cooldown = 0
-                        #     self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 120, "timer": 60, "text": "COOLDOWNS RESET!", "color": WHITE})
+                        if event.key == pygame.K_4:
+                            self.gojo.blue_cd = 0
+                            self.gojo.red_cd = 0
+                            self.gojo.purple_cd = 0
+                            self.gojo.domain_cd = 0
+                            self.gojo.technique_burnout = 0
+                            self.gojo.sd_broken_timer = 0
+                            self.gojo.attack_cooldown = 0
+                            self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 120, "timer": 60, "text": "COOLDOWNS RESET!", "color": WHITE})
                         # # ------------------------------
                        
                         # Capture specific combo keys
@@ -1296,29 +1296,27 @@ class Game:
                 if not self.sukuna.is_paralyzed and self.sukuna.grab_timer <= 0:
                     is_amp = self.sukuna.amp_duration > 0
                     
-                    # --- NEW: ACTIVE DOMAIN INTERRUPT ---
-                    if self.gojo.domain_charge > 0:
-                        # Face Gojo instantly
+                    # --- NEW: ACTIVE DOMAIN & PURPLE INTERRUPT ---
+                    if self.gojo.domain_charge > 0 or self.gojo.purple_charge > 0:
+                        # SMARTS, NOT BUFFS: Immediately face the threat and stop wasting time
                         self.sukuna.direction = 1 if self.sukuna.rect.x < self.gojo.rect.x else -1
                         
-                        # Priority 1: World Slash (Bypasses Infinity)
+                        # Priority 1: World Slash (Targets space, bypassing Infinity directly)
                         if self.sukuna.world_slash_unlocked and self.sukuna.dismantle_cd <= 0 and self.sukuna.energy >= 80 * self.sukuna.cost_mult:
                             self.sukuna.slash_count = 1
                             self.sukuna.slash_type = "world_slash"
                             self.sukuna.energy -= 80 * self.sukuna.cost_mult
                             self.sukuna.dismantle_cd = 180
                             
-                        # Priority 2: Rush in for a DA punch if close enough
-                        elif dist > 100 and self.sukuna.dodge_cd <= 0 and self.sukuna.stamina >= 20:
-                            self.sukuna.dodge()
-                            self.sukuna.dodge_cd = 20 # Fast dash cooldown to cover ground quickly
+                        # Priority 2: Tactical Rush (Using strictly base mechanics)
+                        elif dist > 100:
+                            # Use his standard existing lunge speed (28), no artificial speed buffs!
+                            self.sukuna.rect.x += 28 * self.sukuna.direction
                             
-                        # Priority 3: Normal Dismantle (Desperately fire even if Infinity is up to interrupt DE!)
-                        elif self.sukuna.dismantle_cd <= 0 and self.sukuna.energy >= 10 * self.sukuna.cost_mult and self.sukuna.technique_burnout == 0:
-                            self.sukuna.slash_count = 3 # Fast burst
-                            self.sukuna.slash_type = "dismantle"
-                            self.sukuna.energy -= 10 * self.sukuna.cost_mult
-                            self.sukuna.dismantle_cd = 40
+                            # Sequence his STANDARD dodge perfectly without buffing cooldowns or stamina costs
+                            if self.sukuna.dodge_cd <= 0 and self.sukuna.stamina >= 20:
+                                self.sukuna.dodge()
+                                self.sukuna.dodge_cd = 20 # Restored to strict base cooldown!
                     
                     # LORE ACCURACY: Actively detect incoming Orbs and dodge THROUGH them to close the gap!
                     incoming_orbs = [p for p in self.projectiles if p.type in ["blue_orb", "red_orb", "purple_orb"] and abs(p.pos.x - self.sukuna.rect.centerx) < 250]
@@ -1446,13 +1444,24 @@ class Game:
                         else:
                             self.sukuna.rect.x += -speed if self.sukuna.rect.x > self.gojo.rect.x else speed
                             
-                        if self.sukuna.on_ground and random.random() < 0.02:
-                            self.sukuna.jump()
-                            
-                        if self.sukuna.dodge_cd == 0 and random.random() < 0.03 and self.gojo.grab_timer <= 0:
-                            self.sukuna.direction = -1 if self.sukuna.rect.x > self.gojo.rect.x else 1
-                            self.sukuna.dodge()
-                            self.sukuna.dodge_cd = 70
+                        # --- THE STRUGGLE PHASE: SMARTER TETHERING ---
+                        if self.gojo.domain_active and not self.sukuna.domain_active:
+                            # Jump to reach Gojo if Gojo is in the air
+                            if self.gojo.rect.bottom < self.sukuna.rect.top - 20 and self.sukuna.on_ground:
+                                self.sukuna.jump()
+                            # Desperately dash to close the distance quickly
+                            if self.sukuna.dodge_cd <= 0 and self.sukuna.stamina >= 20 and not self.sukuna.stamina_exhausted:
+                                self.sukuna.direction = -1 if self.sukuna.rect.x > self.gojo.rect.x else 1
+                                self.sukuna.dodge()
+                                self.sukuna.dodge_cd = 25
+                        else:
+                            if self.sukuna.on_ground and random.random() < 0.02:
+                                self.sukuna.jump()
+                                
+                            if self.sukuna.dodge_cd == 0 and random.random() < 0.03 and self.gojo.grab_timer <= 0:
+                                self.sukuna.direction = -1 if self.sukuna.rect.x > self.gojo.rect.x else 1
+                                self.sukuna.dodge()
+                                self.sukuna.dodge_cd = 70
 
                     # FUGA LOGIC
                     if self.sukuna.energy >= 195 * self.sukuna.cost_mult and self.sukuna.fuga_cd == 0 and self.sukuna.fuga_charge == 0 and self.sukuna.technique_burnout == 0:
@@ -1671,8 +1680,9 @@ class Game:
                     if (purple_active or self.gojo.purple_charge > 0) and self.sukuna.on_ground:
                         if random.random() < 0.15: self.sukuna.jump()
 
-                    # LORE ACCURACY: If Sukuna drops below 150 HP and hasn't unlocked the World Slash yet, bring out Big Raga!
-                    if self.sukuna.hp < 250 and self.mahoraga is None and not self.sukuna.world_slash_unlocked:
+                    # LORE ACCURACY: If Sukuna drops below 250 HP and hasn't unlocked the World Slash yet, bring out Big Raga!
+                    # NEW CONDITION: Sukuna will strictly wait until Gojo's Domain is on cooldown!
+                    if self.sukuna.hp < 250 and self.mahoraga is None and not self.sukuna.world_slash_unlocked and self.gojo.domain_cd > 0:
                         self.mahoraga_summon_timer = 84
 
                 # Sukuna Domain Execution Timer
@@ -2084,39 +2094,71 @@ class Game:
                 # --- DOMAIN EXPANSION EFFECTS & SIMPLE DOMAIN COUNTER ---
                 # 1. Unlimited Void: Paralysis and Brain Damage (Constant CE/HP drain)
                 if self.gojo.domain_active:
-                    for enemy in [self.sukuna, self.mahoraga]:
-                        if enemy and enemy.hp > 0:
-                            # LORE: Gojo's Infinity prevents Unlimited Void from hitting him directly
-                            is_touching_gojo = enemy.rect.colliderect(self.gojo.rect)
-                            
-                            if getattr(enemy, "simple_domain_active", False) and not is_touching_gojo:
-                                enemy.is_paralyzed = False # Protected by Simple Domain!
-                                # UV sure-hit continuously grinds down the Simple Domain
-                                enemy.sd_hits += 1
-                                if enemy.sd_hits >= 150: # 60 fps * 5 seconds = 300 frames/hits
-                                    enemy.simple_domain_active = False
-                                    enemy.sd_was_active = False
-                                    enemy.sd_broken_timer = 120 # Reduced to 2 seconds cooldown
-                                    self.popups.append({"x": enemy.rect.centerx, "y": enemy.rect.centery - 100, "timer": 45, "text": "SD CRUMBLED!", "color": RED})
-                                    self.shake_timer = 15
-                            elif is_touching_gojo:
-                                enemy.is_paralyzed = False # Protected by Contact!
-                            else:
-                                if enemy.name == "Mahoraga" and enemy.adaptation["void"] <= 0:
-                                    enemy.is_paralyzed = False # Fully adapted, ignores effects completely!
+                    # --- THE PAYOFF: MAHORAGA INSTANT SHATTER ---
+                    if self.mahoraga and self.mahoraga.hp > 0 and self.mahoraga.adaptation["void"] <= 0:
+                        self.gojo.end_domain()
+                        self.gojo.domain_cd = 3000
+                        self.gojo.technique_burnout = 720
+                        self.shake_timer = 30
+                        # CHANGED: Now uses the central HUD announcement system instead of a popup
+                        self.maho_announcements.append({"text": "MAHORAGA SHATTERED UNLIMITED VOID!", "timer": 180})
+                        self.sukuna.is_paralyzed = False
+                        self.mahoraga.is_paralyzed = False
+                    else:
+                        for enemy in [self.sukuna, self.mahoraga]:
+                            if enemy and enemy.hp > 0:
+                                # LORE: Gojo's Infinity prevents Unlimited Void from hitting him directly
+                                is_touching_gojo = enemy.rect.colliderect(self.gojo.rect)
+                                
+                                if getattr(enemy, "simple_domain_active", False) and not is_touching_gojo:
+                                    enemy.is_paralyzed = False # Protected by Simple Domain!
+                                    # UV sure-hit continuously grinds down the Simple Domain
+                                    enemy.sd_hits += 1
+                                    if enemy.sd_hits >= 150: # THE BREAK POINT
+                                        enemy.simple_domain_active = False
+                                        enemy.sd_was_active = False
+                                        enemy.sd_broken_timer = 120 # Reduced to 2 seconds cooldown
+                                        self.popups.append({"x": enemy.rect.centerx, "y": enemy.rect.centery - 100, "timer": 45, "text": "SD CRUMBLED!", "color": RED})
+                                        self.shake_timer = 15
+                                        enemy.is_paralyzed = True
+                                elif is_touching_gojo:
+                                    enemy.is_paralyzed = False # Protected by Contact!
                                 else:
-                                    enemy.is_paralyzed = True
-                                    uv_dmg = 1.5 * (enemy.adaptation["void"] if enemy.name == "Mahoraga" else 1.0)
-                                    enemy.hp -= uv_dmg
-                                    
-                                    # LORE: Without a barrier, the brain information overflow is 3x more taxing
-                                    brain_drain = 4.5 if not getattr(enemy, "simple_domain_active", False) else 1.5
-                                    enemy.energy = max(0, enemy.energy - brain_drain)
+                                    if enemy.name == "Mahoraga" and enemy.adaptation["void"] <= 0:
+                                        enemy.is_paralyzed = False # Fully adapted, ignores effects completely!
+                                    else:
+                                        enemy.is_paralyzed = True
+                                        uv_dmg = 1.5 * (enemy.adaptation["void"] if enemy.name == "Mahoraga" else 1.0)
+                                        enemy.hp -= uv_dmg
+                                        
+                                        # LORE: Without a barrier, the brain information overflow is 3x more taxing
+                                        brain_drain = 4.5 if not getattr(enemy, "simple_domain_active", False) else 1.5
+                                        enemy.energy = max(0, enemy.energy - brain_drain)
 
-                                    if enemy.name == "Mahoraga" and self.sukuna.amp_duration <= 0:
-                                        enemy.trigger_adaptation("void", 2.0)
+                                # --- THE PENALTY & SECRET TIMER (Sukuna Only) ---
+                                if enemy.name == "Sukuna" and enemy.is_paralyzed:
+                                    # The Penalty: Lose access to all active skills
+                                    enemy.dismantle_cd = 2
+                                    enemy.cleave_cd = 2
+                                    enemy.amp_cd = 2
+                                    enemy.amp_duration = 0
+                                    enemy.sd_broken_timer = 2
+                                    enemy.rct_timer = 0
+                                    enemy.fuga_cd = 2
+                                    enemy.attack_cooldown = 2
+                                    
+                                    # The Secret Timer: Megumi's Soul / Wheel triggers
+                                    if self.mahoraga is None or self.mahoraga.hp <= 0:
+                                        enemy.adapting_to = "void"
+                                        enemy.adaptation_points["void"] += 2.0
                                         turns = enemy.adaptation_points["void"] / 250.0
-                                        enemy.adaptation["void"] = max(0, 1.0 - min(1.0, turns / 4.0)) # 4 turns to adapt to UV
+                                        enemy.adaptation["void"] = max(0, 1.0 - min(1.0, turns / 4.0))
+
+                                if enemy.name == "Mahoraga" and self.sukuna.amp_duration <= 0:
+                                    enemy.adapting_to = "void"
+                                    enemy.adaptation_points["void"] += 2.0
+                                    turns = enemy.adaptation_points["void"] / 250.0
+                                    enemy.adaptation["void"] = max(0, 1.0 - min(1.0, turns / 4.0)) # 4 turns to adapt to UV
                 else:
                     self.sukuna.is_paralyzed = False
                     if self.mahoraga: self.mahoraga.is_paralyzed = False
@@ -2416,17 +2458,51 @@ class Game:
                         active_projectiles.append(p)
                 self.projectiles = active_projectiles
 
-                # --- LINKED DEATH LOGIC ---
-                if self.sukuna.hp <= 0:
-                    if self.mahoraga is not None: # Can only die if Mahoraga was at least summoned
-                        self.sukuna.hp = 0
-                        if self.mahoraga.hp > 0: self.mahoraga.hp = 0 # Mahoraga dies if Sukuna dies
-                        self.game_over = True
-                    else: # Immortal before summoning/Mahoraga existence
-                        self.sukuna.hp = 1
-                        if self.mahoraga_summon_timer <= 0:
-                            self.mahoraga_summon_timer = 84
+                # --- DESPERATION & LINKED DEATH LOGIC ---
+                # When Sukuna is critically low on HP, he drops all pride to survive!
+                if self.sukuna.hp <= 120 and self.sukuna.hp > 0:
                     
+                    # 1. BINDING VOW: EMERGENCY CE REINFORCEMENT
+                    # He trades a colossal amount of CE to rapidly heal and shield his body up to 50% HP (250).
+                    if self.sukuna.energy > 40 * self.sukuna.cost_mult and not self.sukuna.ce_exhausted:
+                        self.sukuna.energy -= 12.0 * self.sukuna.cost_mult # Monstrous CE drain!
+                        self.sukuna.hp = min(250.0, self.sukuna.hp + 3.5) # Fast emergency recovery
+                        self.sukuna.rct_timer = 5
+                    
+                    # 2. DESPERATE DOMAIN EXPANSION: Ignore standard tactical pacing and instantly pop DE if he can!
+                    if self.sukuna.energy >= 200 * self.sukuna.cost_mult and self.sukuna.domain_cd == 0 and self.sukuna.technique_burnout == 0 and self.sukuna.domain_charge == 0 and not self.sukuna.domain_active and self.gojo.grab_timer <= 0:
+                        self.sukuna.domain_charge = 60
+                        self.sukuna.energy -= 200 * self.sukuna.cost_mult
+                        self.popups.append({"x": self.sukuna.rect.centerx, "y": self.sukuna.rect.centery - 100, "timer": 60, "text": "DESPERATE DOMAIN!", "color": RED})
+                        
+                    # 3. PANIC RETREAT: CE-REINFORCED SPEED
+                    if self.gojo.grab_timer <= 0 and not self.gojo.domain_active and not self.sukuna.domain_active:
+                        run_dir = 1 if self.sukuna.rect.x > self.gojo.rect.x else -1
+                        
+                        # Smart corner escape so he doesn't get trapped against the wall
+                        if (self.sukuna.rect.left < 150 and run_dir == -1) or (self.sukuna.rect.right > WORLD_WIDTH - 150 and run_dir == 1):
+                            run_dir *= -1
+                            if self.sukuna.on_ground: self.sukuna.jump()
+                        
+                        # Artificially bump speed to 22, but it actively drains his CE!
+                        if self.sukuna.energy > 2.0 * self.sukuna.cost_mult and not self.sukuna.ce_exhausted:
+                            self.sukuna.rect.x += 22 * run_dir
+                            self.sukuna.energy -= 2.0 * self.sukuna.cost_mult
+                        else:
+                            self.sukuna.rect.x += 18 * run_dir # Falls back to base 18 speed if out of juice
+                        
+                        # Spam dodge heavily to gain I-frames and distance
+                        if self.sukuna.dodge_cd <= 0 and self.sukuna.stamina >= 20:
+                            self.sukuna.direction = run_dir
+                            self.sukuna.dodge()
+                            self.sukuna.dodge_cd = 15 # Tactical sequence, not a stat change
+
+                # Actual Death Logic (Immortality completely removed!)
+                if self.sukuna.hp <= 0:
+                    self.sukuna.hp = 0
+                    if self.mahoraga and self.mahoraga.hp > 0: 
+                        self.mahoraga.hp = 0 # Mahoraga dies if Sukuna dies
+                    self.game_over = True
                 if self.gojo.hp <= 0: self.gojo.is_split, self.game_over = True, True
 
             # --- SUMMONING LOGIC ---
@@ -2435,6 +2511,9 @@ class Game:
                 if self.mahoraga_summon_timer == 1:
                     self.mahoraga = Fighter(self.sukuna.rect.x - 100, WORLD_HEIGHT - 300, "Mahoraga", MAHO_COLOR)
                     self.mahoraga.hp = 480
+                    # NEW: Transfer the wheel's adaptation progress from Sukuna to Mahoraga!
+                    self.mahoraga.adaptation_points = self.sukuna.adaptation_points.copy()
+                    self.mahoraga.adaptation = self.sukuna.adaptation.copy()
 
             # --- SCREEN SHAKE ---
             display_offset = (0,0)
@@ -2829,7 +2908,9 @@ class Game:
                 self.world_surf.blit(txt, (self.sukuna.rect.centerx - txt.get_width()//2, self.sukuna.rect.y - 120))
                 self.sukuna.draw_detailed(self.world_surf, effect="summoning")
             else:
-                self.sukuna.draw_detailed(self.world_surf, is_amp=(self.sukuna.amp_duration > 0))
+                # NEW: Secret Timer visual - Draw the wheel on Sukuna if he is stunned by UV and Mahoraga isn't out!
+                eff = "summoning" if (self.sukuna.is_paralyzed and self.gojo.domain_active and (self.mahoraga is None or self.mahoraga.hp <= 0)) else None
+                self.sukuna.draw_detailed(self.world_surf, effect=eff, is_amp=(self.sukuna.amp_duration > 0))
             
             self.gojo.draw_detailed(self.world_surf, punching)
             if self.mahoraga and self.mahoraga.hp > 0: self.mahoraga.draw_detailed(self.world_surf)
