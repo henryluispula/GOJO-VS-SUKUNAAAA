@@ -803,8 +803,9 @@ class Fighter:
 class Game:
     def __init__(self):
         pygame.init()
-        self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
-        self.world_surf = pygame.Surface((WORLD_WIDTH, WORLD_HEIGHT))
+        flags = pygame.DOUBLEBUF | pygame.HWSURFACE
+        self.screen = pygame.display.set_mode((WIDTH, HEIGHT), flags)
+        self.world_surf = pygame.Surface((WORLD_WIDTH, WORLD_HEIGHT)).convert()
         self.cam_width = float(WIDTH)
         self.cam_height = float(HEIGHT)
         self.clock = pygame.time.Clock()
@@ -2919,6 +2920,8 @@ class Game:
 
             # Draw Blood Particles (Optimized O(N) Loop)
             active_blood = []
+            if len(self.blood_particles) > 150:
+                self.blood_particles = self.blood_particles[-150:]
             for bp in self.blood_particles:
                 bp[0] += bp[2] # x + vx
                 bp[1] += bp[3] # y + vy
@@ -2931,6 +2934,8 @@ class Game:
 
             # Draw Hit Sparks (Optimized O(N) Loop)
             active_sparks = []
+            if len(self.hit_sparks) > 150:
+                self.hit_sparks = self.hit_sparks[-150:]
             for spark in self.hit_sparks:
                 spark[0] += spark[2] # x + vx
                 spark[1] += spark[3] # y + vy
@@ -3003,7 +3008,7 @@ class Game:
 
             # 4. Final Render Scale
             visible_world = self.world_surf.subsurface((c_left, c_top, c_width, c_height))
-            scaled_visible = pygame.transform.smoothscale(visible_world, (WIDTH, HEIGHT))
+            scaled_visible = pygame.transform.scale(visible_world, (WIDTH, HEIGHT))
             
             render_surf = pygame.Surface((WIDTH, HEIGHT))
             render_surf.blit(scaled_visible, (0, 0)) 
