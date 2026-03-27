@@ -2461,7 +2461,6 @@ class Game:
                 # 1. Sky Background (High-Contrast Gradient Curve)
                 for y in range(WORLD_HEIGHT):
                     ratio = y / WORLD_HEIGHT
-                    # Applying a power curve to make the dark top drag down further
                     curve = ratio ** 1.8 
                     r = int(M_SKY_TOP[0] * (1 - curve) + M_SKY_BOT[0] * curve)
                     g = int(M_SKY_TOP[1] * (1 - curve) + M_SKY_BOT[1] * curve)
@@ -2469,43 +2468,47 @@ class Game:
                     pygame.draw.line(self.cached_shinjuku_bg, (r, g, b), (0, y), (WORLD_WIDTH, y))
                 
                 # Setting Sun (Low on the horizon with layered glowing halos)
-                sun_x, sun_y = WORLD_WIDTH - 700, WORLD_HEIGHT - 700
+                sun_x, sun_y = WORLD_WIDTH - 700, WORLD_HEIGHT - 850
                 pygame.draw.circle(self.cached_shinjuku_bg, (70, 75, 80), (sun_x, sun_y), 340) # Outer glow
                 pygame.draw.circle(self.cached_shinjuku_bg, (110, 115, 120), (sun_x, sun_y), 310) # Mid glow
                 pygame.draw.circle(self.cached_shinjuku_bg, (180, 185, 190), (sun_x, sun_y), 285) # Inner glow
                 pygame.draw.circle(self.cached_shinjuku_bg, M_WHITE, (sun_x, sun_y), 250) # Core
                 
                 # 2. Distant Cityscape (Grid Buildings)
-                for bx in range(-100, WORLD_WIDTH, 360):
+                # --- NEW: Far-Distant Filler Buildings (Smaller sizes to fill gaps) ---
+                for bg_x in range(-100, WORLD_WIDTH, 140):
+                    bg_x += random.randint(-30, 30)
+                    bg_w = random.randint(100, 180)
+                    bg_h = random.randint(400, 750) # Smaller heights
+                    
+                    # Drawing them slightly darker (M_MID) to push them into the background
+                    pygame.draw.rect(self.cached_shinjuku_bg, M_MID, (bg_x, WORLD_HEIGHT - 100 - bg_h, bg_w, bg_h))
+                    pygame.draw.rect(self.cached_shinjuku_bg, M_INK, (bg_x, WORLD_HEIGHT - 100 - bg_h, bg_w, bg_h), 3)                  
+                
+                # Original Large Distant Buildings
+                sun_x = WORLD_WIDTH - 700 # The horizontal center of your sun
+                for bx in range(-100, WORLD_WIDTH, 380):
                     bx += random.randint(-50, 50)
                     bw = random.randint(200, 450)
+                    
+                    # --- NEW: Make huge buildings rare in front of the sun ---
+                    # If the building's center is within 400 pixels of the sun's center...
+                    if abs((bx + bw // 2) - sun_x) < 400:
+                        if random.random() > 0.55: # % chance to SKIP drawing this building!
+                            continue # Skip the rest of this loop and leave a gap for the sun
+                    
                     bh = random.randint(800, 1500)
                     
                     pygame.draw.rect(self.cached_shinjuku_bg, M_LIGHT, (bx, WORLD_HEIGHT - 100 - bh, bw, bh))
                     pygame.draw.rect(self.cached_shinjuku_bg, M_INK, (bx, WORLD_HEIGHT - 100 - bh, bw, bh), 4) 
                     
-                    # Window Grid (Random chance removed, now applies to 100% of buildings)
+                    # Window Grid Lines
                     for wy in range(WORLD_HEIGHT - 100 - bh + 40, WORLD_HEIGHT - 100, 60):
                         pygame.draw.line(self.cached_shinjuku_bg, M_MID, (bx, wy), (bx + bw, wy), 3)
                     for wx in range(bx + 30, bx + bw - 10, 40):
                         pygame.draw.line(self.cached_shinjuku_bg, M_MID, (wx, WORLD_HEIGHT - 100 - bh), (wx, WORLD_HEIGHT - 100), 3)
 
-                # 3. Midground Silhouettes (Trees & Street details)
-                for tx in range(150, WORLD_WIDTH, 400):
-                    if random.random() > 0.4:
-                        pygame.draw.circle(self.cached_shinjuku_bg, M_DARK, (tx, WORLD_HEIGHT - 250), 70)
-                        pygame.draw.circle(self.cached_shinjuku_bg, M_INK, (tx, WORLD_HEIGHT - 250), 70, 3)
-                        pygame.draw.circle(self.cached_shinjuku_bg, M_DARK, (tx - 40, WORLD_HEIGHT - 180), 50)
-                        pygame.draw.circle(self.cached_shinjuku_bg, M_INK, (tx - 40, WORLD_HEIGHT - 180), 50, 3)
-                        pygame.draw.rect(self.cached_shinjuku_bg, M_INK, (tx - 10, WORLD_HEIGHT - 250, 20, 150))
-                    
-                    if random.random() > 0.6:
-                        px = tx + 180
-                        pygame.draw.rect(self.cached_shinjuku_bg, M_INK, (px, WORLD_HEIGHT - 450, 8, 350))
-                        pygame.draw.circle(self.cached_shinjuku_bg, M_INK, (px - 20, WORLD_HEIGHT - 400), 20)
-                        pygame.draw.circle(self.cached_shinjuku_bg, (180, 180, 185), (px - 20, WORLD_HEIGHT - 400), 12)
-
-                # 4. The Massive Overpass Bridge
+                # 3. The Massive Overpass Bridge 
                 bridge_y = WORLD_HEIGHT - 650
                 bridge_h = 160
                 
@@ -2527,7 +2530,7 @@ class Game:
                 for rx in range(0, WORLD_WIDTH, 40):
                     pygame.draw.line(self.cached_shinjuku_bg, M_INK, (rx, bridge_y), (rx, bridge_y - 80), 3)
 
-                # 5. Heavy Concrete Support Pillars
+                # 4. Heavy Concrete Support Pillars 
                 for px in range(200, WORLD_WIDTH, 1000):
                     pil_w = 180
                     
@@ -2542,6 +2545,21 @@ class Game:
                     
                     for dy in range(int(under_y) + 300, WORLD_HEIGHT - 100, 150):
                         pygame.draw.line(self.cached_shinjuku_bg, M_INK, (px, dy), (px + pil_w, dy), 3)
+                
+                # 5. Midground Silhouettes (Trees & Street details)
+                for tx in range(150, WORLD_WIDTH, 400):
+                    if random.random() > 0.45:
+                        pygame.draw.circle(self.cached_shinjuku_bg, M_DARK, (tx, WORLD_HEIGHT - 250), 70)
+                        pygame.draw.circle(self.cached_shinjuku_bg, M_INK, (tx, WORLD_HEIGHT - 250), 70, 3)
+                        pygame.draw.circle(self.cached_shinjuku_bg, M_DARK, (tx - 40, WORLD_HEIGHT - 180), 50)
+                        pygame.draw.circle(self.cached_shinjuku_bg, M_INK, (tx - 40, WORLD_HEIGHT - 180), 50, 3)
+                        pygame.draw.rect(self.cached_shinjuku_bg, M_INK, (tx - 10, WORLD_HEIGHT - 250, 20, 150))
+                    
+                    if random.random() > 0.1:
+                        px = tx + 180
+                        pygame.draw.rect(self.cached_shinjuku_bg, M_INK, (px, WORLD_HEIGHT - 450, 8, 350))
+                        pygame.draw.circle(self.cached_shinjuku_bg, M_INK, (px - 20, WORLD_HEIGHT - 400), 20)
+                        pygame.draw.circle(self.cached_shinjuku_bg, (255, 220, 100), (px - 20, WORLD_HEIGHT - 400), 12)
 
                 # 6. Street Level Foreground (Guardrails & Road)
                 street_y = WORLD_HEIGHT - 100
