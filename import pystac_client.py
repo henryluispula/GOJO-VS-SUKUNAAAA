@@ -2573,41 +2573,66 @@ class Game:
                 pygame.draw.line(self.cached_shinjuku_bg, M_INK, (0, street_y - 55), (WORLD_WIDTH, street_y - 55), 6)
             # --- DOMAIN BACKGROUND VISUALS ---
             is_shrunk = getattr(self.gojo, "domain_shrunk", False)
-            if self.gojo.domain_active:
-                if self.cached_uv_bg is None or self.cached_uv_shrunk != is_shrunk:
-                    self.cached_uv_bg = pygame.Surface((WORLD_WIDTH, WORLD_HEIGHT), pygame.SRCALPHA)
-                    self.cached_uv_bg.fill((5, 5, 12, 230)) # Deep space dark blue/black
-                    
-                    # 2. Huge, Static Black Hole (locks to world center or domain center)
-                    if is_shrunk and hasattr(self.gojo, "domain_center_x"):
-                        bh_x, bh_y = self.gojo.domain_center_x, self.gojo.domain_center_y - 200
-                    else:
-                        bh_x, bh_y = WORLD_WIDTH // 2, WORLD_HEIGHT // 2 - 300
-                    
-                    # 3. Draw Huge Accretion Disk
-                    pygame.draw.circle(self.cached_uv_bg, (100, 50, 200, 80), (bh_x, bh_y), 500)
-                    pygame.draw.circle(self.cached_uv_bg, (150, 100, 255, 120), (bh_x, bh_y), 380)
-                    pygame.draw.circle(self.cached_uv_bg, (220, 200, 255, 180), (bh_x, bh_y), 280)
-                    pygame.draw.circle(self.cached_uv_bg, (255, 255, 255, 255), (bh_x, bh_y), 250)
-                    
-                    # 4. Draw Event Horizon
-                    pygame.draw.circle(self.cached_uv_bg, (0, 0, 0, 255), (bh_x, bh_y), 240)
-                    
-                    # --- NEW: Visual Background Shrinking Mask ---
-                    if is_shrunk and hasattr(self.gojo, "domain_center_x"):
-                        cx, cy = self.gojo.domain_center_x, self.gojo.domain_center_y
-                        # Draw solid black rectangles masking everything outside the 800x800 shrunk area
-                        pygame.draw.rect(self.cached_uv_bg, BLACK, (0, 0, cx - 400, WORLD_HEIGHT)) # Left
-                        pygame.draw.rect(self.cached_uv_bg, BLACK, (cx + 400, 0, WORLD_WIDTH, WORLD_HEIGHT)) # Right
-                        pygame.draw.rect(self.cached_uv_bg, BLACK, (0, 0, WORLD_WIDTH, cy - 400)) # Top
-                        pygame.draw.rect(self.cached_uv_bg, BLACK, (0, cy + 400, WORLD_WIDTH, WORLD_HEIGHT)) # Bottom
-                        pygame.draw.rect(self.cached_uv_bg, WHITE, (cx - 400, cy - 400, 800, 800), 4) # Domain Boundary
 
-                    self.cached_uv_shrunk = is_shrunk
+            # Always draw the Shinjuku background FIRST if domain is shrunk
+            if is_shrunk:
+                self.world_surf.blit(self.cached_shinjuku_bg, (0, 0))
+
+            if self.gojo.domain_active:
+                # === FORCE RECREATION WHEN SHRUNKEN (this is the fix) ===
+                recreate = (self.cached_uv_bg is None or self.cached_uv_shrunk != is_shrunk)
+                if is_shrunk:
+                    recreate = True   # ← This line forces it every frame while shrunk
+
+                if recreate:
+                    self.cached_uv_bg = pygame.Surface((WORLD_WIDTH, WORLD_HEIGHT), pygame.SRCALPHA)
                     
+                    if is_shrunk and hasattr(self.gojo, "domain_center_x"):
+                        cx = self.gojo.domain_center_x
+                        cy = self.gojo.domain_center_y
+                        
+                        self.cached_uv_bg.fill((0, 0, 0, 0))
+                        
+                        # HARD OPAQUE VOID (completely covers Shinjuku)
+                        pygame.draw.circle(self.cached_uv_bg, (6, 6, 18, 255), (cx, cy), 405)
+                        
+                        # Accretion Disk + Black Hole
+                        bh_x, bh_y = cx, cy - 30
+                        scale = 0.67
+                        pygame.draw.circle(self.cached_uv_bg, (80, 30, 160, 255), (bh_x, bh_y), int(520 * scale))
+                        pygame.draw.circle(self.cached_uv_bg, (120, 60, 220, 255), (bh_x, bh_y), int(400 * scale))
+                        pygame.draw.circle(self.cached_uv_bg, (200, 160, 255, 255), (bh_x, bh_y), int(290 * scale))
+                        pygame.draw.circle(self.cached_uv_bg, (255, 255, 255, 255), (bh_x, bh_y), int(255 * scale))
+                        pygame.draw.circle(self.cached_uv_bg, (0, 0, 0, 255), (bh_x, bh_y), int(230 * scale))
+                        
+                        # Bright domain barrier
+                        pygame.draw.circle(self.cached_uv_bg, (220, 240, 255, 255), (cx, cy), 400, width=8)
+                        
+                        # Stars inside domain only
+                        for _ in range(90):
+                            sx = cx + random.randint(-390, 390)
+                            sy = cy + random.randint(-390, 390)
+                            if math.hypot(sx - cx, sy - cy) < 395:
+                                self.cached_uv_bg.set_at((sx, sy), (255, 255, 255, 255))
+                                
+                    else:
+                        # Full-screen Unlimited Void (unchanged)
+                        self.cached_uv_bg.fill((5, 5, 18, 235))
+                        bh_x, bh_y = WORLD_WIDTH // 2, WORLD_HEIGHT // 2 - 300
+                        scale = 1.0
+                        pygame.draw.circle(self.cached_uv_bg, (100, 50, 200, 80), (bh_x, bh_y), int(500 * scale))
+                        pygame.draw.circle(self.cached_uv_bg, (150, 100, 255, 120), (bh_x, bh_y), int(380 * scale))
+                        pygame.draw.circle(self.cached_uv_bg, (220, 200, 255, 180), (bh_x, bh_y), int(280 * scale))
+                        pygame.draw.circle(self.cached_uv_bg, (255, 255, 255, 255), (bh_x, bh_y), int(250 * scale))
+                        pygame.draw.circle(self.cached_uv_bg, (0, 0, 0, 255), (bh_x, bh_y), int(240 * scale))
+                    
+                    self.cached_uv_shrunk = is_shrunk
+                
                 self.world_surf.blit(self.cached_uv_bg, (0, 0))
-                # Render animated stars by cycling through pre-rendered alpha layers
-                self.world_surf.blit(self.star_layers[(pygame.time.get_ticks() // 200) % 3], (0, 0))
+                
+                # Render animated stars only if NOT shrunk (since we baked local stars into the shrunk one)
+                if not is_shrunk:
+                    self.world_surf.blit(self.star_layers[(pygame.time.get_ticks() // 200) % 3], (0, 0))
                 
                 # Fade effect
                 if self.gojo.domain_timer > 380:
@@ -2619,72 +2644,67 @@ class Game:
                 if self.cached_ms_bg is None or self.cached_ms_shrunk != is_shrunk:
                     self.cached_ms_bg = pygame.Surface((WORLD_WIDTH, WORLD_HEIGHT), pygame.SRCALPHA)
                     
-                    # 1. Smoother Background Gradient
-                    num_steps = 50
-                    step_height = WORLD_HEIGHT / num_steps
-                    for i in range(num_steps):
-                        # Smoothly fades from deep red to pitch black
-                        color_val = max(0, 120 - (i * 2.4)) 
-                        alpha_val = min(255, 150 + (i * 2))
-                        pygame.draw.rect(self.cached_ms_bg, (int(color_val), 0, 0, int(alpha_val)), (0, int(i * step_height), WORLD_WIDTH, int(step_height) + 2))
-                    
-                    # 2. Determine Shrine Position (Brought down to ground level)
-                    if is_shrunk and hasattr(self.gojo, "domain_center_x"):
-                        # Centered in the shrunken domain, lowered to the floor
-                        shrine_x, shrine_y = self.gojo.domain_center_x, self.gojo.domain_center_y + 50 
-                    else:
-                        # Centered in the world, brought down right behind the characters
-                        shrine_x, shrine_y = WORLD_WIDTH // 2, WORLD_HEIGHT - 400 
-                        
-                    # 3. Draw Blood Moon (Scaled up to match the bigger shrine)
-                    pygame.draw.circle(self.cached_ms_bg, (150, 0, 0, 150), (shrine_x, shrine_y - 250), 450)
-                    pygame.draw.circle(self.cached_ms_bg, (200, 30, 30, 200), (shrine_x, shrine_y - 250), 330)
-                    pygame.draw.circle(self.cached_ms_bg, (255, 150, 150, 255), (shrine_x, shrine_y - 250), 240)
-                    
-                    # 4. Draw the BIGGER Malevolent Shrine (Scaled up by ~1.5x)
-                    shrine_color = (15, 5, 5) # Extremely dark red/pitch black silhouette
-                    
-                    # Main base structure (Wider and Taller)
-                    pygame.draw.rect(self.cached_ms_bg, shrine_color, (shrine_x - 270, shrine_y - 150, 540, 750))
-                    
-                    # Roof Tiers (Expanded outward and upward for a towering pagoda look)
-                    pygame.draw.polygon(self.cached_ms_bg, shrine_color, [(shrine_x - 450, shrine_y - 120), (shrine_x + 450, shrine_y - 120), (shrine_x + 270, shrine_y - 240), (shrine_x - 270, shrine_y - 240)])
-                    pygame.draw.polygon(self.cached_ms_bg, shrine_color, [(shrine_x - 360, shrine_y - 240), (shrine_x + 360, shrine_y - 240), (shrine_x + 180, shrine_y - 345), (shrine_x - 180, shrine_y - 345)])
-                    pygame.draw.polygon(self.cached_ms_bg, shrine_color, [(shrine_x - 240, shrine_y - 345), (shrine_x + 240, shrine_y - 345), (shrine_x + 90, shrine_y - 450), (shrine_x - 90, shrine_y - 450)])
-                    
-                    # 5. The BIGGER Gaping Open Mouth
-                    mouth_rect = (shrine_x - 165, shrine_y - 20, 330, 420)
-                    pygame.draw.ellipse(self.cached_ms_bg, BLACK, mouth_rect)
-                    
-                    # Draw terrifying teeth lining the mouth (Adjusted to new scale)
-                    teeth_color = (220, 220, 200) # Bone white
-                    
-                    # Top teeth pointing down
-                    for tx in range(int(shrine_x - 135), int(shrine_x + 135), 35):
-                        pygame.draw.polygon(self.cached_ms_bg, teeth_color, [(tx, shrine_y + 25), (tx + 35, shrine_y + 25), (tx + 17, shrine_y + 115)])
-                    
-                    # Bottom teeth pointing up
-                    for tx in range(int(shrine_x - 135), int(shrine_x + 135), 35):
-                        pygame.draw.polygon(self.cached_ms_bg, teeth_color, [(tx, shrine_y + 360), (tx + 35, shrine_y + 360), (tx + 17, shrine_y + 270)])
-                    
-                    # Side teeth (left pointing right)
-                    for ty in range(int(shrine_y + 70), int(shrine_y + 320), 45):
-                        pygame.draw.polygon(self.cached_ms_bg, teeth_color, [(shrine_x - 150, ty), (shrine_x - 150, ty + 35), (shrine_x - 75, ty + 17)])
-                    
-                    # Side teeth (right pointing left)
-                    for ty in range(int(shrine_y + 70), int(shrine_y + 320), 45):
-                        pygame.draw.polygon(self.cached_ms_bg, teeth_color, [(shrine_x + 150, ty), (shrine_x + 150, ty + 35), (shrine_x + 75, ty + 17)])
-
-                    # --- Visual Background Shrinking Mask for Sukuna ---
                     if is_shrunk and hasattr(self.gojo, "domain_center_x"):
                         cx, cy = self.gojo.domain_center_x, self.gojo.domain_center_y
-                        # Draw solid black rectangles masking everything outside the 800x800 shrunk area
-                        pygame.draw.rect(self.cached_ms_bg, BLACK, (0, 0, cx - 400, WORLD_HEIGHT)) # Left
-                        pygame.draw.rect(self.cached_ms_bg, BLACK, (cx + 400, 0, WORLD_WIDTH, WORLD_HEIGHT)) # Right
-                        pygame.draw.rect(self.cached_ms_bg, BLACK, (0, 0, WORLD_WIDTH, cy - 400)) # Top
-                        pygame.draw.rect(self.cached_ms_bg, BLACK, (0, cy + 400, WORLD_WIDTH, WORLD_HEIGHT)) # Bottom
-                        # Red Domain Boundary box for Sukuna
-                        pygame.draw.rect(self.cached_ms_bg, (255, 50, 50), (cx - 400, cy - 400, 800, 800), 4) 
+                        
+                        # Draw the circular sphere boundary for the Shrunken Domain (Malevolent Shrine version)
+                        pygame.draw.circle(self.cached_ms_bg, (20, 5, 5, 240), (cx, cy), 400)
+                        
+                        # Lower the shrine so it sits on the bottom of the circle
+                        shrine_x, shrine_y = cx, cy + 180
+                        scale = 0.65
+                        
+                        # Shrunken Domain Barrier Outer Shell
+                        pygame.draw.circle(self.cached_ms_bg, RED, (cx, cy), 400, 4)
+                    else:
+                        # Normal Full-Screen Domain
+                        num_steps = 50
+                        step_height = WORLD_HEIGHT / num_steps
+                        for i in range(num_steps):
+                            color_val = max(0, 120 - (i * 2.4)) 
+                            alpha_val = min(255, 150 + (i * 2))
+                            pygame.draw.rect(self.cached_ms_bg, (int(color_val), 0, 0, int(alpha_val)), (0, int(i * step_height), WORLD_WIDTH, int(step_height) + 2))
+                        
+                        shrine_x, shrine_y = WORLD_WIDTH // 2, WORLD_HEIGHT - 400 
+                        scale = 1.0
+                        
+                    # Draw Blood Moon
+                    pygame.draw.circle(self.cached_ms_bg, (150, 0, 0, 150), (shrine_x, int(shrine_y - 250 * scale)), int(450 * scale))
+                    pygame.draw.circle(self.cached_ms_bg, (200, 30, 30, 200), (shrine_x, int(shrine_y - 250 * scale)), int(330 * scale))
+                    pygame.draw.circle(self.cached_ms_bg, (255, 150, 150, 255), (shrine_x, int(shrine_y - 250 * scale)), int(240 * scale))
+                    
+                    # Draw the BIGGER Malevolent Shrine (Responsive to scale)
+                    shrine_color = (15, 5, 5) 
+                    
+                    # Main base structure
+                    pygame.draw.rect(self.cached_ms_bg, shrine_color, (shrine_x - int(270*scale), shrine_y - int(150*scale), int(540*scale), int(750*scale)))
+                    
+                    # Roof Tiers
+                    pygame.draw.polygon(self.cached_ms_bg, shrine_color, [(shrine_x - int(450*scale), shrine_y - int(120*scale)), (shrine_x + int(450*scale), shrine_y - int(120*scale)), (shrine_x + int(270*scale), shrine_y - int(240*scale)), (shrine_x - int(270*scale), shrine_y - int(240*scale))])
+                    pygame.draw.polygon(self.cached_ms_bg, shrine_color, [(shrine_x - int(360*scale), shrine_y - int(240*scale)), (shrine_x + int(360*scale), shrine_y - int(240*scale)), (shrine_x + int(180*scale), shrine_y - int(345*scale)), (shrine_x - int(180*scale), shrine_y - int(345*scale))])
+                    pygame.draw.polygon(self.cached_ms_bg, shrine_color, [(shrine_x - int(240*scale), shrine_y - int(345*scale)), (shrine_x + int(240*scale), shrine_y - int(345*scale)), (shrine_x + int(90*scale), shrine_y - int(450*scale)), (shrine_x - int(90*scale), shrine_y - int(450*scale))])
+                    
+                    # Gaping Open Mouth
+                    mouth_rect = (shrine_x - int(165*scale), shrine_y - int(20*scale), int(330*scale), int(420*scale))
+                    pygame.draw.ellipse(self.cached_ms_bg, BLACK, mouth_rect)
+                    
+                    teeth_color = (220, 220, 200)
+                    
+                    # Top teeth
+                    for tx in range(int(shrine_x - 135*scale), int(shrine_x + 135*scale), int(35*scale)):
+                        pygame.draw.polygon(self.cached_ms_bg, teeth_color, [(tx, shrine_y + int(25*scale)), (tx + int(35*scale), shrine_y + int(25*scale)), (tx + int(17*scale), shrine_y + int(115*scale))])
+                    
+                    # Bottom teeth
+                    for tx in range(int(shrine_x - 135*scale), int(shrine_x + 135*scale), int(35*scale)):
+                        pygame.draw.polygon(self.cached_ms_bg, teeth_color, [(tx, shrine_y + int(360*scale)), (tx + int(35*scale), shrine_y + int(360*scale)), (tx + int(17*scale), shrine_y + int(270*scale))])
+                    
+                    # Side teeth (left)
+                    for ty in range(int(shrine_y + 70*scale), int(shrine_y + 320*scale), int(45*scale)):
+                        pygame.draw.polygon(self.cached_ms_bg, teeth_color, [(shrine_x - int(150*scale), ty), (shrine_x - int(150*scale), ty + int(35*scale)), (shrine_x - int(75*scale), ty + int(17*scale))])
+                    
+                    # Side teeth (right)
+                    for ty in range(int(shrine_y + 70*scale), int(shrine_y + 320*scale), int(45*scale)):
+                        pygame.draw.polygon(self.cached_ms_bg, teeth_color, [(shrine_x + int(150*scale), ty), (shrine_x + int(150*scale), ty + int(35*scale)), (shrine_x + int(75*scale), ty + int(17*scale))])
 
                     self.cached_ms_shrunk = is_shrunk
 
@@ -2697,10 +2717,11 @@ class Game:
                 self.world_surf.blit(self.cached_shinjuku_bg, (0, 0))
 
             # --- DYNAMIC MANGA FLOOR (HIGH CONTRAST DUSK) ---
-            if self.gojo.domain_active or self.sukuna.domain_active:
+            if (self.gojo.domain_active and not is_shrunk) or (self.sukuna.domain_active and not is_shrunk):
+                # Full screen domains overwrite the floor entirely
                 pygame.draw.rect(self.world_surf, (15, 15, 25), (0, WORLD_HEIGHT - 100, WORLD_WIDTH, 100))
             else:
-                # Heavy, shadowed street ground
+                # Normal Manga Street Ground (Also visible during Shrunken Domains!)
                 pygame.draw.rect(self.world_surf, (80, 85, 90), (0, WORLD_HEIGHT - 100, WORLD_WIDTH, 100))
                 pygame.draw.line(self.world_surf, (10, 10, 12), (0, WORLD_HEIGHT - 100), (WORLD_WIDTH, WORLD_HEIGHT - 100), 6)
                 
