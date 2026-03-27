@@ -1317,26 +1317,72 @@ class Game:
                     is_amp = self.sukuna.amp_duration > 0
                     
                     # --- NEW: ACTIVE DOMAIN & PURPLE INTERRUPT ---
-                    if self.gojo.domain_charge > 0 or self.gojo.purple_charge > 0:
-                        # SMARTS, NOT BUFFS: Immediately face the threat and stop wasting time
-                        self.sukuna.direction = 1 if self.sukuna.rect.x < self.gojo.rect.x else -1
-                        
-                        # Priority 1: World Slash (Targets space, bypassing Infinity directly)
-                        if self.sukuna.world_slash_unlocked and self.sukuna.dismantle_cd <= 0 and self.sukuna.energy >= 80 * self.sukuna.cost_mult:
-                            self.sukuna.slash_count = 1
-                            self.sukuna.slash_type = "world_slash"
-                            self.sukuna.energy -= 80 * self.sukuna.cost_mult
-                            self.sukuna.dismantle_cd = 180
+                    purple_flying = any(p.type == "purple_orb" for p in self.projectiles)
+                    is_purple_threat = self.gojo.purple_charge > 0 or purple_flying
+                    
+                    if self.gojo.domain_charge > 0 or is_purple_threat:
+                        # --- HOLLOW PURPLE TACTICAL CALCULATION ---
+                        can_tank_purple = True
+                        if is_purple_threat:
+                            # Calculate worst-case scenario for Purple (Base damage = max_hp = 500)
+                            # DA absorbs 40% (remaining 300). Minimum CE mitigation is ~50% (remaining 150 HP damage).
+                            # If he doesn't have at least 150 HP and ~300 CE, he CANNOT tank it safely.
+                            safe_hp_threshold = 150
+                            safe_ce_threshold = 300 * self.sukuna.cost_mult
                             
-                        # Priority 2: Tactical Rush (Using strictly base mechanics)
-                        elif dist > 100:
-                            # Use his standard existing lunge speed (28), no artificial speed buffs!
-                            self.sukuna.rect.x += 28 * self.sukuna.direction
+                            if self.sukuna.hp <= safe_hp_threshold or self.sukuna.energy <= safe_ce_threshold:
+                                can_tank_purple = False
+
+                        if is_purple_threat and not can_tank_purple:
+                            # --- DESPERATE EVASION & BINDING VOW DEFENSE ---
+                            # SMARTS: Run away to gain distance from the nuke!
+                            run_dir = -1 if self.sukuna.rect.x < self.gojo.rect.x else 1
                             
-                            # Sequence his STANDARD dodge perfectly without buffing cooldowns or stamina costs
+                            # --- SMART CORNER DETECTION FOR PURPLE PANIC ---
+                            if (self.sukuna.rect.left < 150 and run_dir == -1) or (self.sukuna.rect.right > WORLD_WIDTH - 150 and run_dir == 1):
+                                # He realizes he is cornered against the wall! 
+                                # Reverse direction to run PAST Gojo instead of dying trapped.
+                                run_dir *= -1 
+                                if self.sukuna.on_ground:
+                                    self.sukuna.jump() # Force a jump to try and leap over Gojo/the incoming orb!
+                            
+                            self.sukuna.direction = run_dir
+                            self.sukuna.rect.x += 28 * run_dir
+                            
                             if self.sukuna.dodge_cd <= 0 and self.sukuna.stamina >= 20:
                                 self.sukuna.dodge()
-                                self.sukuna.dodge_cd = 20 # Restored to strict base cooldown!
+                                self.sukuna.dodge_cd = 15 # Desperate faster dodges
+                                
+                            # BINDING VOW: Trade massive CE for hyper-reinforcement to survive the blast!
+                            # Costs 60% of his Burst RCT cost (4.0 * 0.6 = 2.4)
+                            vow_cost = 2.4 * self.sukuna.cost_mult
+                            if self.sukuna.energy > vow_cost:
+                                self.sukuna.energy -= vow_cost
+                                # Rapidly fortify HP so he doesn't get one-shot by the incoming nuke!
+                                self.sukuna.hp = min(self.sukuna.max_hp, self.sukuna.hp + 2.0)
+                                self.sukuna.amp_duration = max(self.sukuna.amp_duration, 60) # Force DA on!
+                                is_amp = True
+                        else:
+                            # --- AGGRESSIVE INTERRUPT (Can Tank Purple OR it's a Domain Cast) ---
+                            # SMARTS, NOT BUFFS: Immediately face the threat and stop wasting time
+                            self.sukuna.direction = 1 if self.sukuna.rect.x < self.gojo.rect.x else -1
+                            
+                            # Priority 1: World Slash (Targets space, bypassing Infinity directly)
+                            if self.sukuna.world_slash_unlocked and self.sukuna.dismantle_cd <= 0 and self.sukuna.energy >= 80 * self.sukuna.cost_mult:
+                                self.sukuna.slash_count = 1
+                                self.sukuna.slash_type = "world_slash"
+                                self.sukuna.energy -= 80 * self.sukuna.cost_mult
+                                self.sukuna.dismantle_cd = 180
+                                
+                            # Priority 2: Tactical Rush to interrupt
+                            elif dist > 100:
+                                # Use his standard existing lunge speed (28), no artificial speed buffs!
+                                self.sukuna.rect.x += 28 * self.sukuna.direction
+                                
+                                # Sequence his STANDARD dodge perfectly without buffing cooldowns or stamina costs
+                                if self.sukuna.dodge_cd <= 0 and self.sukuna.stamina >= 20:
+                                    self.sukuna.dodge()
+                                    self.sukuna.dodge_cd = 20 # Restored to strict base cooldown!
                     
                     # LORE ACCURACY: Actively detect incoming Orbs and dodge THROUGH them to close the gap!
                     incoming_orbs = [p for p in self.projectiles if p.type in ["blue_orb", "red_orb", "purple_orb"] and abs(p.pos.x - self.sukuna.rect.centerx) < 250]
@@ -1701,8 +1747,8 @@ class Game:
                         if random.random() < 0.15: self.sukuna.jump()
 
                     # LORE ACCURACY: If Sukuna drops below 250 HP and hasn't unlocked the World Slash yet, bring out Big Raga!
-                    # NEW CONDITION: Sukuna will strictly wait until Gojo's Domain is on cooldown AND NOT during a Domain Clash window!
-                    if self.sukuna.hp < 250 and self.mahoraga is None and not self.sukuna.world_slash_unlocked and self.gojo.domain_cd > 0 and getattr(self, "clash_decision_timer", 0) == 0:
+                    # NEW CONDITION: Sukuna will strictly wait until Gojo's Domain is on cooldown, NOT during a Domain Clash window, AND NOT during a Domain cast animation!
+                    if self.sukuna.hp < 250 and self.mahoraga is None and not self.sukuna.world_slash_unlocked and self.gojo.domain_cd > 0 and getattr(self, "clash_decision_timer", 0) == 0 and self.gojo.domain_charge == 0 and self.sukuna.domain_charge == 0:
                         self.mahoraga_summon_timer = 84
 
                 # Sukuna Domain Execution Timer
