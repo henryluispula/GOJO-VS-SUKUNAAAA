@@ -234,6 +234,7 @@ class Fighter:
         self.max_infinity = 1000 if name == "Gojo" else 0 
         self.infinity = self.max_infinity
         self.max_tech_hits = 500
+        self.max_sd_hits = 300 if name == "Sukuna" else 38 # NEW: Dynamic Simple Domain HP!
         
         # --- OPTIMIZATION: Surface Caching ---
         self.inf_surf = pygame.Surface((220, 320), pygame.SRCALPHA)
@@ -352,7 +353,7 @@ class Fighter:
             if getattr(self, "dev_immortal", False):
                 self.hp = self.max_hp
             if getattr(self, "dev_inf_ce", False):
-                self.energy = 2100 # Locks CE to maximum
+                self.energy = self.max_energy # Dynamically locks CE to maximum
                 self.ce_exhausted = False
                 
             # --- FIXED: FORCE INFINITY TO 0 WHEN TOGGLED OFF ---
@@ -420,6 +421,7 @@ class Fighter:
             if self.energy >= recovery_thresh:
                 self.ce_exhausted = False
         
+        # Cleaned up the old useless max_energy variable here!
         self.energy = min(self.max_energy, self.energy + base_regen * regen_mult)
         
         # --- STAMINA EXHAUSTION LOGIC (Dodge Meter) ---
@@ -1253,15 +1255,12 @@ class Game:
                             self.gojo.purple_cd = 720
                             self.gojo.tech_hits = 0
                             
-                # Gojo Domain Execution Timer
-                if self.gojo.domain_charge > 0:
-                    self.gojo.domain_charge -= 1
-                    if self.gojo.domain_charge == 1:
-                        self.gojo.domain_active = True
-                        self.gojo.domain_timer = 400
-                        self.gojo.domain_cd = 3000
-                        self.gojo.infinity = 1000
-                        self.shake_timer = 30
+                # LORE ACCURACY: Mahoraga's intense passive regeneration
+                # 300 is 62.5% of his base 480 HP. This scales it dynamically!
+                if self.mahoraga.hp < (self.mahoraga.max_hp * 0.625) and self.mahoraga.energy > 5 * self.mahoraga.cost_mult and not self.mahoraga.ce_exhausted:
+                    self.mahoraga.hp = min(self.mahoraga.max_hp, self.mahoraga.hp + 1.8) # Further increased for massive survivability
+                    self.mahoraga.energy -= 1.0 * self.mahoraga.cost_mult
+                    self.mahoraga.rct_timer = 5
 
                 # --- SMART SUKUNA AI ---
                 dist = abs(self.sukuna.rect.centerx - self.gojo.rect.centerx)
@@ -2182,7 +2181,7 @@ class Game:
                                     enemy.is_paralyzed = False # Protected by Simple Domain!
                                     # UV sure-hit continuously grinds down the Simple Domain
                                     enemy.sd_hits += 1
-                                    if enemy.sd_hits >= 150: # THE BREAK POINT
+                                    if enemy.sd_hits >= enemy.max_sd_hits: # THE DYNAMIC BREAK POINT
                                         enemy.simple_domain_active = False
                                         enemy.sd_was_active = False
                                         enemy.sd_broken_timer = 120 # Reduced to 2 seconds cooldown
@@ -2469,7 +2468,7 @@ class Game:
                             intercepted_by_sd = True
                             
                             self.gojo.sd_hits += 1
-                            if self.gojo.sd_hits >= 30: 
+                            if self.gojo.sd_hits >= self.gojo.max_sd_hits: # DYNAMIC BREAK POINT
                                 self.gojo.simple_domain_active = False
                                 self.gojo.sd_was_active = False
                                 self.gojo.sd_broken_timer = 120 # 2 seconds cooldown
@@ -2578,7 +2577,7 @@ class Game:
                 self.mahoraga_summon_timer -= 1
                 if self.mahoraga_summon_timer == 1:
                     self.mahoraga = Fighter(self.sukuna.rect.x - 100, WORLD_HEIGHT - 300, "Mahoraga", MAHO_COLOR)
-                    self.mahoraga.hp = 480
+                    self.mahoraga.hp = self.mahoraga.max_hp # Dynamic Initialization!
                     # NEW: Transfer the wheel's adaptation progress from Sukuna to Mahoraga!
                     self.mahoraga.adaptation_points = self.sukuna.adaptation_points.copy()
                     self.mahoraga.adaptation = self.sukuna.adaptation.copy()
@@ -3201,7 +3200,7 @@ class Game:
             # --- NEW: GOJO SIMPLE DOMAIN BAR ---
             sd_label_g = f"SIMPLE DOMAIN (CD: {self.gojo.sd_broken_timer//60 + 1}s)" if self.gojo.sd_broken_timer > 0 else "SIMPLE DOMAIN"
             sd_color_g = (0, 255, 255) if self.gojo.sd_broken_timer == 0 else (100, 100, 100)
-            self.draw_bar_on(render_surf, 25, 145, max(0, 38 - self.gojo.sd_hits), 38, sd_color_g, 310, 6, sd_label_g)
+            self.draw_bar_on(render_surf, 25, 145, max(0, self.gojo.max_sd_hits - self.gojo.sd_hits), self.gojo.max_sd_hits, sd_color_g, 310, 6, sd_label_g)
 
             # --- GOJO HUD LOGIC ---
             # Define burnout state first so we can apply it to all techniques
@@ -3249,7 +3248,7 @@ class Game:
             # --- NEW: SUKUNA SIMPLE DOMAIN BAR ---
             sd_label_s = f"SIMPLE DOMAIN (CD: {self.sukuna.sd_broken_timer//60 + 1}s)" if self.sukuna.sd_broken_timer > 0 else "SIMPLE DOMAIN"
             sd_color_s = (0, 255, 255) if self.sukuna.sd_broken_timer == 0 else (100, 100, 100)
-            self.draw_bar_on(render_surf, WIDTH - 335, 145, max(0, 300 - self.sukuna.sd_hits), 300, sd_color_s, 310, 6, sd_label_s)
+            self.draw_bar_on(render_surf, WIDTH - 335, 145, max(0, self.sukuna.max_sd_hits - self.sukuna.sd_hits), self.sukuna.max_sd_hits, sd_color_s, 310, 6, sd_label_s)
 
             # --- SUKUNA HUD LOGIC ---
             sukuna_is_burned_out = self.sukuna.technique_burnout > 0
