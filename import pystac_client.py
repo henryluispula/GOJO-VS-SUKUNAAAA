@@ -229,7 +229,7 @@ class Fighter:
         self.hp = self.max_hp
         self.prev_hp = self.hp # Track for blood effects
         # Start the fight with appropriate max cursed energy levels
-        self.energy = 3000 if name == "Sukuna" else (200 if name == "Gojo" else 2800)
+        self.energy = 3000 if name == "Sukuna" else (2100 if name == "Gojo" else 2800)
         self.infinity = 1000 if name == "Gojo" else 0 
         
         # --- OPTIMIZATION: Surface Caching ---
@@ -349,7 +349,7 @@ class Fighter:
             if getattr(self, "dev_immortal", False):
                 self.hp = self.max_hp
             if getattr(self, "dev_inf_ce", False):
-                self.energy = 200 # Locks CE to maximum
+                self.energy = 2100 # Locks CE to maximum
                 self.ce_exhausted = False
                 
             # --- FIXED: FORCE INFINITY TO 0 WHEN TOGGLED OFF ---
@@ -412,12 +412,12 @@ class Fighter:
                 recovery_thresh = 80 # Recovers faster
             else:
                 regen_mult *= 0.4 # 10x slower regen when completely depleted!
-                recovery_thresh = 40 if self.name == "Gojo" else 30
+                recovery_thresh = 420 if self.name == "Gojo" else 30
                 
             if self.energy >= recovery_thresh:
                 self.ce_exhausted = False
         
-        max_energy = 3000 if self.name == "Sukuna" else (200 if self.name == "Gojo" else 2800)
+        max_energy = 3000 if self.name == "Sukuna" else (2100 if self.name == "Gojo" else 2800)
         self.energy = min(max_energy, self.energy + base_regen * regen_mult)
         
         # --- STAMINA EXHAUSTION LOGIC (Dodge Meter) ---
@@ -1143,7 +1143,7 @@ class Game:
                                 self.gojo.black_flash_timer = 20
                                 self.gojo.potential_timer = 600 # 10s duration
                                 self.shake_timer = 15
-                                self.gojo.energy = 200 
+                                self.gojo.energy = 2100 
                                 self.bf_words.append({"x": target.rect.centerx, "y": target.rect.centery - 60, "timer": 45})
                             
                             if not target.is_dodging:
@@ -3192,7 +3192,7 @@ class Game:
                 render_surf.blit(self.get_text("120% POT", (255, 215, 0), font=self.mini_font), (260, 20))
 
             self.draw_bar_on(render_surf, 25, 60, self.gojo.hp, self.gojo.max_hp, RED, 310, 10, "HEALTH")
-            self.draw_bar_on(render_surf, 25, 95, self.gojo.energy, 200, PURPLE, 145, 8, "CURSE ENERGY")
+            self.draw_bar_on(render_surf, 25, 95, self.gojo.energy, 2100, PURPLE, 145, 8, "CURSE ENERGY")
             self.draw_bar_on(render_surf, 190, 95, self.gojo.infinity, 1000, INF_COLOR, 145, 8, "INFINITY")          
             self.draw_bar_on(render_surf, 25, 125, self.gojo.tech_hits, 500, (180, 0, 255), 310, 2, "")
 
