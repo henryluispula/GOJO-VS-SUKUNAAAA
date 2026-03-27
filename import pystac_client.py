@@ -1983,7 +1983,8 @@ class Game:
                             
                             # Power calculation logic
                             # Gojo gets a massive but RANDOM boost for shrinking the domain (no guaranteed win!)
-                            shrink_bonus = random.randint(2000, 3400) if getattr(self.gojo, "domain_shrunk", False) else 0
+                            # SCALED: Lowered the bonus by 1900 to compensate for his new 2100 CE pool!
+                            shrink_bonus = random.randint(100, 1500) if getattr(self.gojo, "domain_shrunk", False) else 0
                             gojo_power = self.gojo.hp + self.gojo.energy + shrink_bonus
                             
                             # Sukuna's raw power, plus a tiny random variance to keep clashes unpredictable
@@ -2449,7 +2450,7 @@ class Game:
                                 fuga_hp_dmg *= reduction_mult
                                 self.gojo.energy = max(0, self.gojo.energy - mitigated_dmg * self.gojo.cost_mult)
                             
-                            fuga_ce_dmg = (200 * dmg_perc) # Gojo's Max CE
+                            fuga_ce_dmg = (2100 * dmg_perc) # Scaled to Gojo's NEW Max CE
                             
                             if self.gojo.infinity > 0 and self.gojo.energy > 0 and self.gojo.technique_burnout == 0:
                                 self.gojo.energy = max(0, self.gojo.energy - fuga_ce_dmg) # Shreds CE pool
