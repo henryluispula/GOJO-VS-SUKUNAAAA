@@ -2588,17 +2588,21 @@ class Game:
                     cx = self.gojo.domain_center_x
                     cy = self.gojo.domain_center_y
                     
-                    # Create shrunk surface ONLY ONCE when we first shrink
+                    # Create the small 800x800 surface ONLY ONCE when we first shrink
                     if self.cached_uv_bg_shrunk is None:
-                        self.cached_uv_bg_shrunk = pygame.Surface((WORLD_WIDTH, WORLD_HEIGHT), pygame.SRCALPHA)
+                        # 800x800 is enough for the circle (radius 400)
+                        self.cached_uv_bg_shrunk = pygame.Surface((800, 800), pygame.SRCALPHA)
+                        
+                        # Center of the small surface
+                        small_cx, small_cy = 400, 400
                         
                         self.cached_uv_bg_shrunk.fill((0, 0, 0, 0))
                         
-                        # HARD OPAQUE VOID
-                        pygame.draw.circle(self.cached_uv_bg_shrunk, (6, 6, 18, 255), (cx, cy), 405)
+                        # HARD OPAQUE VOID (covers everything inside the circle)
+                        pygame.draw.circle(self.cached_uv_bg_shrunk, (6, 6, 18, 255), (small_cx, small_cy), 405)
                         
-                        # Accretion Disk + Black Hole (centered nicely)
-                        bh_x, bh_y = cx, cy - 30
+                        # Accretion Disk + Black Hole
+                        bh_x, bh_y = small_cx, small_cy - 30
                         scale = 0.67
                         pygame.draw.circle(self.cached_uv_bg_shrunk, (80, 30, 160, 255), (bh_x, bh_y), int(520 * scale))
                         pygame.draw.circle(self.cached_uv_bg_shrunk, (120, 60, 220, 255), (bh_x, bh_y), int(400 * scale))
@@ -2606,20 +2610,23 @@ class Game:
                         pygame.draw.circle(self.cached_uv_bg_shrunk, (255, 255, 255, 255), (bh_x, bh_y), int(255 * scale))
                         pygame.draw.circle(self.cached_uv_bg_shrunk, (0, 0, 0, 255), (bh_x, bh_y), int(230 * scale))
                         
-                        # Bright glowing barrier
-                        pygame.draw.circle(self.cached_uv_bg_shrunk, (220, 240, 255, 255), (cx, cy), 400, width=8)
+                        # Bright glowing barrier ring
+                        pygame.draw.circle(self.cached_uv_bg_shrunk, (220, 240, 255, 255), (small_cx, small_cy), 400, width=8)
                         
                         # Stars inside domain
                         for _ in range(90):
-                            sx = cx + random.randint(-390, 390)
-                            sy = cy + random.randint(-390, 390)
-                            if math.hypot(sx - cx, sy - cy) < 395:
+                            sx = small_cx + random.randint(-390, 390)
+                            sy = small_cy + random.randint(-390, 390)
+                            if math.hypot(sx - small_cx, sy - small_cy) < 395:
                                 self.cached_uv_bg_shrunk.set_at((sx, sy), (255, 255, 255, 255))
                     
-                    self.world_surf.blit(self.cached_uv_bg_shrunk, (0, 0))
+                    # Blit the small surface at the correct world position
+                    blit_x = int(cx - 400)
+                    blit_y = int(cy - 400)
+                    self.world_surf.blit(self.cached_uv_bg_shrunk, (blit_x, blit_y))
                     
                 else:
-                    # Normal full-screen Unlimited Void
+                    # Normal full-screen Unlimited Void (unchanged)
                     if self.cached_uv_bg is None:
                         self.cached_uv_bg = pygame.Surface((WORLD_WIDTH, WORLD_HEIGHT), pygame.SRCALPHA)
                         self.cached_uv_bg.fill((5, 5, 18, 235))
