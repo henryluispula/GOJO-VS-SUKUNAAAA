@@ -1007,7 +1007,7 @@ class Game:
                 # 1. BLUE POINT-BLANK (Warped Punch)
                 # Cost: 60 CE (3x Normal) | Cooldown: 120 frames (2 seconds) -> Shortened!
                 # THE FIX: Added 'and self.gojo.technique_burnout == 0' to prevent usage during burnout
-                if keys[pygame.K_e] and keys[pygame.K_w] and self.pb_blue_ready and self.gojo.energy >= 60 * self.gojo.cost_mult and self.gojo.blue_cd == 0 and self.gojo.grab_timer <= 0 and self.gojo.technique_burnout == 0:
+                if keys[pygame.K_e] and keys[pygame.K_w] and self.pb_blue_ready and self.gojo.energy >= 60 * self.gojo.cost_mult and self.gojo.blue_cd == 0 and self.gojo.grab_timer <= 0 and self.gojo.technique_burnout == 0 and self.gojo.domain_charge == 0:
                     self.pb_blue_ready = False
                     self.gojo.energy -= 60 * self.gojo.cost_mult
                     self.gojo.blue_cd = 120 # Shortened to 2 second cooldown
@@ -1047,7 +1047,7 @@ class Game:
                         
                 # 2. RED POINT-BLANK (Cleave Escape)
                 # THE FIX: Added 'and self.gojo.technique_burnout == 0' to prevent usage during burnout
-                elif keys[pygame.K_e] and keys[pygame.K_s] and self.pb_red_ready and self.gojo.energy >= 100 * self.gojo.cost_mult and self.gojo.red_cd == 0 and self.gojo.grab_timer > 0 and self.gojo.technique_burnout == 0:
+                elif keys[pygame.K_e] and keys[pygame.K_s] and self.pb_red_ready and self.gojo.energy >= 100 * self.gojo.cost_mult and self.gojo.red_cd == 0 and self.gojo.grab_timer > 0 and self.gojo.technique_burnout == 0 and self.gojo.domain_charge == 0:
                     self.pb_red_ready = False
                     self.gojo.grab_timer = 0
                     self.sukuna.grab_timer = 0
@@ -1106,7 +1106,7 @@ class Game:
                             
                     self.gojo_combo_buffer.clear()
 
-                if not self.gojo.is_paralyzed and self.gojo.grab_timer <= 0:
+                if not self.gojo.is_paralyzed and self.gojo.grab_timer <= 0 and self.gojo.domain_charge == 0:
                     # Space compression movement speed: double normal rate
                     if keys[pygame.K_a]: self.gojo.rect.x -= 20; self.gojo.direction = -1
                     if keys[pygame.K_d]: self.gojo.rect.x += 20; self.gojo.direction = 1
@@ -1345,7 +1345,7 @@ class Game:
                     self.sukuna.simple_domain_active = False
                     self.sukuna.sd_was_active = False
 
-                if not self.sukuna.is_paralyzed and self.sukuna.grab_timer <= 0:
+                if not self.sukuna.is_paralyzed and self.sukuna.grab_timer <= 0 and self.sukuna.domain_charge == 0:
                     is_amp = self.sukuna.amp_duration > 0
                     
                     # --- NEW: ACTIVE DOMAIN & PURPLE INTERRUPT ---
