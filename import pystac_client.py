@@ -230,6 +230,7 @@ class Fighter:
         self.prev_hp = self.hp # Track for blood effects
         # Start the fight with appropriate max cursed energy levels
         self.energy = 3000 if name == "Sukuna" else (2100 if name == "Gojo" else 2800)
+        self.energy = self.max_energy
         self.infinity = 1000 if name == "Gojo" else 0 
         
         # --- OPTIMIZATION: Surface Caching ---
@@ -417,8 +418,7 @@ class Fighter:
             if self.energy >= recovery_thresh:
                 self.ce_exhausted = False
         
-        max_energy = 3000 if self.name == "Sukuna" else (2100 if self.name == "Gojo" else 2800)
-        self.energy = min(max_energy, self.energy + base_regen * regen_mult)
+        self.energy = min(self.max_energy, self.energy + base_regen * regen_mult)
         
         # --- STAMINA EXHAUSTION LOGIC (Dodge Meter) ---
         stam_regen = 0.8 if self.name == "Gojo" else 0.6
@@ -1143,7 +1143,7 @@ class Game:
                                 self.gojo.black_flash_timer = 20
                                 self.gojo.potential_timer = 600 # 10s duration
                                 self.shake_timer = 15
-                                self.gojo.energy = 2100 
+                                self.gojo.energy = self.gojo.max_energy 
                                 self.bf_words.append({"x": target.rect.centerx, "y": target.rect.centery - 60, "timer": 45})
                             
                             if not target.is_dodging:
@@ -1179,7 +1179,7 @@ class Game:
 
                     # RCT (Gojo)
                     if keys[pygame.K_q] and self.gojo.energy > 5 * self.gojo.cost_mult:
-                        self.gojo.hp = min(200, self.gojo.hp + 1.5)
+                        self.gojo.hp = min(self.gojo.max_hp, self.gojo.hp + 1.5)
                         self.gojo.energy -= 2 * self.gojo.cost_mult
                         self.gojo.rct_timer = 5
 
@@ -1429,9 +1429,9 @@ class Game:
                     rush_distance = 40 if self.gojo.domain_active else 110
                     
                     # --- TACTICAL HEALING & ENERGY REGEN RETREAT ---
-                    # Retreat if HP is below 40% OR if CE drops below 30% (900 CE for Sukuna) to actively buy time and regenerate!
+                    # Retreat if HP is below 40% OR if CE drops below 30% to actively buy time and regenerate!
                     needs_healing = self.sukuna.hp < 200 and self.sukuna.energy > 50 and not self.sukuna.ce_exhausted
-                    needs_energy = self.sukuna.energy < (3000 * 0.3)
+                    needs_energy = self.sukuna.energy < (self.sukuna.max_energy * 0.3)
                     
                     retreating = (needs_healing or needs_energy) and not self.gojo.domain_active
                     
@@ -1684,7 +1684,7 @@ class Game:
                                 self.shake_timer = 15
                                 
                                 # --- FIXED: Sukuna Black Flash fully restores CE pool! ---
-                                self.sukuna.energy = 3000 
+                                self.sukuna.energy = self.sukuna.max_energy 
                                 
                                 self.bf_words.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 60, "timer": 45})
                                 
@@ -1822,12 +1822,11 @@ class Game:
                                 recovery_thresh = 80
                             else:
                                 regen_mult *= 0.4
-                                recovery_thresh = 40 if f.name == "Gojo" else 30
+                                recovery_thresh = 420 if f.name == "Gojo" else 30 # Updated to 420
                             if f.energy >= recovery_thresh:
                                 f.ce_exhausted = False
                                 
-                        max_energy = 3000 if f.name == "Sukuna" else (200 if f.name == "Gojo" else 2800)
-                        f.energy = min(max_energy, f.energy + base_regen * regen_mult)
+                        f.energy = min(f.max_energy, f.energy + base_regen * regen_mult)
                         
                             
                         # INFINITY REGEN (Gojo only)
@@ -2084,8 +2083,8 @@ class Game:
                                 self.mahoraga.black_flash_timer = 20
                                 self.shake_timer = 15
                                 
-                                ce_recovery = 2800 * 0.20
-                                self.mahoraga.energy = min(2800, self.mahoraga.energy + ce_recovery)
+                                ce_recovery = self.mahoraga.max_energy * 0.20
+                                self.mahoraga.energy = min(self.mahoraga.max_energy, self.mahoraga.energy + ce_recovery)
                                 
                                 self.bf_words.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 60, "timer": 45})
                             
@@ -2450,7 +2449,7 @@ class Game:
                                 fuga_hp_dmg *= reduction_mult
                                 self.gojo.energy = max(0, self.gojo.energy - mitigated_dmg * self.gojo.cost_mult)
                             
-                            fuga_ce_dmg = (2100 * dmg_perc) # Scaled to Gojo's NEW Max CE
+                            fuga_ce_dmg = (self.gojo.max_energy * dmg_perc) # Scaled to Gojo's Max CE dynamically
                             
                             if self.gojo.infinity > 0 and self.gojo.energy > 0 and self.gojo.technique_burnout == 0:
                                 self.gojo.energy = max(0, self.gojo.energy - fuga_ce_dmg) # Shreds CE pool
@@ -3193,7 +3192,7 @@ class Game:
                 render_surf.blit(self.get_text("120% POT", (255, 215, 0), font=self.mini_font), (260, 20))
 
             self.draw_bar_on(render_surf, 25, 60, self.gojo.hp, self.gojo.max_hp, RED, 310, 10, "HEALTH")
-            self.draw_bar_on(render_surf, 25, 95, self.gojo.energy, 2100, PURPLE, 145, 8, "CURSE ENERGY")
+            self.draw_bar_on(render_surf, 25, 95, self.gojo.energy, self.gojo.max_energy, PURPLE, 145, 8, "CURSE ENERGY")
             self.draw_bar_on(render_surf, 190, 95, self.gojo.infinity, 1000, INF_COLOR, 145, 8, "INFINITY")          
             self.draw_bar_on(render_surf, 25, 125, self.gojo.tech_hits, 500, (180, 0, 255), 310, 2, "")
 
@@ -3242,7 +3241,7 @@ class Game:
                 render_surf.blit(self.get_text("120% POT", (255, 215, 0), font=self.mini_font), (WIDTH - 100, 20))
 
             self.draw_bar_on(render_surf, WIDTH - 335, 60, self.sukuna.hp, self.sukuna.max_hp, RED, 310, 10, "HEALTH")
-            self.draw_bar_on(render_surf, WIDTH - 335, 95, self.sukuna.energy, 3000, BLUE, 310, 8, "CURSE ENERGY")
+            self.draw_bar_on(render_surf, WIDTH - 335, 95, self.sukuna.energy, self.sukuna.max_energy, BLUE, 310, 8, "CURSE ENERGY")
             self.draw_bar_on(render_surf, WIDTH - 335, 125, self.sukuna.tech_hits, 500, (255, 100, 0), 310, 2, "")
 
             # --- NEW: SUKUNA SIMPLE DOMAIN BAR ---
