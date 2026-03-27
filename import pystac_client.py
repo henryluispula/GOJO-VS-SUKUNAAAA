@@ -1255,12 +1255,15 @@ class Game:
                             self.gojo.purple_cd = 720
                             self.gojo.tech_hits = 0
                             
-                # LORE ACCURACY: Mahoraga's intense passive regeneration
-                # 300 is 62.5% of his base 480 HP. This scales it dynamically!
-                if self.mahoraga.hp < (self.mahoraga.max_hp * 0.625) and self.mahoraga.energy > 5 * self.mahoraga.cost_mult and not self.mahoraga.ce_exhausted:
-                    self.mahoraga.hp = min(self.mahoraga.max_hp, self.mahoraga.hp + 1.8) # Further increased for massive survivability
-                    self.mahoraga.energy -= 1.0 * self.mahoraga.cost_mult
-                    self.mahoraga.rct_timer = 5
+                # Gojo Domain Execution Timer
+                if self.gojo.domain_charge > 0:
+                    self.gojo.domain_charge -= 1
+                    if self.gojo.domain_charge == 1:
+                        self.gojo.domain_active = True
+                        self.gojo.domain_timer = 400
+                        self.gojo.domain_cd = 3000
+                        self.gojo.infinity = self.gojo.max_infinity # Dynamically restores Infinity!
+                        self.shake_timer = 30
 
                 # --- SMART SUKUNA AI ---
                 dist = abs(self.sukuna.rect.centerx - self.gojo.rect.centerx)
@@ -2123,7 +2126,8 @@ class Game:
                             self.mahoraga.attack_cooldown = 12
                             
                         # LORE ACCURACY: Mahoraga's intense passive regeneration
-                        if self.mahoraga.hp < 300 and self.mahoraga.energy > 5 * self.mahoraga.cost_mult and not self.mahoraga.ce_exhausted:
+                        # 300 is 62.5% of his base 480 HP. This scales it dynamically!
+                        if self.mahoraga.hp < (self.mahoraga.max_hp * 0.625) and self.mahoraga.energy > 5 * self.mahoraga.cost_mult and not self.mahoraga.ce_exhausted:
                             self.mahoraga.hp = min(self.mahoraga.max_hp, self.mahoraga.hp + 1.8) # Further increased for massive survivability
                             self.mahoraga.energy -= 1.0 * self.mahoraga.cost_mult
                             self.mahoraga.rct_timer = 5
