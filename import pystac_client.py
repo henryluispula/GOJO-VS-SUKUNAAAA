@@ -1364,17 +1364,19 @@ class Game:
                     # STRATEGIC AI: If Gojo's domain is active, Sukuna frantically stays in point-blank contact!
                     rush_distance = 40 if self.gojo.domain_active else 110
                     
-                   # --- NEW: TACTICAL HEALING RETREAT ---
-                    # If Sukuna drops below 40% HP (200) and has CE, back away to heal unless Gojo is using Domain!
+                    # --- TACTICAL HEALING & ENERGY REGEN RETREAT ---
+                    # Retreat if HP is below 40% OR if CE drops below 30% (900 CE for Sukuna) to actively buy time and regenerate!
                     needs_healing = self.sukuna.hp < 200 and self.sukuna.energy > 50 and not self.sukuna.ce_exhausted
-                    retreating = needs_healing and not self.gojo.domain_active
+                    needs_energy = self.sukuna.energy < (3000 * 0.3)
+                    
+                    retreating = (needs_healing or needs_energy) and not self.gojo.domain_active
                     
                     if retreating and self.gojo.grab_timer <= 0:
                         
                         # --- NEW: ACTIVE RCT BURST ---
-                        # Sukuna checks if he has a very safe CE buffer (> 1000 CE).
+                        # Sukuna checks if he has a very safe CE buffer (> 1000 CE) AND actually needs healing.
                         # If so, he dramatically speeds up healing at a heavy CE cost!
-                        if self.sukuna.energy > 1000 * self.sukuna.cost_mult:
+                        if needs_healing and self.sukuna.energy > 1000 * self.sukuna.cost_mult:
                             active_heal_cost = 4.0 * self.sukuna.cost_mult
                             self.sukuna.energy -= active_heal_cost
                             self.sukuna.hp = min(self.sukuna.max_hp, self.sukuna.hp + 2.5) # Massive burst heal!
@@ -1383,8 +1385,8 @@ class Game:
                         # Note: If energy is <= 1000, he skips this burst and relies on his 0.3 CE passive RCT to save energy!
 
                         # --- MODIFIED: Attempt Domain Expansion as a defensive counter-measure while retreating! ---
-                        # --- FIXED: Added attack_cooldown <= 0 so he doesn't panic-cast while flying backwards! ---
-                        if self.sukuna.energy >= 200 * self.sukuna.cost_mult and self.sukuna.domain_cd == 0 and self.sukuna.technique_burnout == 0 and self.sukuna.domain_charge == 0 and not self.sukuna.domain_active and self.sukuna.attack_cooldown <= 0:
+                        # Only do this if he has a safe amount of CE, since his goal might be to regen CE!
+                        if not needs_energy and self.sukuna.energy >= 200 * self.sukuna.cost_mult and self.sukuna.domain_cd == 0 and self.sukuna.technique_burnout == 0 and self.sukuna.domain_charge == 0 and not self.sukuna.domain_active and self.sukuna.attack_cooldown <= 0:
                             self.sukuna.domain_charge = 60
                             de_cost = 200 * self.sukuna.cost_mult
                             self.sukuna.energy -= de_cost
@@ -1402,18 +1404,21 @@ class Game:
                             if self.sukuna.on_ground:
                                 self.sukuna.jump()
                         else:
+                            # If running for energy, jump twice as often to be extra evasive!
+                            jump_chance = 0.06 if needs_energy else 0.03
                             # Occasionally jump to evade Orbs while retreating normally in the open
-                            if self.sukuna.on_ground and random.random() < 0.03:
+                            if self.sukuna.on_ground and random.random() < jump_chance:
                                 self.sukuna.jump()
                                 
                         # Apply the smart movement
                         self.sukuna.rect.x += speed * run_dir
                             
-                        # Aggressively spam dodge to escape and heal!
+                        # Aggressively spam dodge to escape and recharge!
                         if self.sukuna.dodge_cd <= 0 and self.sukuna.stamina >= 20 and not self.sukuna.stamina_exhausted:
                             self.sukuna.direction = run_dir # Dash in the smart escape direction!
                             self.sukuna.dodge()
-                            self.sukuna.dodge_cd = 25 # Short cooldown so he strings multiple dashes together
+                            # Slightly faster dashes if his primary goal is to run for energy!
+                            self.sukuna.dodge_cd = 20 if needs_energy else 25
                         # --- NEW: ANTI-BLUE DEFENSES ---
                         # 1. Covering Fire: Throw a quick Dismantle backward to interrupt Gojo's pursuit!
                         if self.sukuna.dismantle_cd <= 0 and self.sukuna.energy >= 10 * self.sukuna.cost_mult and random.random() < 0.04 and self.sukuna.technique_burnout == 0 and not gojo_has_inf:
@@ -2300,6 +2305,17 @@ class Game:
                             elif p_target.name == "Sukuna" and p_target.amp_duration > 0:
                                 # DA partially absorbs Purple (40% reduction, less than Red/Blue because Purple is imaginary mass)
                                 purple_dmg *= 0.6 
+                            
+                            # --- NEW: CE REINFORCEMENT DEFENSE FOR PURPLE ---
+                            if p_target.energy > 0:
+                                # They use their raw CE to tank the imaginary mass
+                                reduction_mult = random.uniform(0.5, 0.8)
+                                mitigated_dmg = purple_dmg * (1.0 - reduction_mult) 
+                                
+                                purple_dmg *= reduction_mult 
+                                
+                                # 2 CE spent for every 1 HP saved (Standard Sukuna/Mahoraga CE defense ratio)
+                                p_target.energy = max(0, p_target.energy - (mitigated_dmg * 2.0) * p_target.cost_mult)
                             
                             p_target.hp -= purple_dmg
                             p.active = False # Hit confirmed, remove projectile
