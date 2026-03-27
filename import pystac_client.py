@@ -1565,11 +1565,11 @@ class Game:
                                 self.sukuna.jump()
 
                     # --- SMARTER FUGA AI ---
-                    # With the 30% HP Binding Vow, Fuga is extremely dangerous to Sukuna. He must calculate!
+                    # With the 50% HP Binding Vow, Fuga is extremely dangerous to Sukuna. He must calculate!
                     if self.sukuna.energy >= 195 * self.sukuna.cost_mult and self.sukuna.fuga_cd == 0 and self.sukuna.fuga_charge == 0 and self.sukuna.technique_burnout == 0:
                         if self.sukuna.tech_hits >= self.sukuna.max_tech_hits:
-                            # 1. Calculate HP Cost Survivability (Needs at least 30% + 20 HP buffer)
-                            vow_hp_cost = self.sukuna.max_hp * 0.30
+                            # 1. Calculate HP Cost Survivability (Needs at least 50% + 20 HP buffer)
+                            vow_hp_cost = self.sukuna.max_hp * 0.50
                             can_survive_vow = self.sukuna.hp > (vow_hp_cost + 20)
                             
                             # 2. Tactical Benefit Checks
@@ -1584,16 +1584,17 @@ class Game:
                     if self.sukuna.fuga_charge > 0:
                         self.sukuna.fuga_charge -= 1
                         if self.sukuna.fuga_charge == 1:
-                            self.projectiles.append(Projectile(self.sukuna.rect.centerx, self.sukuna.rect.centery, self.gojo.rect.centerx, self.gojo.rect.centery, 28, (255, 100, 0), size_mult=3.5, type="fuga_arrow"))
+                            # SCALED VFX: size_mult increased to 5.8 to accurately reflect the 350-radius blast zone!
+                            self.projectiles.append(Projectile(self.sukuna.rect.centerx, self.sukuna.rect.centery, self.gojo.rect.centerx, self.gojo.rect.centery, 28, (255, 100, 0), size_mult=5.8, type="fuga_arrow"))
                             
                             # --- FIXED: Now matches Purple's 195 CE cost! ---
                             fuga_cost = 195 * self.sukuna.cost_mult
                             self.sukuna.energy = max(0, self.sukuna.energy - fuga_cost)
                             
-                            # --- NEW BINDING VOW: Costs 30% Max HP! ---
-                            vow_hp_cost = self.sukuna.max_hp * 0.30
+                            # --- NEW BINDING VOW: Costs 50% Max HP! ---
+                            vow_hp_cost = self.sukuna.max_hp * 0.50
                             self.sukuna.hp -= vow_hp_cost
-                            self.shake_timer = 20
+                            self.shake_timer = 35 # Increased screen shake for the massive offering!
                             for _ in range(30): # Spawns a massive burst of blood from Sukuna for the vow
                                 bx, by = self.sukuna.rect.center
                                 self.blood_particles.append([bx, by, random.uniform(-8, 8), random.uniform(-10, 0), 50, random.randint(4, 7)])
@@ -1805,7 +1806,7 @@ class Game:
                     # LORE ACCURACY: If Sukuna drops below 50% HP and hasn't unlocked the World Slash yet, bring out Big Raga!
                     # NEW CONDITION: Sukuna will wait until Gojo's Domain Expansion completely ends so Mahoraga doesn't instantly die paralyzed!
                     if self.sukuna.hp < (self.sukuna.max_hp * 0.5) and self.mahoraga is None and not self.sukuna.world_slash_unlocked and self.gojo.domain_cd > 0 and getattr(self, "clash_decision_timer", 0) == 0 and self.gojo.domain_charge == 0 and self.sukuna.domain_charge == 0 and not self.gojo.domain_active:
-                        self.mahoraga_summon_timer = 160
+                        self.mahoraga_summon_timer = 210
 
                 # Sukuna Domain Execution Timer
                 if self.sukuna.domain_charge > 0:
