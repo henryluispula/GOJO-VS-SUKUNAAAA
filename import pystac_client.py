@@ -842,6 +842,25 @@ class Game:
         self.shared_ui_overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
         self.shared_ui_overlay.fill((0, 0, 0, 200))
         
+        # --- MEMORY ALLOCATION OPTIMIZATION ---
+        # Moving all per-frame surface creations here so the CPU's Garbage Collector doesn't panic.
+        self.micro_font = pygame.font.SysFont("Impact", 13)
+        self.render_surf = pygame.Surface((WIDTH, HEIGHT)).convert()
+        
+        self.gojo_hud_bg = pygame.Surface((340, 210), pygame.SRCALPHA)
+        self.gojo_hud_bg.fill((0, 0, 15, 180))
+        pygame.draw.rect(self.gojo_hud_bg, (100, 150, 255), (0, 0, 340, 210), 2)
+        
+        self.sukuna_hud_bg_normal = pygame.Surface((340, 210), pygame.SRCALPHA)
+        self.sukuna_hud_bg_normal.fill((20, 0, 0, 180))
+        pygame.draw.rect(self.sukuna_hud_bg_normal, (255, 100, 100), (0, 0, 340, 210), 2)
+        
+        self.sukuna_hud_bg_maho = pygame.Surface((340, 290), pygame.SRCALPHA)
+        self.sukuna_hud_bg_maho.fill((20, 0, 0, 180))
+        pygame.draw.rect(self.sukuna_hud_bg_maho, (255, 100, 100), (0, 0, 340, 290), 2)
+        
+        self.clash_msg_bg = pygame.Surface((800, 100), pygame.SRCALPHA)
+        
         # Sukuna initialized with WHITE to represent his Heian/Meguna robe aesthetic!
         self.sukuna = Fighter(1000, WORLD_HEIGHT - 300, "Sukuna", color=WHITE)
         self.mahoraga = None
@@ -1682,8 +1701,8 @@ class Game:
                         if random.random() < 0.15: self.sukuna.jump()
 
                     # LORE ACCURACY: If Sukuna drops below 250 HP and hasn't unlocked the World Slash yet, bring out Big Raga!
-                    # NEW CONDITION: Sukuna will strictly wait until Gojo's Domain is on cooldown!
-                    if self.sukuna.hp < 250 and self.mahoraga is None and not self.sukuna.world_slash_unlocked and self.gojo.domain_cd > 0:
+                    # NEW CONDITION: Sukuna will strictly wait until Gojo's Domain is on cooldown AND NOT during a Domain Clash window!
+                    if self.sukuna.hp < 250 and self.mahoraga is None and not self.sukuna.world_slash_unlocked and self.gojo.domain_cd > 0 and getattr(self, "clash_decision_timer", 0) == 0:
                         self.mahoraga_summon_timer = 84
 
                 # Sukuna Domain Execution Timer
@@ -3010,7 +3029,8 @@ class Game:
             visible_world = self.world_surf.subsurface((c_left, c_top, c_width, c_height))
             scaled_visible = pygame.transform.scale(visible_world, (WIDTH, HEIGHT))
             
-            render_surf = pygame.Surface((WIDTH, HEIGHT))
+            # OPTIMIZATION: Reuse pre-allocated surface. Do not spawn a new one 60x a second!
+            render_surf = self.render_surf 
             render_surf.blit(scaled_visible, (0, 0)) 
             # --- HUD: CLASH TIMER & SHRINK PROMPT ---
             if getattr(self, "clash_decision_timer", 0) > 0:
@@ -3082,11 +3102,12 @@ class Game:
             if self.clash_msg_timer > 0:
                 self.clash_msg_timer -= 1
                 clash_txt = self.get_text(self.clash_winner, WHITE)
-                # Instead of creating a new surface every frame, use draw.rect
                 bg_w, bg_h = clash_txt.get_width() + 40, clash_txt.get_height() + 20
-                rect_bg = pygame.Surface((bg_w, bg_h), pygame.SRCALPHA)
-                rect_bg.fill((0, 0, 0, 180))
-                render_surf.blit(rect_bg, (WIDTH//2 - bg_w//2, HEIGHT//2 - 100))
+                
+                # OPTIMIZATION: Reuse pre-allocated background surface
+                self.clash_msg_bg.fill((0, 0, 0, 0)) # Clear previous pixels
+                pygame.draw.rect(self.clash_msg_bg, (0, 0, 0, 180), (0, 0, bg_w, bg_h))
+                render_surf.blit(self.clash_msg_bg, (WIDTH//2 - bg_w//2, HEIGHT//2 - 100), (0, 0, bg_w, bg_h))
                 render_surf.blit(clash_txt, (WIDTH//2 - clash_txt.get_width()//2, HEIGHT//2 - 90))
 
             # 2. Draw the Exact Power Numbers in the upper HUD
@@ -3117,10 +3138,8 @@ class Game:
 
             # --- HUD: REVERTED TO CLEANER BOX STYLE ---
             # 1. Gojo HUD (Top Left)
-            g_bg = pygame.Surface((340, 210), pygame.SRCALPHA) # Expanded height for SD bar
-            g_bg.fill((0, 0, 15, 180))
-            pygame.draw.rect(g_bg, (100, 150, 255), (0, 0, 340, 210), 2)
-            render_surf.blit(g_bg, (10, 10))
+            # OPTIMIZATION: Reuse cached HUD background to prevent memory trashing
+            render_surf.blit(self.gojo_hud_bg, (10, 10))
             
             render_surf.blit(self.get_text("SATORU GOJO", (200, 230, 255)), (25, 15))
             if self.gojo.potential_timer > 0:
@@ -3164,11 +3183,11 @@ class Game:
             render_surf.blit(self.get_text(f"{d_cd} | {use_txt}", WHITE, font=self.mini_font), (25, 190))
 
             # 2. Sukuna HUD (Top Right)
-            s_height = 290 if (self.mahoraga and self.mahoraga.hp > 0) else 210 # Expanded height
-            s_bg = pygame.Surface((340, s_height), pygame.SRCALPHA)
-            s_bg.fill((20, 0, 0, 180))
-            pygame.draw.rect(s_bg, (255, 100, 100), (0, 0, 340, s_height), 2)
-            render_surf.blit(s_bg, (WIDTH - 350, 10))
+            # OPTIMIZATION: Reuse cached HUD background
+            if self.mahoraga and self.mahoraga.hp > 0:
+                render_surf.blit(self.sukuna_hud_bg_maho, (WIDTH - 350, 10))
+            else:
+                render_surf.blit(self.sukuna_hud_bg_normal, (WIDTH - 350, 10))
             
             s_label = self.get_text("RYOMEN SUKUNA", (255, 100, 100))
             render_surf.blit(s_label, (WIDTH - 335, 15))
@@ -3248,8 +3267,8 @@ class Game:
                 v_p = int((1.0 - self.mahoraga.adaptation["void"]) * 100)
                 sm_txt = f"PN:{p_p}% BL:{b_p}% RD:{r_p}% PR:{pu_p}% IN:{i_p}% VD:{v_p}%"
                 
-                # Render using a slightly smaller system font for layout safety
-                render_surf.blit(self.get_text(sm_txt, WHITE, font=pygame.font.SysFont("Impact", 13)), (WIDTH - 335, 270))
+                # OPTIMIZATION: Use the pre-loaded micro_font. Calling SysFont here reads from the hard drive 60x a second!
+                render_surf.blit(self.get_text(sm_txt, WHITE, font=self.micro_font), (WIDTH - 335, 270))
 
             # 4. Center Announcements (Mahoraga Full Adaptations)
             y_offset = HEIGHT // 2 - 150
