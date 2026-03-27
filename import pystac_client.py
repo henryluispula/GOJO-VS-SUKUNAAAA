@@ -1275,21 +1275,49 @@ class Game:
                 # --- FIXED: Added attack_cooldown <= 0 so he doesn't cast Domain while reeling from PB Red! ---
                 if self.sukuna.energy >= 200 * self.sukuna.cost_mult and self.sukuna.domain_cd == 0 and self.sukuna.technique_burnout == 0 and self.sukuna.domain_charge == 0 and not self.sukuna.domain_active and not self.sukuna.is_paralyzed and self.gojo.grab_timer <= 0 and self.sukuna.attack_cooldown <= 0:
                     
-                    # Evaluate if Sukuna can physically interrupt Gojo's cast before committing to a clash!
-                    can_interrupt = False
+                    should_cast_domain = False
                     
-                    if self.gojo.domain_charge > 0:
+                    if self.gojo.domain_active:
+                        # If Gojo's domain is already up, pop ours to clash immediately!
+                        should_cast_domain = True
+                        
+                    elif self.gojo.domain_charge > 0:
+                        # Gojo is charging his domain! Calculate the best tactical response.
+                        can_interrupt = False
+                        
+                        # 1. Guaranteed Interruption Checks (Must hit before domain_charge reaches 0)
                         if self.sukuna.world_slash_unlocked and self.sukuna.dismantle_cd <= 0 and self.sukuna.energy >= 80 * self.sukuna.cost_mult:
-                            can_interrupt = True # World Slash ignores Infinity
-                        elif dist <= 300: 
-                            can_interrupt = True # Close enough to dash and punch with Domain Amp
-                        elif self.sukuna.dismantle_cd <= 0 and self.sukuna.energy >= 10 * self.sukuna.cost_mult:
-                            can_interrupt = True # Desperate attempt to interrupt DE even if Infinity is up!
+                            can_interrupt = True # World Slash perfectly ignores Infinity
+                        elif not gojo_has_inf and self.sukuna.dismantle_cd <= 0 and self.sukuna.energy >= 10 * self.sukuna.cost_mult:
+                            can_interrupt = True # Normal slash only interrupts if Infinity is verified DOWN
+                        elif dist <= 150 and self.sukuna.energy >= 15 * self.sukuna.cost_mult:
+                            can_interrupt = True # Close enough to instantly DA punch him
                             
-                    # Sukuna casts domain if Gojo does (and he can't interrupt), OR strategically if Gojo is vulnerable
-                    gojo_is_vulnerable = self.gojo.technique_burnout > 0 or self.gojo.domain_cd > 0 or self.gojo.energy < 150 * self.gojo.cost_mult
-                    
-                    if self.gojo.domain_active or (self.gojo.domain_charge > 0 and not can_interrupt) or gojo_is_vulnerable or (self.sukuna.hp < 150 and random.random() < 0.005):
+                        # 2. Survivability Calculation (If we fail to interrupt)
+                        # Gojo's Domain lasts 400 frames. 
+                        # Sukuna's Simple Domain protects for his max_sd_hits (300 frames), leaving 100 frames of pure brain damage.
+                        # 100 frames * 1.5 HP damage/frame = 150 expected HP loss minimum!
+                        can_survive_uv = True
+                        frames_unprotected = max(0, 400 - self.sukuna.max_sd_hits) if self.sukuna.sd_broken_timer <= 0 else 400
+                        expected_uv_damage = frames_unprotected * 1.5
+                        
+                        if self.sukuna.hp <= expected_uv_damage or self.sukuna.energy < (400 * 1.0):
+                            can_survive_uv = False # He calculates he will literally die or run out of CE if he gets caught
+                            
+                        # 3. Final Decision Logic
+                        if not can_interrupt:
+                            should_cast_domain = True # Cannot interrupt, MUST clash!
+                        elif can_interrupt and not can_survive_uv:
+                            # Even if he thinks he can interrupt, if a single mistake means death, play it safe and clash!
+                            should_cast_domain = True
+                            
+                    else:
+                        # Strategic Offensive Domain (Gojo is vulnerable)
+                        gojo_is_vulnerable = self.gojo.technique_burnout > 0 or self.gojo.domain_cd > 0 or self.gojo.energy < 150 * self.gojo.cost_mult
+                        if gojo_is_vulnerable or (self.sukuna.hp < (self.sukuna.max_hp * 0.3) and random.random() < 0.005):
+                            should_cast_domain = True
+
+                    if should_cast_domain:
                         self.sukuna.domain_charge = 60
                         de_cost = 200 * self.sukuna.cost_mult
                         self.sukuna.energy -= de_cost
@@ -2541,13 +2569,15 @@ class Game:
                         self.sukuna.rct_timer = 5
                     
                     # 2. DESPERATE DOMAIN EXPANSION: Ignore standard tactical pacing and instantly pop DE if he can!
-                    if self.sukuna.energy >= 200 * self.sukuna.cost_mult and self.sukuna.domain_cd == 0 and self.sukuna.technique_burnout == 0 and self.sukuna.domain_charge == 0 and not self.sukuna.domain_active and self.gojo.grab_timer <= 0:
+                    # FIX: Added 'and self.mahoraga_summon_timer <= 0' to prevent overlapping animations
+                    if self.sukuna.energy >= 200 * self.sukuna.cost_mult and self.sukuna.domain_cd == 0 and self.sukuna.technique_burnout == 0 and self.sukuna.domain_charge == 0 and not self.sukuna.domain_active and self.gojo.grab_timer <= 0 and self.mahoraga_summon_timer <= 0:
                         self.sukuna.domain_charge = 60
                         self.sukuna.energy -= 200 * self.sukuna.cost_mult
                         self.popups.append({"x": self.sukuna.rect.centerx, "y": self.sukuna.rect.centery - 100, "timer": 60, "text": "DESPERATE DOMAIN!", "color": RED})
                         
                     # 3. PANIC RETREAT: CE-REINFORCED SPEED
-                    if self.gojo.grab_timer <= 0 and not self.gojo.domain_active and not self.sukuna.domain_active:
+                    # FIX: Added 'and self.mahoraga_summon_timer <= 0' so he doesn't walk away while chanting
+                    if self.gojo.grab_timer <= 0 and not self.gojo.domain_active and not self.sukuna.domain_active and self.mahoraga_summon_timer <= 0:
                         run_dir = 1 if self.sukuna.rect.x > self.gojo.rect.x else -1
                         
                         # Smart corner escape so he doesn't get trapped against the wall
