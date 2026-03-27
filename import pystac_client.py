@@ -2470,13 +2470,13 @@ class Game:
                 
                 # Setting Sun (Low on the horizon with layered glowing halos)
                 sun_x, sun_y = WORLD_WIDTH - 700, WORLD_HEIGHT - 700
-                pygame.draw.circle(self.cached_shinjuku_bg, (70, 75, 80), (sun_x, sun_y), 260) # Outer glow
-                pygame.draw.circle(self.cached_shinjuku_bg, (110, 115, 120), (sun_x, sun_y), 210) # Mid glow
-                pygame.draw.circle(self.cached_shinjuku_bg, (180, 185, 190), (sun_x, sun_y), 175) # Inner glow
-                pygame.draw.circle(self.cached_shinjuku_bg, M_WHITE, (sun_x, sun_y), 150) # Core
+                pygame.draw.circle(self.cached_shinjuku_bg, (70, 75, 80), (sun_x, sun_y), 340) # Outer glow
+                pygame.draw.circle(self.cached_shinjuku_bg, (110, 115, 120), (sun_x, sun_y), 310) # Mid glow
+                pygame.draw.circle(self.cached_shinjuku_bg, (180, 185, 190), (sun_x, sun_y), 285) # Inner glow
+                pygame.draw.circle(self.cached_shinjuku_bg, M_WHITE, (sun_x, sun_y), 250) # Core
                 
                 # 2. Distant Cityscape (Grid Buildings)
-                for bx in range(-100, WORLD_WIDTH, 300):
+                for bx in range(-100, WORLD_WIDTH, 360):
                     bx += random.randint(-50, 50)
                     bw = random.randint(200, 450)
                     bh = random.randint(800, 1500)
