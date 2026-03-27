@@ -1666,32 +1666,36 @@ class Game:
                         self.shake_timer = 30
 
                 # --- DOMAIN SHRINK LOGIC ---
-                # Now only activates if the domain is active AND the Z+V combo was hit!
                 if self.gojo.domain_active and getattr(self.gojo, "domain_shrunk", False):
                     if not hasattr(self.gojo, "domain_center_x"):
-                        # FIX: Calculate a safe center point so the domain NEVER spawns out of bounds!
-                        # We need at least ~750px of padding on the sides for the camera to view the 800x800 box cleanly
                         safe_pad_x = 750
                         safe_pad_y = 450
-                        
                         self.gojo.domain_center_x = max(safe_pad_x, min(WORLD_WIDTH - safe_pad_x, self.gojo.rect.centerx))
                         self.gojo.domain_center_y = max(safe_pad_y, min(WORLD_HEIGHT - safe_pad_y, self.gojo.rect.centery))
-                        
-                    # Combo Sequence shrinks arena to 800x800 for Domain Priority
-                    min_x = self.gojo.domain_center_x - 400
-                    max_x = self.gojo.domain_center_x + 400
-                    min_y = self.gojo.domain_center_y - 400
-                    max_y = self.gojo.domain_center_y + 400
-                    for f in [self.gojo, self.sukuna, self.mahoraga]:
-                        if f and f.hp > 0:
-                            if f.rect.left < min_x: f.rect.left = min_x
-                            if f.rect.right > max_x: f.rect.right = max_x
-                            if f.rect.top < min_y: f.rect.top = min_y
                 else:
-                    self.gojo.domain_shrunk = False # Reset the flag when domain ends!
+                    self.gojo.domain_shrunk = False
                     if hasattr(self.gojo, "domain_center_x"):
                         del self.gojo.domain_center_x
                         del self.gojo.domain_center_y
+
+                # === CIRCULAR DOMAIN PHYSICS ===
+                # This pushes fighters back if they try to leave the circular boundary
+                if self.gojo.domain_active and getattr(self.gojo, "domain_shrunk", False) and hasattr(self.gojo, "domain_center_x"):
+                    cx = self.gojo.domain_center_x
+                    cy = self.gojo.domain_center_y
+                    radius = 400
+                    
+                    for f in [self.gojo, self.sukuna]:
+                        if f and f.hp > 0:
+                            dx = f.rect.centerx - cx
+                            dy = f.rect.centery - cy
+                            dist = math.hypot(dx, dy)
+                            
+                            if dist > radius - 35:   # keep fighters nicely inside the circle
+                                if dist > 0:
+                                    push = (radius - 35 - dist) * 0.8   # stronger push
+                                    f.rect.x += (dx / dist) * push
+                                    f.rect.y += (dy / dist) * push       
 
                 # --- CINEMATIC TIME STOP ---
                 # Check if anyone is currently charging their Domain
@@ -2580,48 +2584,42 @@ class Game:
                 self.world_surf.blit(self.cached_shinjuku_bg, (0, 0))
 
             if self.gojo.domain_active:
-                if is_shrunk:
-                    # === SHRUNKEN DOMAIN ===
-                    if not hasattr(self.gojo, "domain_center_x"):
-                        # Safety: fallback if center not calculated yet
-                        cx = self.gojo.rect.centerx
-                        cy = self.gojo.rect.centery
-                    else:
-                        cx = self.gojo.domain_center_x
-                        cy = self.gojo.domain_center_y
-
-                    # Create shrunk surface if missing
+                if is_shrunk and hasattr(self.gojo, "domain_center_x"):
+                    cx = self.gojo.domain_center_x
+                    cy = self.gojo.domain_center_y
+                    
+                    # Create shrunk surface ONLY ONCE when we first shrink
                     if self.cached_uv_bg_shrunk is None:
                         self.cached_uv_bg_shrunk = pygame.Surface((WORLD_WIDTH, WORLD_HEIGHT), pygame.SRCALPHA)
-
-                    self.cached_uv_bg_shrunk.fill((0, 0, 0, 0))
-                    
-                    # HARD OPAQUE VOID — completely covers Shinjuku inside the circle
-                    pygame.draw.circle(self.cached_uv_bg_shrunk, (6, 6, 18, 255), (cx, cy), 405)
-                    
-                    # Accretion Disk + Black Hole
-                    bh_x, bh_y = cx, cy - 30
-                    scale = 0.67
-                    pygame.draw.circle(self.cached_uv_bg_shrunk, (80, 30, 160, 255), (bh_x, bh_y), int(520 * scale))
-                    pygame.draw.circle(self.cached_uv_bg_shrunk, (120, 60, 220, 255), (bh_x, bh_y), int(400 * scale))
-                    pygame.draw.circle(self.cached_uv_bg_shrunk, (200, 160, 255, 255), (bh_x, bh_y), int(290 * scale))
-                    pygame.draw.circle(self.cached_uv_bg_shrunk, (255, 255, 255, 255), (bh_x, bh_y), int(255 * scale))
-                    pygame.draw.circle(self.cached_uv_bg_shrunk, (0, 0, 0, 255), (bh_x, bh_y), int(230 * scale))
-                    
-                    # Bright glowing barrier
-                    pygame.draw.circle(self.cached_uv_bg_shrunk, (220, 240, 255, 255), (cx, cy), 400, width=8)
-                    
-                    # Stars inside domain
-                    for _ in range(90):
-                        sx = cx + random.randint(-390, 390)
-                        sy = cy + random.randint(-390, 390)
-                        if math.hypot(sx - cx, sy - cy) < 395:
-                            self.cached_uv_bg_shrunk.set_at((sx, sy), (255, 255, 255, 255))
+                        
+                        self.cached_uv_bg_shrunk.fill((0, 0, 0, 0))
+                        
+                        # HARD OPAQUE VOID
+                        pygame.draw.circle(self.cached_uv_bg_shrunk, (6, 6, 18, 255), (cx, cy), 405)
+                        
+                        # Accretion Disk + Black Hole (centered nicely)
+                        bh_x, bh_y = cx, cy - 30
+                        scale = 0.67
+                        pygame.draw.circle(self.cached_uv_bg_shrunk, (80, 30, 160, 255), (bh_x, bh_y), int(520 * scale))
+                        pygame.draw.circle(self.cached_uv_bg_shrunk, (120, 60, 220, 255), (bh_x, bh_y), int(400 * scale))
+                        pygame.draw.circle(self.cached_uv_bg_shrunk, (200, 160, 255, 255), (bh_x, bh_y), int(290 * scale))
+                        pygame.draw.circle(self.cached_uv_bg_shrunk, (255, 255, 255, 255), (bh_x, bh_y), int(255 * scale))
+                        pygame.draw.circle(self.cached_uv_bg_shrunk, (0, 0, 0, 255), (bh_x, bh_y), int(230 * scale))
+                        
+                        # Bright glowing barrier
+                        pygame.draw.circle(self.cached_uv_bg_shrunk, (220, 240, 255, 255), (cx, cy), 400, width=8)
+                        
+                        # Stars inside domain
+                        for _ in range(90):
+                            sx = cx + random.randint(-390, 390)
+                            sy = cy + random.randint(-390, 390)
+                            if math.hypot(sx - cx, sy - cy) < 395:
+                                self.cached_uv_bg_shrunk.set_at((sx, sy), (255, 255, 255, 255))
                     
                     self.world_surf.blit(self.cached_uv_bg_shrunk, (0, 0))
                     
                 else:
-                    # === NORMAL FULL-SCREEN UNLIMITED VOID ===
+                    # Normal full-screen Unlimited Void
                     if self.cached_uv_bg is None:
                         self.cached_uv_bg = pygame.Surface((WORLD_WIDTH, WORLD_HEIGHT), pygame.SRCALPHA)
                         self.cached_uv_bg.fill((5, 5, 18, 235))
