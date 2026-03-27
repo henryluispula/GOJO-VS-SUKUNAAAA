@@ -229,9 +229,11 @@ class Fighter:
         self.hp = self.max_hp
         self.prev_hp = self.hp # Track for blood effects
         # Start the fight with appropriate max cursed energy levels
-        self.energy = 3000 if name == "Sukuna" else (2100 if name == "Gojo" else 2800)
+        self.max_energy = 3000 if name == "Sukuna" else (2100 if name == "Gojo" else 2800)
         self.energy = self.max_energy
-        self.infinity = 1000 if name == "Gojo" else 0 
+        self.max_infinity = 1000 if name == "Gojo" else 0 
+        self.infinity = self.max_infinity
+        self.max_tech_hits = 500
         
         # --- OPTIMIZATION: Surface Caching ---
         self.inf_surf = pygame.Surface((220, 320), pygame.SRCALPHA)
@@ -445,10 +447,10 @@ class Fighter:
         self.trail_points = active_trails
         
         # --- FIXED: Gojo Infinity regen (Now respects the Dev Toggle!) ---
-        if self.name == "Gojo" and self.infinity < 1000 and self.technique_burnout == 0 and not getattr(self, "dev_disable_infinity", False):
+        if self.name == "Gojo" and self.infinity < self.max_infinity and self.technique_burnout == 0 and not getattr(self, "dev_disable_infinity", False):
             cost = 0.1 * self.cost_mult
             if self.energy >= cost:
-                self.infinity = min(1000, self.infinity + 3.5) 
+                self.infinity = min(self.max_infinity, self.infinity + 3.5) 
                 self.energy -= cost
 
         # Sukuna Constant Auto-Heal
@@ -1031,7 +1033,7 @@ class Game:
                     self.sukuna.domain_charge = 0
                     self.sukuna.amp_duration = 0 
                     self.sukuna.attack_cooldown = 30 
-                    self.gojo.tech_hits = min(500, self.gojo.tech_hits + 25) # Adds to Purple Pool
+                    self.gojo.tech_hits = min(self.gojo.max_tech_hits, self.gojo.tech_hits + 25) # Adds to Purple Pool
                     self.shake_timer = 10
                     
                     self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 80, "timer": 45, "text": "WARPED!", "color": BLUE})
@@ -1050,7 +1052,7 @@ class Game:
                     
                     self.gojo.energy -= 100 * self.gojo.cost_mult
                     self.gojo.red_cd = 240  
-                    self.gojo.tech_hits = min(500, self.gojo.tech_hits + 25) # Adds to Purple Pool
+                    self.gojo.tech_hits = min(self.gojo.max_tech_hits, self.gojo.tech_hits + 25) # Adds to Purple Pool
                     
                     # --- NEW: Clear Sukuna's domain charge so he doesn't get a fake interrupt! ---
                     self.sukuna.domain_charge = 0
@@ -1220,7 +1222,7 @@ class Game:
                         if self.gojo.energy >= 195 * self.gojo.cost_mult:
                             
                             # 3. Check for specific technique requirements (Burnout and Hits)
-                            if not is_actually_burned_out and self.gojo.tech_hits >= 500:
+                            if not is_actually_burned_out and self.gojo.tech_hits >= self.gojo.max_tech_hits:
                                 self.gojo.purple_charge = 120
                         
                         else:
@@ -1263,7 +1265,7 @@ class Game:
 
                 # --- SMART SUKUNA AI ---
                 dist = abs(self.sukuna.rect.centerx - self.gojo.rect.centerx)
-                fuga_priority = (self.sukuna.tech_hits >= 500 and self.sukuna.fuga_cd == 0 and self.sukuna.energy >= 195 * self.sukuna.cost_mult) or self.sukuna.fuga_charge > 0
+                fuga_priority = (self.sukuna.tech_hits >= self.sukuna.max_tech_hits and self.sukuna.fuga_cd == 0 and self.sukuna.energy >= 195 * self.sukuna.cost_mult) or self.sukuna.fuga_charge > 0
                 gojo_has_inf = self.gojo.infinity > 0 and self.gojo.technique_burnout == 0
                 
                 # --- SUKUNA DOMAIN CLASH & SIMPLE DOMAIN LOGIC ---
@@ -1430,7 +1432,7 @@ class Game:
                     
                     # --- TACTICAL HEALING & ENERGY REGEN RETREAT ---
                     # Retreat if HP is below 40% OR if CE drops below 30% to actively buy time and regenerate!
-                    needs_healing = self.sukuna.hp < 200 and self.sukuna.energy > 50 and not self.sukuna.ce_exhausted
+                    needs_healing = self.sukuna.hp < (self.sukuna.max_hp * 0.4) and self.sukuna.energy > 50 and not self.sukuna.ce_exhausted
                     needs_energy = self.sukuna.energy < (self.sukuna.max_energy * 0.3)
                     
                     retreating = (needs_healing or needs_energy) and not self.gojo.domain_active
@@ -1531,7 +1533,7 @@ class Game:
 
                     # FUGA LOGIC
                     if self.sukuna.energy >= 195 * self.sukuna.cost_mult and self.sukuna.fuga_cd == 0 and self.sukuna.fuga_charge == 0 and self.sukuna.technique_burnout == 0:
-                        if self.sukuna.tech_hits >= 500:
+                        if self.sukuna.tech_hits >= self.sukuna.max_tech_hits:
                             self.sukuna.fuga_charge = 120
                     
                     if self.sukuna.fuga_charge > 0:
@@ -1602,11 +1604,11 @@ class Game:
                                     # 3. Apply Conceptual Attrition burst (The rest of the stun is purely CC for Fuga setup)
                                     if self.gojo.infinity > 0 and self.gojo.energy > 0 and self.gojo.technique_burnout == 0:
                                         self.gojo.energy = max(0, self.gojo.energy - 0.5 * self.gojo.cost_mult) 
-                                        self.sukuna.tech_hits = min(500, self.sukuna.tech_hits + 20)
+                                        self.sukuna.tech_hits = min(self.sukuna.max_tech_hits, self.sukuna.tech_hits + 20)
                                     else:
                                         self.gojo.hp -= 120.0
-                                        self.sukuna.tech_hits = min(500, self.sukuna.tech_hits + 20)
-                                        self.shake_timer = 40 
+                                        self.sukuna.tech_hits = min(self.sukuna.max_tech_hits, self.sukuna.tech_hits + 20)
+                                        self.shake_timer = 40
                                         
                                         for _ in range(50):
                                             bx, by = self.gojo.rect.center
@@ -1746,9 +1748,9 @@ class Game:
                     if (purple_active or self.gojo.purple_charge > 0) and self.sukuna.on_ground:
                         if random.random() < 0.15: self.sukuna.jump()
 
-                    # LORE ACCURACY: If Sukuna drops below 250 HP and hasn't unlocked the World Slash yet, bring out Big Raga!
+                    # LORE ACCURACY: If Sukuna drops below 50% HP and hasn't unlocked the World Slash yet, bring out Big Raga!
                     # NEW CONDITION: Sukuna will strictly wait until Gojo's Domain is on cooldown, NOT during a Domain Clash window, AND NOT during a Domain cast animation!
-                    if self.sukuna.hp < 250 and self.mahoraga is None and not self.sukuna.world_slash_unlocked and self.gojo.domain_cd > 0 and getattr(self, "clash_decision_timer", 0) == 0 and self.gojo.domain_charge == 0 and self.sukuna.domain_charge == 0:
+                    if self.sukuna.hp < (self.sukuna.max_hp * 0.5) and self.mahoraga is None and not self.sukuna.world_slash_unlocked and self.gojo.domain_cd > 0 and getattr(self, "clash_decision_timer", 0) == 0 and self.gojo.domain_charge == 0 and self.sukuna.domain_charge == 0:
                         self.mahoraga_summon_timer = 84
 
                 # Sukuna Domain Execution Timer
@@ -1830,12 +1832,12 @@ class Game:
                         
                             
                         # INFINITY REGEN (Gojo only)
-                        if f.name == "Gojo" and f.infinity < 1000 and f.technique_burnout == 0:
+                        if f.name == "Gojo" and f.infinity < f.max_infinity and f.technique_burnout == 0:
                             inf_cost = 0.1 * f.cost_mult
                             if f.energy >= inf_cost:
                                 f.prev_energy = f.energy
-                                f.infinity = min(1000, f.infinity + 3.5)
-                                f.energy -= inf_cost                                
+                                f.infinity = min(f.max_infinity, f.infinity + 3.5)
+                                f.energy -= inf_cost                    
                 else:
                     # Normal Physics Loop
                     for f in active_fighters:
@@ -1872,7 +1874,7 @@ class Game:
 
                             # Deal steady melee damage directly to HP
                             self.gojo.hp -= beatdown_dmg 
-                            self.sukuna.tech_hits = min(500, self.sukuna.tech_hits + beatdown_dmg)
+                            self.sukuna.tech_hits = min(self.sukuna.max_tech_hits, self.sukuna.tech_hits + beatdown_dmg)
                             
                             # Visual: Rapid brutal punches and hit sparks!
                             if self.gojo.grab_timer % 8 == 0:
@@ -1893,7 +1895,7 @@ class Game:
                                 self.gojo.energy = max(0, self.gojo.energy - mitigated_dmg * self.gojo.cost_mult)
                                 
                             self.gojo.hp -= cleave_dmg # Adds up to ~60-96 damage over 300 frames with CE, or 120 without
-                            self.sukuna.tech_hits = min(500, self.sukuna.tech_hits + 0.5) 
+                            self.sukuna.tech_hits = min(self.sukuna.max_tech_hits, self.sukuna.tech_hits + 0.5) 
                             
                             if self.gojo.grab_timer % 10 == 0:
                                 self.shake_timer = 5
@@ -1903,7 +1905,7 @@ class Game:
                         # Cleave grinds against the spatial barrier, violently shredding Gojo's CE reserves!
                         if self.gojo.infinity > 0 and self.gojo.energy > 0 and self.gojo.technique_burnout == 0:
                             self.gojo.energy = max(0, self.gojo.energy - 1.5 * self.gojo.cost_mult) 
-                            self.sukuna.tech_hits = min(500, self.sukuna.tech_hits + 0.5)
+                            self.sukuna.tech_hits = min(self.sukuna.max_tech_hits, self.sukuna.tech_hits + 0.5)
                             
                             # Visual: Blue sparks where Cleave strikes the Infinity barrier
                             if random.random() < 0.3:
@@ -1920,7 +1922,7 @@ class Game:
                                 self.gojo.energy = max(0, self.gojo.energy - mitigated_dmg * self.gojo.cost_mult)
                                 
                             self.gojo.hp -= cleave_dmg 
-                            self.sukuna.tech_hits = min(500, self.sukuna.tech_hits + 0.5) 
+                            self.sukuna.tech_hits = min(self.sukuna.max_tech_hits, self.sukuna.tech_hits + 0.5) 
                             if self.gojo.grab_timer % 10 == 0:
                                 self.shake_timer = 5
                                 self.blood_particles.append([self.gojo.rect.centerx, self.gojo.rect.centery, random.uniform(-5, 5), random.uniform(-5, 0), 30, random.randint(3, 6)])
@@ -2231,11 +2233,11 @@ class Game:
                 
                 if self.sukuna.domain_active and not self.sukuna.is_paralyzed:
                     # --- NEW: Rapidly auto-charge Fuga pool inside Domain! ---
-                    self.sukuna.tech_hits = min(500, self.sukuna.tech_hits + 2)
+                    self.sukuna.tech_hits = min(self.sukuna.max_tech_hits, self.sukuna.tech_hits + 2)
                     
                     # Relentless slashes spawned instantly around Gojo
                     if self.sukuna.domain_timer % 8 == 0:
-                        self.sukuna.tech_hits = min(500, self.sukuna.tech_hits + 2)
+                        self.sukuna.tech_hits = min(self.sukuna.max_tech_hits, self.sukuna.tech_hits + 2)
                         
                         # --- FIX: Spawn sure-hits directly ON Gojo with low speed so they can't clip through him! ---
                         sx = self.gojo.rect.centerx + random.randint(-40, 40)
@@ -2315,7 +2317,7 @@ class Game:
                                     
                                 if not p_target.is_dodging:
                                     p_target.hp -= orb_dmg
-                                    if p_target.name in ["Sukuna", "Mahoraga"]: self.gojo.tech_hits = min(500, self.gojo.tech_hits + 1)
+                                    if p_target.name in ["Sukuna", "Mahoraga"]: self.gojo.tech_hits = min(self.gojo.max_tech_hits, self.gojo.tech_hits + 1)
                         
                         # --- NEW: Blue Pulls Sukuna's Slashes ---
                         for slash in self.projectiles:
@@ -2377,7 +2379,7 @@ class Game:
                                     
                                 if not p_target.is_dodging:
                                     p_target.hp -= orb_dmg
-                                    if p_target.name in ["Sukuna", "Mahoraga"]: self.gojo.tech_hits = min(500, self.gojo.tech_hits + 1)
+                                    if p_target.name in ["Sukuna", "Mahoraga"]: self.gojo.tech_hits = min(self.gojo.max_tech_hits, self.gojo.tech_hits + 1)
                         
                         for slash in self.projectiles:
                             if slash.type in ["dismantle", "cleave"]:
@@ -2507,7 +2509,7 @@ class Game:
                                     p.active = False 
                                 else: 
                                     # Direct HP hit also counts!
-                                    self.sukuna.tech_hits = min(500, self.sukuna.tech_hits + 2) 
+                                    self.sukuna.tech_hits = min(self.sukuna.max_tech_hits, self.sukuna.tech_hits + 2) 
                                     proj_dmg = 80.0 if p.type == "cleave" else 32.0
                                     # --- NEW: GOJO'S 1:1 CE REINFORCEMENT DEFENSE ---
                                     if self.gojo.energy > 0: 
@@ -2526,13 +2528,13 @@ class Game:
 
                 # --- DESPERATION & LINKED DEATH LOGIC ---
                 # When Sukuna is critically low on HP, he drops all pride to survive!
-                if self.sukuna.hp <= 120 and self.sukuna.hp > 0:
+                if self.sukuna.hp <= (self.sukuna.max_hp * 0.24) and self.sukuna.hp > 0:
                     
                     # 1. BINDING VOW: EMERGENCY CE REINFORCEMENT
-                    # He trades a colossal amount of CE to rapidly heal and shield his body up to 50% HP (250).
+                    # He trades a colossal amount of CE to rapidly heal and shield his body up to 50% HP.
                     if self.sukuna.energy > 40 * self.sukuna.cost_mult and not self.sukuna.ce_exhausted:
                         self.sukuna.energy -= 12.0 * self.sukuna.cost_mult # Monstrous CE drain!
-                        self.sukuna.hp = min(250.0, self.sukuna.hp + 3.5) # Fast emergency recovery
+                        self.sukuna.hp = min((self.sukuna.max_hp * 0.5), self.sukuna.hp + 3.5) # Fast emergency recovery
                         self.sukuna.rct_timer = 5
                     
                     # 2. DESPERATE DOMAIN EXPANSION: Ignore standard tactical pacing and instantly pop DE if he can!
@@ -3193,8 +3195,8 @@ class Game:
 
             self.draw_bar_on(render_surf, 25, 60, self.gojo.hp, self.gojo.max_hp, RED, 310, 10, "HEALTH")
             self.draw_bar_on(render_surf, 25, 95, self.gojo.energy, self.gojo.max_energy, PURPLE, 145, 8, "CURSE ENERGY")
-            self.draw_bar_on(render_surf, 190, 95, self.gojo.infinity, 1000, INF_COLOR, 145, 8, "INFINITY")          
-            self.draw_bar_on(render_surf, 25, 125, self.gojo.tech_hits, 500, (180, 0, 255), 310, 2, "")
+            self.draw_bar_on(render_surf, 190, 95, self.gojo.infinity, self.gojo.max_infinity, INF_COLOR, 145, 8, "INFINITY")          
+            self.draw_bar_on(render_surf, 25, 125, self.gojo.tech_hits, self.gojo.max_tech_hits, (180, 0, 255), 310, 2, "")
 
             # --- NEW: GOJO SIMPLE DOMAIN BAR ---
             sd_label_g = f"SIMPLE DOMAIN (CD: {self.gojo.sd_broken_timer//60 + 1}s)" if self.gojo.sd_broken_timer > 0 else "SIMPLE DOMAIN"
@@ -3211,8 +3213,8 @@ class Game:
             
             # --- FANCY PURPLE STATUS ---
             p_status = "BURN" if is_burned_out else ("RDY" if self.gojo.purple_cd == 0 else f"{self.gojo.purple_cd//60}s")
-            if self.gojo.tech_hits < 500:
-                p_label = f"PRPLE: LOCKED ({self.gojo.tech_hits}/500)"
+            if self.gojo.tech_hits < self.gojo.max_tech_hits:
+                p_label = f"PRPLE: LOCKED ({int(self.gojo.tech_hits)}/{self.gojo.max_tech_hits})"
                 p_color = (150, 150, 150) # Grey when locked
             else:
                 p_label = f"PRPLE: {p_status}"
@@ -3242,7 +3244,7 @@ class Game:
 
             self.draw_bar_on(render_surf, WIDTH - 335, 60, self.sukuna.hp, self.sukuna.max_hp, RED, 310, 10, "HEALTH")
             self.draw_bar_on(render_surf, WIDTH - 335, 95, self.sukuna.energy, self.sukuna.max_energy, BLUE, 310, 8, "CURSE ENERGY")
-            self.draw_bar_on(render_surf, WIDTH - 335, 125, self.sukuna.tech_hits, 500, (255, 100, 0), 310, 2, "")
+            self.draw_bar_on(render_surf, WIDTH - 335, 125, self.sukuna.tech_hits, self.sukuna.max_tech_hits, (255, 100, 0), 310, 2, "")
 
             # --- NEW: SUKUNA SIMPLE DOMAIN BAR ---
             sd_label_s = f"SIMPLE DOMAIN (CD: {self.sukuna.sd_broken_timer//60 + 1}s)" if self.sukuna.sd_broken_timer > 0 else "SIMPLE DOMAIN"
@@ -3261,8 +3263,8 @@ class Game:
             
             # --- FANCY FUGA STATUS (Matches Gojo's Purple) ---
             fu_status = "BURN" if sukuna_is_burned_out else ("RDY" if self.sukuna.fuga_cd == 0 else f"{self.sukuna.fuga_cd//60}s")
-            if self.sukuna.tech_hits < 500:
-                fu_label = f"FUGA: LOCKED ({int(self.sukuna.tech_hits)}/500)"
+            if self.sukuna.tech_hits < self.sukuna.max_tech_hits:
+                fu_label = f"FUGA: LOCKED ({int(self.sukuna.tech_hits)}/{self.sukuna.max_tech_hits})"
                 fu_color = (150, 150, 150) # Grey when locked
             else:
                 fu_label = f"FUGA: {fu_status}"
