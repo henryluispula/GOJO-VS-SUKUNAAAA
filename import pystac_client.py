@@ -833,6 +833,7 @@ class Game:
         self.cached_ms_bg = None
         self.cached_ms_shrunk = False
         self.cached_uv_bg = None
+        self.cached_uv_bg_shrunk = None
         self.cached_uv_shrunk = False
         
         self.shared_flash_surf = pygame.Surface((WORLD_WIDTH, WORLD_HEIGHT), pygame.SRCALPHA)
@@ -2574,49 +2575,55 @@ class Game:
             # --- DOMAIN BACKGROUND VISUALS ---
             is_shrunk = getattr(self.gojo, "domain_shrunk", False)
 
-            # Always draw the Shinjuku background FIRST if domain is shrunk
+            # 1. Draw Shinjuku background first (city outside the sphere)
             if is_shrunk:
                 self.world_surf.blit(self.cached_shinjuku_bg, (0, 0))
 
             if self.gojo.domain_active:
-                # === FORCE RECREATION WHEN SHRUNKEN (this is the fix) ===
-                recreate = (self.cached_uv_bg is None or self.cached_uv_shrunk != is_shrunk)
                 if is_shrunk:
-                    recreate = True   # ← This line forces it every frame while shrunk
-
-                if recreate:
-                    self.cached_uv_bg = pygame.Surface((WORLD_WIDTH, WORLD_HEIGHT), pygame.SRCALPHA)
-                    
-                    if is_shrunk and hasattr(self.gojo, "domain_center_x"):
+                    # === SHRUNKEN DOMAIN ===
+                    if not hasattr(self.gojo, "domain_center_x"):
+                        # Safety: fallback if center not calculated yet
+                        cx = self.gojo.rect.centerx
+                        cy = self.gojo.rect.centery
+                    else:
                         cx = self.gojo.domain_center_x
                         cy = self.gojo.domain_center_y
-                        
-                        self.cached_uv_bg.fill((0, 0, 0, 0))
-                        
-                        # HARD OPAQUE VOID (completely covers Shinjuku)
-                        pygame.draw.circle(self.cached_uv_bg, (6, 6, 18, 255), (cx, cy), 405)
-                        
-                        # Accretion Disk + Black Hole
-                        bh_x, bh_y = cx, cy - 30
-                        scale = 0.67
-                        pygame.draw.circle(self.cached_uv_bg, (80, 30, 160, 255), (bh_x, bh_y), int(520 * scale))
-                        pygame.draw.circle(self.cached_uv_bg, (120, 60, 220, 255), (bh_x, bh_y), int(400 * scale))
-                        pygame.draw.circle(self.cached_uv_bg, (200, 160, 255, 255), (bh_x, bh_y), int(290 * scale))
-                        pygame.draw.circle(self.cached_uv_bg, (255, 255, 255, 255), (bh_x, bh_y), int(255 * scale))
-                        pygame.draw.circle(self.cached_uv_bg, (0, 0, 0, 255), (bh_x, bh_y), int(230 * scale))
-                        
-                        # Bright domain barrier
-                        pygame.draw.circle(self.cached_uv_bg, (220, 240, 255, 255), (cx, cy), 400, width=8)
-                        
-                        # Stars inside domain only
-                        for _ in range(90):
-                            sx = cx + random.randint(-390, 390)
-                            sy = cy + random.randint(-390, 390)
-                            if math.hypot(sx - cx, sy - cy) < 395:
-                                self.cached_uv_bg.set_at((sx, sy), (255, 255, 255, 255))
-                                
-                    else:
-                        # Full-screen Unlimited Void (unchanged)
+
+                    # Create shrunk surface if missing
+                    if self.cached_uv_bg_shrunk is None:
+                        self.cached_uv_bg_shrunk = pygame.Surface((WORLD_WIDTH, WORLD_HEIGHT), pygame.SRCALPHA)
+
+                    self.cached_uv_bg_shrunk.fill((0, 0, 0, 0))
+                    
+                    # HARD OPAQUE VOID — completely covers Shinjuku inside the circle
+                    pygame.draw.circle(self.cached_uv_bg_shrunk, (6, 6, 18, 255), (cx, cy), 405)
+                    
+                    # Accretion Disk + Black Hole
+                    bh_x, bh_y = cx, cy - 30
+                    scale = 0.67
+                    pygame.draw.circle(self.cached_uv_bg_shrunk, (80, 30, 160, 255), (bh_x, bh_y), int(520 * scale))
+                    pygame.draw.circle(self.cached_uv_bg_shrunk, (120, 60, 220, 255), (bh_x, bh_y), int(400 * scale))
+                    pygame.draw.circle(self.cached_uv_bg_shrunk, (200, 160, 255, 255), (bh_x, bh_y), int(290 * scale))
+                    pygame.draw.circle(self.cached_uv_bg_shrunk, (255, 255, 255, 255), (bh_x, bh_y), int(255 * scale))
+                    pygame.draw.circle(self.cached_uv_bg_shrunk, (0, 0, 0, 255), (bh_x, bh_y), int(230 * scale))
+                    
+                    # Bright glowing barrier
+                    pygame.draw.circle(self.cached_uv_bg_shrunk, (220, 240, 255, 255), (cx, cy), 400, width=8)
+                    
+                    # Stars inside domain
+                    for _ in range(90):
+                        sx = cx + random.randint(-390, 390)
+                        sy = cy + random.randint(-390, 390)
+                        if math.hypot(sx - cx, sy - cy) < 395:
+                            self.cached_uv_bg_shrunk.set_at((sx, sy), (255, 255, 255, 255))
+                    
+                    self.world_surf.blit(self.cached_uv_bg_shrunk, (0, 0))
+                    
+                else:
+                    # === NORMAL FULL-SCREEN UNLIMITED VOID ===
+                    if self.cached_uv_bg is None:
+                        self.cached_uv_bg = pygame.Surface((WORLD_WIDTH, WORLD_HEIGHT), pygame.SRCALPHA)
                         self.cached_uv_bg.fill((5, 5, 18, 235))
                         bh_x, bh_y = WORLD_WIDTH // 2, WORLD_HEIGHT // 2 - 300
                         scale = 1.0
@@ -2626,18 +2633,15 @@ class Game:
                         pygame.draw.circle(self.cached_uv_bg, (255, 255, 255, 255), (bh_x, bh_y), int(250 * scale))
                         pygame.draw.circle(self.cached_uv_bg, (0, 0, 0, 255), (bh_x, bh_y), int(240 * scale))
                     
-                    self.cached_uv_shrunk = is_shrunk
-                
-                self.world_surf.blit(self.cached_uv_bg, (0, 0))
-                
-                # Render animated stars only if NOT shrunk (since we baked local stars into the shrunk one)
-                if not is_shrunk:
+                    self.world_surf.blit(self.cached_uv_bg, (0, 0))
+                    
+                    # Animated stars for full domain
                     self.world_surf.blit(self.star_layers[(pygame.time.get_ticks() // 200) % 3], (0, 0))
-                
+
                 # Fade effect
                 if self.gojo.domain_timer > 380:
                     flash_alpha = int(((self.gojo.domain_timer - 380) / 20.0) * 180)
-                    self.shared_flash_surf.fill((150, 200, 255, flash_alpha)) 
+                    self.shared_flash_surf.fill((150, 200, 255, flash_alpha))
                     self.world_surf.blit(self.shared_flash_surf, (0, 0))
             
             elif self.sukuna.domain_active:
