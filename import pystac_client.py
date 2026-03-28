@@ -458,10 +458,11 @@ class Fighter:
                 self.energy -= cost
 
         # Sukuna Constant Auto-Heal
+        # THE FIX: Massively buffed passive RCT (Heals 2.5 to 3.5 HP per frame!) CE cost remains untouched.
         if self.name == "Sukuna" and self.hp > 0 and self.hp < self.max_hp and not self.ce_exhausted:
             heal_cost = 0.3 * self.cost_mult
             if self.energy >= heal_cost:
-                self.hp = min(self.max_hp, self.hp + random.uniform(0.25, 0.55))
+                self.hp = min(self.max_hp, self.hp + random.uniform(2.5, 3.5))
                 self.energy -= heal_cost
                 self.rct_timer = 5
         # Mahoraga RCT Buff
@@ -1485,7 +1486,7 @@ class Game:
                         if needs_healing and self.sukuna.energy > 1000 * self.sukuna.cost_mult:
                             active_heal_cost = 4.0 * self.sukuna.cost_mult
                             self.sukuna.energy -= active_heal_cost
-                            self.sukuna.hp = min(self.sukuna.max_hp, self.sukuna.hp + 2.5) # Massive burst heal!
+                            self.sukuna.hp = min(self.sukuna.max_hp, self.sukuna.hp + 5.0) # THE FIX: Doubled burst heal speed!
                             self.sukuna.rct_timer = 5 # Keep particles flowing
                             
                         # Note: If energy is <= 1000, he skips this burst and relies on his 0.3 CE passive RCT to save energy!
@@ -2624,7 +2625,7 @@ class Game:
                     # He trades a colossal amount of CE to rapidly heal and shield his body up to 50% HP.
                     if self.sukuna.energy > 40 * self.sukuna.cost_mult and not self.sukuna.ce_exhausted:
                         self.sukuna.energy -= 12.0 * self.sukuna.cost_mult # Monstrous CE drain!
-                        self.sukuna.hp = min((self.sukuna.max_hp * 0.5), self.sukuna.hp + 3.5) # Fast emergency recovery
+                        self.sukuna.hp = min((self.sukuna.max_hp * 0.5), self.sukuna.hp + 8.0) # THE FIX: Insane emergency recovery!
                         self.sukuna.rct_timer = 5
                     
                     # 2. DESPERATE DOMAIN EXPANSION: Ignore standard tactical pacing and instantly pop DE if he can!
