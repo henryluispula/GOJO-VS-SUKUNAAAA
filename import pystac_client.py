@@ -233,7 +233,7 @@ class Fighter:
         self.energy = self.max_energy
         self.max_infinity = 1000 if name == "Gojo" else 0 
         self.infinity = self.max_infinity
-        self.max_tech_hits = 500
+        self.max_tech_hits = 1000 # INCREASED: Both Fuga and Hollow Purple now require 1000 points!
         self.max_sd_hits = 300 if name == "Sukuna" else 38 # NEW: Dynamic Simple Domain HP!
         
         # --- OPTIMIZATION: Surface Caching ---
@@ -1405,6 +1405,11 @@ class Game:
                                 self.sukuna.hp = min(self.sukuna.max_hp, self.sukuna.hp + 2.0)
                                 self.sukuna.amp_duration = max(self.sukuna.amp_duration, 60) # Force DA on!
                                 is_amp = True
+                                
+                                # --- ANNOUNCEMENT (Throttled to once every 5 seconds) ---
+                                if pygame.time.get_ticks() - getattr(self, "last_purple_vow", 0) > 5000:
+                                    self.maho_announcements.append({"text": "SUKUNA VOW: CE BURNED TO TANK PURPLE!", "timer": 120})
+                                    self.last_purple_vow = pygame.time.get_ticks()
                         else:
                             # --- AGGRESSIVE INTERRUPT (Can Tank Purple OR it's a Domain Cast) ---
                             # SMARTS, NOT BUFFS: Immediately face the threat and stop wasting time
@@ -1490,7 +1495,8 @@ class Game:
                             self.sukuna.hp -= vow_hp_cost
                             self.sukuna.energy = min(self.sukuna.max_energy, self.sukuna.energy + vow_ce_gain)
                             self.shake_timer = 20
-                            self.popups.append({"x": self.sukuna.rect.centerx, "y": self.sukuna.rect.centery - 100, "timer": 60, "text": "VOW: FLESH FOR CE!", "color": BLUE})
+                            # --- UPGRADED ANNOUNCEMENT ---
+                            self.maho_announcements.append({"text": "SUKUNA VOW: 80% HP SACRIFICED FOR CE!", "timer": 120})
                             for _ in range(30): # Massive blood burst from the sacrifice
                                 bx, by = self.sukuna.rect.center
                                 self.blood_particles.append([bx, by, random.uniform(-8, 8), random.uniform(-10, -2), 50, random.randint(4, 7)])
@@ -1640,7 +1646,9 @@ class Game:
                             for _ in range(30): # Spawns a massive burst of blood from Sukuna for the vow
                                 bx, by = self.sukuna.rect.center
                                 self.blood_particles.append([bx, by, random.uniform(-8, 8), random.uniform(-10, 0), 50, random.randint(4, 7)])
-                            self.popups.append({"x": self.sukuna.rect.centerx, "y": self.sukuna.rect.centery - 120, "timer": 60, "text": "BINDING VOW: HP OFFERED!", "color": RED})
+                            
+                            # --- ANNOUNCEMENT UPGRADE ---
+                            self.maho_announcements.append({"text": "SUKUNA VOW: 50% HP OFFERED FOR FUGA!", "timer": 120})
                             
                             self.sukuna.fuga_cd = 720
                             self.sukuna.tech_hits = 0
@@ -2650,8 +2658,13 @@ class Game:
                     # He trades a colossal amount of CE to rapidly heal and shield his body up to 50% HP.
                     if self.sukuna.energy > 40 * self.sukuna.cost_mult and not self.sukuna.ce_exhausted:
                         self.sukuna.energy -= 12.0 * self.sukuna.cost_mult # Monstrous CE drain!
-                        self.sukuna.hp = min((self.sukuna.max_hp * 0.5), self.sukuna.hp + 8.0) # THE FIX: Insane emergency recovery!
+                        self.sukuna.hp = min((self.sukuna.max_hp * 0.5), self.sukuna.hp + 3.5) # Fast emergency recovery
                         self.sukuna.rct_timer = 5
+                        
+                        # --- ANNOUNCEMENT (Throttled to once every 4 seconds) ---
+                        if pygame.time.get_ticks() - getattr(self, "last_desp_vow", 0) > 4000:
+                            self.maho_announcements.append({"text": "SUKUNA VOW: MASSIVE CE BURNED FOR SURVIVAL!", "timer": 120})
+                            self.last_desp_vow = pygame.time.get_ticks()
                     
                     # 2. DESPERATE DOMAIN EXPANSION: Ignore standard tactical pacing and instantly pop DE if he can!
                     # FIX: Added 'and self.mahoraga_summon_timer <= 0' to prevent overlapping animations
@@ -3464,22 +3477,23 @@ class Game:
                 render_surf.blit(title, (WIDTH//2 - title.get_width()//2, HEIGHT//2 - 230))
                 
                 lines = [
-                    "A/D: Move | SPACE: Jump | SHIFT: Dodge (I-frames)",
-                    "Q: RCT (Heal HP using CE)",
-                    "CLICK: Melee (Chance for Black Flash)",
-                    "W: BLUE (Pulls enemy) | S: RED (Massive push)",
-                    "R: HOLLOW PURPLE (Needs 100 Hits - HP Wipe)",
-                    "RIGHT CLICK (HOLD): SIMPLE DOMAIN (Counters Sure-hits)",
-                    "V: DOMAIN EXPANSION (Ultimate clash & paralyze/slash)",
-                    "Z + V: SHRINK DOMAIN (Use during a Domain Clash!)", # <-- Added here!
+                    "[A/D]: Move  |  [SPACE]: Jump  |  [SHIFT]: Dodge (I-frames)",
+                    "[Q]: RCT Heal (Consumes CE)  |  [CLICK]: Melee Attack",
                     "",
-                    "--- POINT-BLANK COMBOS ---",
-                    "BLUE (Warped Punch): E + W",
-                    "  * Drags Sukuna into a high-damage solid punch.",
-                    "RED (Cleave Escape): E + S",
-                    "  * Breaks Sukuna's 5-second Cleave Hold with a massive blast.",
+                    "--- SATORU GOJO: LIMITLESS ---",
+                    "[W]: LAPSE BLUE (Pulls)   |  [S]: REVERSAL RED (Pushes)",
+                    "[R]: HOLLOW PURPLE (Requires Max Hits - HP Wipe!)",
+                    "[RIGHT CLICK HOLD]: SIMPLE DOMAIN (Counters Sure-hits)",
+                    "[V]: DOMAIN EXPANSION (Ultimate Clash & Paralyze)",
+                    "[Z + V]: SHRINK DOMAIN (Mash during a Domain Clash!)",
                     "",
-                    "P: Resume Game"
+                    "--- POINT-BLANK COMBOS (Needs 0 Burnout) ---",
+                    "[E + W]: POINT-BLANK BLUE (Warped Punch -> Drags & Hits)",
+                    "[E + S]: POINT-BLANK RED (Cleave Escape -> Massive Blast)",
+                    "   * If Burned Out, [E + S] costs 150 extra CE to do a",
+                    "     Brain RCT Refresh and instantly restore your technique!",
+                    "",
+                    "[P]: Resume Game"
                 ]
                 
                 for i, line in enumerate(lines):
