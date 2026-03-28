@@ -403,7 +403,7 @@ class Fighter:
         # === THESE NOW RUN EVEN WHEN GRABBED ===
         
         # Energy Regen
-        base_regen = 5.0 if self.name == "Gojo" else 0.8 if self.name == "Mahoraga" else 1.0
+        base_regen = 25.0 if self.name == "Gojo" else 0.8 if self.name == "Mahoraga" else 1.0 # SIX EYES REGEN
         regen_mult = 1.2 if self.potential_timer > 0 else 1.0
         
         # --- CE EXHAUSTION LOGIC ---
@@ -1022,7 +1022,7 @@ class Game:
                     
                     # --- NEW: 1:2 Final CE Drain based on Mitigation ---
                     if self.sukuna.energy > 0:
-                        reduction_mult = random.uniform(0.5, 0.8)
+                        reduction_mult = random.uniform(0.15, 0.35) # BUFF: Takes only 15-35% damage
                         mitigated_dmg = pb_blue_dmg * (1.0 - reduction_mult) 
                         
                         pb_blue_dmg *= reduction_mult 
@@ -1075,7 +1075,7 @@ class Game:
                     
                     # --- NEW: 1:2 Final CE Drain based on Mitigation ---
                     if self.sukuna.energy > 0:
-                        reduction_mult = random.uniform(0.5, 0.8)
+                        reduction_mult = random.uniform(0.15, 0.35) # BUFF: Takes only 15-35% damage
                         mitigated_dmg = pb_red_dmg * (1.0 - reduction_mult) 
                         
                         pb_red_dmg *= reduction_mult 
@@ -1163,7 +1163,7 @@ class Game:
                             if not target.is_dodging:
                                 # Sukuna's immense reinforcement gives him 20-50% passive damage reduction on normal attacks
                                 if target.name == "Sukuna" and target.energy > 0:
-                                    reduction_mult = random.uniform(0.5, 0.8)
+                                    reduction_mult = random.uniform(0.15, 0.35) # BUFF: Takes only 15-35% damage
                                     mitigated_dmg = dmg * (1.0 - reduction_mult) 
                                     
                                     dmg *= reduction_mult 
@@ -1761,11 +1761,11 @@ class Game:
                                     actual_dmg = melee_dmg
                                     # --- NEW: GOJO'S 1:1 CE REINFORCEMENT DEFENSE ---
                                     if self.gojo.energy > 0:
-                                        reduction_mult = random.uniform(0.5, 0.8)
+                                        reduction_mult = random.uniform(0.15, 0.35) # BUFF: Takes only 15-35% damage
                                         mitigated_dmg = actual_dmg * (1.0 - reduction_mult)
                                         actual_dmg *= reduction_mult
                                         # Six Eyes Efficiency: 1 CE per 1 HP saved
-                                        self.gojo.energy = max(0, self.gojo.energy - mitigated_dmg * self.gojo.cost_mult)
+                                        self.gojo.energy = max(0, self.gojo.energy - (mitigated_dmg * 3.5) * self.gojo.cost_mult) # TAX: Costs 3.5x CE
                                         
                                     self.gojo.hp -= actual_dmg
                                     
@@ -1789,11 +1789,11 @@ class Game:
                                         actual_dmg = melee_dmg
                                         # --- NEW: GOJO'S 1:1 CE REINFORCEMENT DEFENSE ---
                                         if self.gojo.energy > 0:
-                                            reduction_mult = random.uniform(0.5, 0.8)
+                                            reduction_mult = random.uniform(0.15, 0.35) # BUFF: Takes only 15-35% damage
                                             mitigated_dmg = actual_dmg * (1.0 - reduction_mult)
                                             actual_dmg *= reduction_mult
                                             # Six Eyes Efficiency: 1 CE per 1 HP saved
-                                            self.gojo.energy = max(0, self.gojo.energy - mitigated_dmg * self.gojo.cost_mult)
+                                            self.gojo.energy = max(0, self.gojo.energy - (mitigated_dmg * 3.5) * self.gojo.cost_mult) # TAX: Costs 3.5x CE
                                             
                                         self.gojo.hp -= actual_dmg 
                                         
@@ -1874,7 +1874,7 @@ class Game:
                         f.prev_energy = f.energy # Capture before change
                         
                         # REGEN LOGIC
-                        base_regen = 5.0 if f.name == "Gojo" else 0.8 if f.name == "Mahoraga" else 1.0
+                        base_regen = 25.0 if f.name == "Gojo" else 0.8 if f.name == "Mahoraga" else 1.0 # SIX EYES REGEN
                         regen_mult = 1.2 if f.potential_timer > 0 else 1.0
                         
                         # --- CE EXHAUSTION LOGIC (During Cinematic Stop) ---
@@ -1931,10 +1931,10 @@ class Game:
                                 
                             # --- NEW: GOJO'S 1:1 CE REINFORCEMENT DEFENSE ---
                             if self.gojo.energy > 0:
-                                reduction_mult = random.uniform(0.5, 0.8)
+                                reduction_mult = random.uniform(0.15, 0.35) # BUFF: Takes only 15-35% damage
                                 mitigated_dmg = beatdown_dmg * (1.0 - reduction_mult)
                                 beatdown_dmg *= reduction_mult
-                                self.gojo.energy = max(0, self.gojo.energy - mitigated_dmg * self.gojo.cost_mult)
+                                self.gojo.energy = max(0, self.gojo.energy - (mitigated_dmg * 3.5) * self.gojo.cost_mult) # TAX: Costs 3.5x CE
 
                             # Deal steady melee damage directly to HP
                             self.gojo.hp -= beatdown_dmg 
@@ -1953,10 +1953,10 @@ class Game:
                             
                             # --- NEW: GOJO'S 1:1 CE REINFORCEMENT DEFENSE ---
                             if self.gojo.energy > 0:
-                                reduction_mult = random.uniform(0.5, 0.8)
+                                reduction_mult = random.uniform(0.15, 0.35) # BUFF: Takes only 15-35% damage
                                 mitigated_dmg = cleave_dmg * (1.0 - reduction_mult)
                                 cleave_dmg *= reduction_mult
-                                self.gojo.energy = max(0, self.gojo.energy - mitigated_dmg * self.gojo.cost_mult)
+                                self.gojo.energy = max(0, self.gojo.energy - (mitigated_dmg * 3.5) * self.gojo.cost_mult) # TAX: Costs 3.5x CE
                                 
                             self.gojo.hp -= cleave_dmg # Adds up to ~60-96 damage over 300 frames with CE, or 120 without
                             self.sukuna.tech_hits = min(self.sukuna.max_tech_hits, self.sukuna.tech_hits + 0.5) 
@@ -1980,10 +1980,10 @@ class Game:
                             
                             # --- NEW: GOJO'S 1:1 CE REINFORCEMENT DEFENSE ---
                             if self.gojo.energy > 0:
-                                reduction_mult = random.uniform(0.5, 0.8)
+                                reduction_mult = random.uniform(0.15, 0.35) # BUFF: Takes only 15-35% damage
                                 mitigated_dmg = cleave_dmg * (1.0 - reduction_mult)
                                 cleave_dmg *= reduction_mult
-                                self.gojo.energy = max(0, self.gojo.energy - mitigated_dmg * self.gojo.cost_mult)
+                                self.gojo.energy = max(0, self.gojo.energy - (mitigated_dmg * 3.5) * self.gojo.cost_mult) # TAX: Costs 3.5x CE
                                 
                             self.gojo.hp -= cleave_dmg 
                             self.sukuna.tech_hits = min(self.sukuna.max_tech_hits, self.sukuna.tech_hits + 0.5) 
@@ -2167,15 +2167,19 @@ class Game:
                                     self.gojo.infinity -= to_inf * 0.5 
                                     
                                     # --- GOJO'S CE REINFORCEMENT DEFENSE ---
-                                    if self.gojo.energy > 0: to_hp *= random.uniform(0.5, 0.8)
+                                    if self.gojo.energy > 0: 
+                                        to_hp *= random.uniform(0.15, 0.35)
+                                        self.gojo.energy -= (base_dmg * inf_adapt_ratio * 0.75) * 3.5 # Drain CE for block
                                     
                                     self.gojo.hp -= to_hp 
                                     if to_hp > 0: hit_connected = True
                                 else:
                                     # --- GOJO'S CE REINFORCEMENT DEFENSE ---
                                     actual_dmg = base_dmg
-                                    if self.gojo.energy > 0: actual_dmg *= random.uniform(0.5, 0.8)
-                                    
+                                    if self.gojo.energy > 0: 
+                                        actual_dmg *= random.uniform(0.15, 0.35)
+                                        self.gojo.energy -= (base_dmg * 0.75) * 3.5 # Drain CE for block
+                                        
                                     self.gojo.hp -= actual_dmg
                                     hit_connected = True
                                     
@@ -2248,7 +2252,8 @@ class Game:
                                 
                                 # --- SMARTER SUKUNA AI: THE SACRIFICIAL GAMBIT ---
                                 # Sukuna calculates if he has enough HP to survive letting Mahoraga adapt to UV.
-                                if enemy.name == "Sukuna" and getattr(enemy, "simple_domain_active", False) and not is_touching_gojo:
+                                # LORE FIX: He ONLY does this if Mahoraga hasn't been summoned yet! (Wheel is hidden)
+                                if enemy.name == "Sukuna" and getattr(enemy, "simple_domain_active", False) and not is_touching_gojo and self.mahoraga is None:
                                     # How many points left to hit 1.0 (Full Adaptation)?
                                     points_needed = 250.0 - enemy.adaptation_points["void"]
                                     if points_needed > 0:
@@ -2388,7 +2393,7 @@ class Game:
                                     
                                     # --- NEW: 1:2 Final CE Drain based on Mitigation ---
                                     if p_target.energy > 0:
-                                        reduction_mult = random.uniform(0.5, 0.8)
+                                        reduction_mult = random.uniform(0.15, 0.35) # BUFF: Takes only 15-35% damage
                                         mitigated_dmg = orb_dmg * (1.0 - reduction_mult) 
                                         
                                         orb_dmg *= reduction_mult 
@@ -2450,7 +2455,7 @@ class Game:
                                     
                                     # --- NEW: 1:2 Final CE Drain based on Mitigation ---
                                     if p_target.energy > 0:
-                                        reduction_mult = random.uniform(0.5, 0.8)
+                                        reduction_mult = random.uniform(0.15, 0.35) # BUFF: Takes only 15-35% damage
                                         mitigated_dmg = orb_dmg * (1.0 - reduction_mult) 
                                         
                                         orb_dmg *= reduction_mult 
@@ -2503,7 +2508,7 @@ class Game:
                             # --- NEW: CE REINFORCEMENT DEFENSE FOR PURPLE ---
                             if p_target.energy > 0:
                                 # They use their raw CE to tank the imaginary mass
-                                reduction_mult = random.uniform(0.5, 0.8)
+                                reduction_mult = random.uniform(0.15, 0.35) # BUFF: Takes only 15-35% damage
                                 mitigated_dmg = purple_dmg * (1.0 - reduction_mult) 
                                 
                                 purple_dmg *= reduction_mult 
@@ -2535,10 +2540,10 @@ class Game:
                                 # --- GOJO'S 1:1 CE REINFORCEMENT DEFENSE ---
                                 # He only braces for physical impact if Infinity fails!
                                 if self.gojo.energy > 0: 
-                                    reduction_mult = random.uniform(0.5, 0.8)
+                                    reduction_mult = random.uniform(0.15, 0.35) # BUFF: Takes only 15-35% damage
                                     mitigated_dmg = fuga_hp_dmg * (1.0 - reduction_mult)
                                     fuga_hp_dmg *= reduction_mult
-                                    self.gojo.energy = max(0, self.gojo.energy - mitigated_dmg * self.gojo.cost_mult)
+                                    self.gojo.energy = max(0, self.gojo.energy - (mitigated_dmg * 3.5) * self.gojo.cost_mult) # TAX: Costs 3.5x CE
                                 
                                 self.gojo.hp -= fuga_hp_dmg
                                 
@@ -2575,10 +2580,10 @@ class Game:
                                 proj_dmg = 80.0 if p.type == "cleave" else 32.0
                                 # --- NEW: GOJO'S 1:1 CE REINFORCEMENT DEFENSE ---
                                 if self.gojo.energy > 0: 
-                                    reduction_mult = random.uniform(0.5, 0.8)
+                                    reduction_mult = random.uniform(0.15, 0.35) # BUFF: Takes only 15-35% damage
                                     mitigated_dmg = proj_dmg * (1.0 - reduction_mult)
                                     proj_dmg *= reduction_mult
-                                    self.gojo.energy = max(0, self.gojo.energy - mitigated_dmg * self.gojo.cost_mult)
+                                    self.gojo.energy = max(0, self.gojo.energy - (mitigated_dmg * 3.5) * self.gojo.cost_mult) # TAX: Costs 3.5x CE
                                 
                                 self.gojo.hp -= proj_dmg
                                 p.active = False
@@ -2598,10 +2603,10 @@ class Game:
                                     proj_dmg = 80.0 if p.type == "cleave" else 32.0
                                     # --- NEW: GOJO'S 1:1 CE REINFORCEMENT DEFENSE ---
                                     if self.gojo.energy > 0: 
-                                        reduction_mult = random.uniform(0.5, 0.8)
+                                        reduction_mult = random.uniform(0.15, 0.35) # BUFF: Takes only 15-35% damage
                                         mitigated_dmg = proj_dmg * (1.0 - reduction_mult)
                                         proj_dmg *= reduction_mult
-                                        self.gojo.energy = max(0, self.gojo.energy - mitigated_dmg * self.gojo.cost_mult)
+                                        self.gojo.energy = max(0, self.gojo.energy - (mitigated_dmg * 3.5) * self.gojo.cost_mult) # TAX: Costs 3.5x CE
                                     
                                     self.gojo.hp -= proj_dmg
                                     p.active = False
