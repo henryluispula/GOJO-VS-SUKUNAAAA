@@ -1924,6 +1924,10 @@ class Game:
                     # NEW CONDITION: Sukuna will wait until Gojo's Domain Expansion completely ends so Mahoraga doesn't instantly die paralyzed!
                     if self.sukuna.hp < (self.sukuna.max_hp * 0.5) and self.mahoraga is None and not self.sukuna.world_slash_unlocked and self.gojo.domain_cd > 0 and getattr(self, "clash_decision_timer", 0) == 0 and self.gojo.domain_charge == 0 and self.sukuna.domain_charge == 0 and not self.gojo.domain_active:
                         self.mahoraga_summon_timer = 210
+                        
+                    # NEW TACTIC: If Megumi's soul has fully adapted to Unlimited Void, instantly summon Mahoraga to shatter it!
+                    if self.mahoraga is None and self.sukuna.adaptation["void"] <= 0.0 and self.mahoraga_summon_timer <= 0:
+                        self.mahoraga_summon_timer = 210
 
                 # Sukuna Domain Execution Timer
                 if self.sukuna.domain_charge > 0:
@@ -2406,9 +2410,9 @@ class Game:
                                     
                                     # He will ONLY attempt the gambit if Gojo cannot currently fire Purple!
                                     if not gojo_purple_ready:
-                                        # LORE FIX: He needs 1000 points to fully adapt. Tanking it all at once equals 750 dmg (Instant Death since paralysis disables RCT).
+                                        # LORE FIX: Increased by 50%! He now needs 1500 points to fully adapt. 
                                         # NEW TACTIC: He tanks it in chunks! As long as his HP is safely above 45%, he drops the shield!
-                                        points_needed = 1000.0 - enemy.adaptation_points["void"]
+                                        points_needed = 1500.0 - enemy.adaptation_points["void"]
                                         if points_needed > 0:
                                             if enemy.hp > (enemy.max_hp * 0.45): 
                                                 enemy.simple_domain_active = False
@@ -2456,13 +2460,13 @@ class Game:
                                         enemy.adapting_to = "void"
                                         enemy.adaptation_points["void"] += 2.0
                                         turns = enemy.adaptation_points["void"] / 250.0
-                                        enemy.adaptation["void"] = max(0, 1.0 - min(1.0, turns / 4.0))
+                                        enemy.adaptation["void"] = max(0, 1.0 - min(1.0, turns / 6.0)) # Increased to 6 turns (1500 pts)
 
                                 if enemy.name == "Mahoraga" and self.sukuna.amp_duration <= 0:
                                     enemy.adapting_to = "void"
                                     enemy.adaptation_points["void"] += 2.0
                                     turns = enemy.adaptation_points["void"] / 250.0
-                                    enemy.adaptation["void"] = max(0, 1.0 - min(1.0, turns / 4.0)) # 4 turns to adapt to UV
+                                    enemy.adaptation["void"] = max(0, 1.0 - min(1.0, turns / 6.0)) # Increased to 6 turns (1500 pts)
                 else:
                     self.sukuna.is_paralyzed = False
                     if self.mahoraga: self.mahoraga.is_paralyzed = False
