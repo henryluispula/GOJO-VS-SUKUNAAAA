@@ -1039,10 +1039,11 @@ class Game:
                     # Damage: 15.0 (3x Base Punch)
                     self.sukuna.rect.centerx = self.gojo.rect.centerx + (50 * self.gojo.direction)
                     
-                    pb_blue_dmg = 80.0
+                    # Initial impact damage (reduced because the continuous beatdown handles the rest)
+                    pb_blue_dmg = 30.0
                     if self.sukuna.amp_duration > 0: pb_blue_dmg *= 0.2 # DA absorbs 80%
                     
-                    # --- NEW: 1:2 Final CE Drain based on Mitigation ---
+                    # --- 1:2 Final CE Drain based on Mitigation ---
                     if self.sukuna.energy > 0:
                         reduction_mult = random.uniform(0.15, 0.35) # BUFF: Takes only 15-35% damage
                         mitigated_dmg = pb_blue_dmg * (1.0 - reduction_mult) 
@@ -1054,7 +1055,8 @@ class Game:
                     
                     self.sukuna.hp -= pb_blue_dmg 
                     
-                    self.sukuna.grab_timer = 15 
+                    self.sukuna.grab_timer = 90 # 1.5 SECOND BEATDOWN HOLD!
+                    setattr(self.sukuna, "grab_type", "gojo_beatdown")
                     self.sukuna.fuga_charge = 0
                     self.sukuna.domain_charge = 0
                     self.sukuna.amp_duration = 0 
@@ -2014,6 +2016,36 @@ class Game:
                         if f: f.prev_energy = f.energy
                     
                     # --- NEW: CONTINUOUS GRAB DAMAGE & DRAGGING ---
+                    if self.sukuna.grab_timer > 0 and getattr(self.sukuna, "grab_type", "") == "gojo_beatdown":
+                        # Gojo locks Sukuna in place and unleashes a rapid melee beatdown!
+                        self.sukuna.rect.centerx = self.gojo.rect.centerx + (40 * self.gojo.direction)
+                        self.sukuna.rect.centery = self.gojo.rect.centery
+                        
+                        beatdown_dmg = 1.2
+                        
+                        # CE Imbue for Gojo's beatdown punches
+                        imbue_cost = 2.0 * self.gojo.cost_mult
+                        if self.gojo.energy >= imbue_cost:
+                            self.gojo.energy -= imbue_cost
+                            beatdown_dmg *= 1.6
+                            
+                        # Sukuna's Reinforcement Defense
+                        if self.sukuna.energy > 0:
+                            reduction_mult = random.uniform(0.15, 0.35)
+                            mitigated_dmg = beatdown_dmg * (1.0 - reduction_mult)
+                            beatdown_dmg *= reduction_mult
+                            self.sukuna.energy = max(0, self.sukuna.energy - (mitigated_dmg * 2.0) * self.sukuna.cost_mult)
+                            
+                        self.sukuna.hp -= beatdown_dmg
+                        self.gojo.tech_hits = min(self.gojo.max_tech_hits, self.gojo.tech_hits + beatdown_dmg)
+                        
+                        # Visuals: Flurry of fast punches
+                        if self.sukuna.grab_timer % 6 == 0:
+                            self.shake_timer = 3
+                            spark_color = WHITE if random.random() < 0.5 else BLUE
+                            for _ in range(6):
+                                self.hit_sparks.append([self.sukuna.rect.centerx + random.randint(-20, 20), self.sukuna.rect.centery + random.randint(-30, 30), random.uniform(-10, 10), random.uniform(-10, 10), random.randint(15, 30), spark_color])
+
                     if self.gojo.grab_timer > 0:
                         # Force Gojo to follow Sukuna's hand, dragging him across the map
                         self.gojo.rect.centerx = self.sukuna.rect.centerx + (40 * self.sukuna.direction)
@@ -2169,13 +2201,10 @@ class Game:
                             if gojo_power >= sukuna_power:
                                 self.clash_winner = "GOJO WINS CLASH!"
                                 self.sukuna.end_domain()
-                                self.sukuna.domain_cd = 3000
                                 self.gojo.domain_shrunk = True # FIX: Force the visual shrink if he wins!
                             else: 
                                 self.clash_winner = "SUKUNA WINS CLASH!"
                                 self.gojo.end_domain()
-                                self.gojo.domain_cd = 3000
-                                # THE FIX: Removed forced 720 burnout. Rely ONLY on the 3-use rule in end_domain()!
                                 self.gojo.domain_shrunk = False 
                                 
                             self.clash_msg_timer = 90
@@ -3572,7 +3601,7 @@ class Game:
                     "[Z + V]: SHRINK DOMAIN (Mash during a Domain Clash!)",
                     "",
                     "--- POINT-BLANK COMBOS (Needs 0 Burnout) ---",
-                    "[E + W]: POINT-BLANK BLUE (Warped Punch -> Drags & Hits)",
+                    "[E + W + HOLD CLICK]: POINT-BLANK BLUE (Warped Punch BEATDOWN)",
                     "[E + S]: POINT-BLANK RED (Cleave Escape -> Massive Blast)",
                     "   * If Burned Out, [E + S] costs 150 extra CE to do a",
                     "     Brain RCT Refresh and instantly restore your technique!",
