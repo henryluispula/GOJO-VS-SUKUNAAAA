@@ -2293,14 +2293,22 @@ class Game:
                                 
                                 # --- SMARTER SUKUNA AI: THE SACRIFICIAL GAMBIT ---
                                 if enemy.name == "Sukuna" and getattr(enemy, "simple_domain_active", False) and not is_touching_gojo and self.mahoraga is None:
-                                    # LORE FIX: He needs 1000 points to fully adapt. Tanking it all at once equals 750 dmg (Instant Death since paralysis disables RCT).
-                                    # NEW TACTIC: He tanks it in chunks! As long as his HP is safely above 45%, he drops the shield!
-                                    points_needed = 1000.0 - enemy.adaptation_points["void"]
-                                    if points_needed > 0:
-                                        if enemy.hp > (enemy.max_hp * 0.45): 
-                                            enemy.simple_domain_active = False
-                                            enemy.sd_was_active = False
-                                            self.popups.append({"x": enemy.rect.centerx, "y": enemy.rect.centery - 100, "timer": 45, "text": "GAMBIT: TANKING UV!", "color": MAHO_COLOR})
+                                    
+                                    # --- NEW: HOLLOW PURPLE THREAT ASSESSMENT ---
+                                    # Sukuna checks if Gojo is currently holding onto a fully charged Hollow Purple.
+                                    # If Purple is ready, paralyzing himself to tank UV is guaranteed death!
+                                    gojo_purple_ready = (self.gojo.tech_hits >= self.gojo.max_tech_hits) and (self.gojo.purple_cd == 0) and (self.gojo.energy >= 195 * self.gojo.cost_mult)
+                                    
+                                    # He will ONLY attempt the gambit if Gojo cannot currently fire Purple!
+                                    if not gojo_purple_ready:
+                                        # LORE FIX: He needs 1000 points to fully adapt. Tanking it all at once equals 750 dmg (Instant Death since paralysis disables RCT).
+                                        # NEW TACTIC: He tanks it in chunks! As long as his HP is safely above 45%, he drops the shield!
+                                        points_needed = 1000.0 - enemy.adaptation_points["void"]
+                                        if points_needed > 0:
+                                            if enemy.hp > (enemy.max_hp * 0.45): 
+                                                enemy.simple_domain_active = False
+                                                enemy.sd_was_active = False
+                                                self.popups.append({"x": enemy.rect.centerx, "y": enemy.rect.centery - 100, "timer": 45, "text": "GAMBIT: TANKING UV!", "color": MAHO_COLOR})
                                 if getattr(enemy, "simple_domain_active", False) and not is_touching_gojo:
                                     enemy.is_paralyzed = False # Protected by Simple Domain!
                                     # UV sure-hit continuously grinds down the Simple Domain
