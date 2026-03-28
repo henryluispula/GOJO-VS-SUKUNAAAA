@@ -119,14 +119,22 @@ class Projectile:
                 # --- NEW: Speed Trail / Ghost Blade ---
                 # This draws a darker blade trailing slightly behind to simulate immense velocity
                 if self.vel.length() > 0:
-                    trail_color = (120, 20, 20) if self.type != "world_slash" else (80, 80, 80)
+                    trail_color = (120, 20, 20) if self.type != "world_slash" else (20, 50, 60)
                     trail_offset = self.vel.normalize() * -15 * self.size_mult
                     trail_points = [pt + trail_offset for pt in points]
                     pygame.draw.polygon(screen, trail_color, trail_points)
 
                 # 3. Draw the main crescent body and glowing edge on top
-                pygame.draw.polygon(screen, base_color, points)
-                pygame.draw.polygon(screen, poly_color, points, 1)
+                if self.type == "world_slash":
+                    # Blinding Cyan/White interior representing the cut in space itself
+                    pygame.draw.polygon(screen, (220, 255, 255), points)
+                    # Massive thick black outline representing the void
+                    pygame.draw.polygon(screen, BLACK, points, max(1, int(2.5 * self.size_mult)))
+                    # Searing white inner edge
+                    pygame.draw.polygon(screen, WHITE, points, max(1, int(1.0 * self.size_mult)))
+                else:
+                    pygame.draw.polygon(screen, base_color, points)
+                    pygame.draw.polygon(screen, poly_color, points, 1)
 
         elif self.type == "fuga_arrow":
             # Big Flamy Arrow Visuals
@@ -630,24 +638,42 @@ class Fighter:
         if self.name == "Sukuna" and getattr(self, "world_slash_charge", 0) > 0:
             ct = (120 - self.world_slash_charge) / 120.0
             
-            # Dark energy gathering at hands
-            pull_r = int(120 * (1.0 - ct))
-            pygame.draw.circle(surface, (10, 10, 15), (mid_x, y + 60), int(40 * ct), max(1, int(10 * ct)))
-            pygame.draw.circle(surface, WHITE, (mid_x, y + 60), int(45 * ct), 2)
+            # Violent, pulsing dark focal point
+            pull_r = int(250 * (1.0 - ct))
+            core_size = int(60 * ct + math.sin(t * 30) * 10)
+            pygame.draw.circle(surface, (5, 5, 10), (mid_x, y + 60), core_size)
+            pygame.draw.circle(surface, (100, 255, 255), (mid_x, y + 60), core_size + 5, max(1, int(15 * ct)))
             
-            # Sparks pulling inwards simulating dimension distortion
-            for _ in range(10):
+            # Jagged, erratic reality tears pulling into his hands
+            for _ in range(int(20 * ct) + 5):
                 ang = random.uniform(0, math.pi * 2)
-                px = mid_x + math.cos(ang) * pull_r
-                py = y + 60 + math.sin(ang) * pull_r
-                pygame.draw.line(surface, WHITE, (px, py), (mid_x + math.cos(ang) * pull_r * 0.8, y + 60 + math.sin(ang) * pull_r * 0.8), 2)
-                pygame.draw.circle(surface, BLACK, (int(px), int(py)), 4)
+                p1_x = mid_x + math.cos(ang) * pull_r
+                p1_y = y + 60 + math.sin(ang) * pull_r
+                p2_x = mid_x + math.cos(ang + random.uniform(-0.2, 0.2)) * (pull_r * 0.6)
+                p2_y = y + 60 + math.sin(ang + random.uniform(-0.2, 0.2)) * (pull_r * 0.6)
                 
-            # Cross slash outline building up
-            if ct > 0.5:
-                slash_len = int(150 * ((ct - 0.5) * 2))
-                pygame.draw.line(surface, BLACK, (mid_x - slash_len, y + 60 - slash_len//2), (mid_x + slash_len, y + 60 + slash_len//2), 6)
-                pygame.draw.line(surface, WHITE, (mid_x - slash_len, y + 60 - slash_len//2), (mid_x + slash_len, y + 60 + slash_len//2), 2)
+                # Tearing fabric of space effect
+                pygame.draw.line(surface, BLACK, (p1_x, p1_y), (p2_x, p2_y), max(2, int(8 * ct)))
+                pygame.draw.line(surface, WHITE, (p1_x, p1_y), (p2_x, p2_y), max(1, int(3 * ct)))
+                
+            # Giant inverted target grid mapping out the world
+            if ct > 0.4:
+                grid_alpha = int(255 * ((ct - 0.4) / 0.6))
+                grid_len = int(300 * ct)
+                pygame.draw.line(surface, (255, 255, 255, grid_alpha), (mid_x - grid_len, y + 60), (mid_x + grid_len, y + 60), 1)
+                pygame.draw.line(surface, (255, 255, 255, grid_alpha), (mid_x, y + 60 - grid_len), (mid_x, y + 60 + grid_len), 1)
+
+            # Massive screen-tearing cross building up
+            if ct > 0.6:
+                slash_len = int(250 * ((ct - 0.6) / 0.4))
+                pygame.draw.line(surface, (200, 255, 255), (mid_x - slash_len, y + 60 - slash_len//3), (mid_x + slash_len, y + 60 + slash_len//3), 15)
+                pygame.draw.line(surface, BLACK, (mid_x - slash_len, y + 60 - slash_len//3), (mid_x + slash_len, y + 60 + slash_len//3), 8)
+                pygame.draw.line(surface, WHITE, (mid_x - slash_len, y + 60 - slash_len//3), (mid_x + slash_len, y + 60 + slash_len//3), 2)
+                
+            # Final blinding negative-color flash right before firing
+            if ct > 0.95:
+                pygame.draw.circle(surface, BLACK, (mid_x, y + 60), 800)
+                pygame.draw.circle(surface, WHITE, (mid_x, y + 60), int(1000 * ((ct - 0.95)/0.05)), 20)
 
         if self.name == "Sukuna" and self.fuga_charge > 0:
             ct = (120 - self.fuga_charge) / 120.0
@@ -1705,11 +1731,12 @@ class Game:
                     if getattr(self.sukuna, "world_slash_charge", 0) > 0:
                         self.sukuna.world_slash_charge -= 1
                         if self.sukuna.world_slash_charge == 1:
-                            self.projectiles.append(Projectile(self.sukuna.rect.centerx, self.sukuna.rect.centery, self.gojo.rect.centerx, self.gojo.rect.centery, 130, BLACK, size_mult=6.0, type="world_slash"))
+                            # Increased size_mult to a massive 12.0 and lowered speed slightly so the player can actually see it tear the screen!
+                            self.projectiles.append(Projectile(self.sukuna.rect.centerx, self.sukuna.rect.centery, self.gojo.rect.centerx, self.gojo.rect.centery, 85, BLACK, size_mult=12.0, type="world_slash"))
                             ws_cost = 80 * self.sukuna.cost_mult
                             self.sukuna.energy = max(0, self.sukuna.energy - ws_cost)
                             self.sukuna.world_slash_cd = 1800 # 30 seconds cooldown
-                            self.shake_timer = 20
+                            self.shake_timer = 40 # Double screen shake!
 
                     if self.sukuna.fuga_charge > 0:
                         self.sukuna.fuga_charge -= 1
