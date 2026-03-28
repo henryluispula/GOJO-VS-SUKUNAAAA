@@ -1731,8 +1731,8 @@ class Game:
                     if getattr(self.sukuna, "world_slash_charge", 0) > 0:
                         self.sukuna.world_slash_charge -= 1
                         if self.sukuna.world_slash_charge == 1:
-                            # Increased size_mult to a massive 12.0 and lowered speed slightly so the player can actually see it tear the screen!
-                            self.projectiles.append(Projectile(self.sukuna.rect.centerx, self.sukuna.rect.centery, self.gojo.rect.centerx, self.gojo.rect.centery, 85, BLACK, size_mult=12.0, type="world_slash"))
+                            # Speed reduced to 55 to provide a tight 5-frame dodge window across mid-range!
+                            self.projectiles.append(Projectile(self.sukuna.rect.centerx, self.sukuna.rect.centery, self.gojo.rect.centerx, self.gojo.rect.centery, 55, BLACK, size_mult=12.0, type="world_slash"))
                             ws_cost = 80 * self.sukuna.cost_mult
                             self.sukuna.energy = max(0, self.sukuna.energy - ws_cost)
                             self.sukuna.world_slash_cd = 1800 # 30 seconds cooldown
@@ -3619,7 +3619,14 @@ class Game:
             sukuna_is_burned_out = self.sukuna.technique_burnout > 0 and self.sukuna.domain_uses >= 5
             
             # Domain Amp can be used even during burnout in lore, so we leave it alone!
-            da_cd = f"DOMAIN AMP: {'ACT' if (self.sukuna.amp_duration>0) else 'RDY' if self.sukuna.amp_cd == 0 else str(self.sukuna.amp_cd//60)+'s'}"
+            is_da_locked_out = getattr(self.sukuna, "tactical_eval_timer", 0) > 0
+            if self.sukuna.amp_duration > 0:
+                da_status = "ACT"
+            elif is_da_locked_out:
+                da_status = f"{self.sukuna.amp_cd // 60}s"
+            else:
+                da_status = "RDY"
+            da_cd = f"DOMAIN AMP: {da_status}"
             
             # Apply BURN status to his innate techniques
             di_cd = f"DISMANTLE: {'BRN' if sukuna_is_burned_out else 'RDY' if self.sukuna.dismantle_cd == 0 else str(self.sukuna.dismantle_cd//60)+'s'}"
