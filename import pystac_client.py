@@ -1480,6 +1480,11 @@ class Game:
                     # Sukuna refuses to let his CE drop recklessly from tanking hits.
                     is_draining_ce = self.sukuna.energy < (self.sukuna.max_energy * 0.65) # Lost 35% CE
                     
+                    if getattr(self.sukuna, "tactical_eval_timer", 0) > 0:
+                        self.sukuna.tactical_eval_timer -= 1
+                    
+                    is_tactical_eval = getattr(self.sukuna, "tactical_eval_timer", 0) > 0
+                    
                     if is_draining_ce and not self.sukuna.ce_exhausted and self.gojo.grab_timer <= 0:
                         # 1. CALCULATE THE ODDS (Flesh for Cursed Energy Binding Vow)
                         # He evaluates if trading HP for CE benefits him right now.
@@ -1495,8 +1500,16 @@ class Game:
                             self.sukuna.hp -= vow_hp_cost
                             self.sukuna.energy = min(self.sukuna.max_energy, self.sukuna.energy + vow_ce_gain)
                             self.shake_timer = 20
+                            
+                            # --- TACTICAL VOW PENALTY: DA LOST ---
+                            self.sukuna.amp_duration = 0 
+                            self.sukuna.amp_cd = 1200 # 20 SECONDS DA LOCKOUT (60 fps * 20s)
+                            self.sukuna.tactical_eval_timer = 1200 # 20 SECONDS OF TACTICAL AI
+                            is_amp = False
+                            is_tactical_eval = True
+                            
                             # --- UPGRADED ANNOUNCEMENT ---
-                            self.maho_announcements.append({"text": "SUKUNA VOW: 80% HP SACRIFICED FOR CE!", "timer": 120})
+                            self.maho_announcements.append({"text": "SUKUNA VOW: 80% HP FOR CE! (DA LOST 20s)", "timer": 120})
                             for _ in range(30): # Massive blood burst from the sacrifice
                                 bx, by = self.sukuna.rect.center
                                 self.blood_particles.append([bx, by, random.uniform(-8, 8), random.uniform(-10, -2), 50, random.randint(4, 7)])
@@ -1509,16 +1522,43 @@ class Game:
                             self.sukuna.dodge()
                             self.sukuna.dodge_cd = 25 # Fast evasion cooldown
 
-                    # --- TACTICAL HEALING & ENERGY REGEN RETREAT ---
-                    # Retreat if HP is below 40% OR if CE drops below 30% to actively buy time and regenerate!
+                    # --- TACTICAL HEALING, CE REGEN & CALCULATION RETREAT ---
+                    # Retreat if HP is below 40%, if CE drops below 30%, OR if he is in Tactical Evaluation mode (no DA)
                     needs_healing = self.sukuna.hp < (self.sukuna.max_hp * 0.4) and self.sukuna.energy > 50 and not self.sukuna.ce_exhausted
                     needs_energy = self.sukuna.energy < (self.sukuna.max_energy * 0.3)
                     
-                    retreating = (needs_healing or needs_energy) and not self.gojo.domain_active
+                    # If in tactical evaluation, his primary goal is maintaining distance to calculate odds and use ranged/heavy attacks
+                    retreating = (needs_healing or needs_energy or is_tactical_eval) and not self.gojo.domain_active
                     
                     if retreating and self.gojo.grab_timer <= 0:
                         
-                        # --- NEW: ACTIVE RCT BURST ---
+                        # --- TACTICAL EVALUATION LOGIC: Calculating odds and capabilities ---
+                        if is_tactical_eval:
+                            # He calculates Gojo's CE and Infinity state
+                            gojo_vulnerable = self.gojo.infinity <= 0 or self.gojo.ce_exhausted
+                            can_survive_counter = self.sukuna.hp > (self.sukuna.max_hp * 0.25) # Is he healthy enough to fight?
+                            
+                            # Calculation 1: Can he just end it with a Domain Expansion safely?
+                            if self.sukuna.energy >= 200 * self.sukuna.cost_mult and self.sukuna.domain_cd == 0 and self.sukuna.technique_burnout == 0 and not self.sukuna.domain_active:
+                                self.sukuna.domain_charge = 60
+                                self.sukuna.energy -= 200 * self.sukuna.cost_mult
+                            
+                            # Calculation 2: Can he use Fuga to bypass or shred Gojo's CE completely?
+                            elif self.sukuna.tech_hits >= self.sukuna.max_tech_hits and self.sukuna.fuga_cd == 0 and self.sukuna.energy >= 195 * self.sukuna.cost_mult and self.sukuna.technique_burnout == 0:
+                                vow_hp_cost = self.sukuna.max_hp * 0.50
+                                if self.sukuna.hp > (vow_hp_cost + 40): # Calculate odds: MUST survive the Fuga vow with a healthy buffer
+                                    self.sukuna.fuga_charge = 120
+                            
+                            # Calculation 3: Tactical Harassment & CE Drain
+                            # If he has the CE, aggressively spam slashes from afar to chip away at Gojo's Infinity and drain his CE
+                            elif dist > 250 and self.sukuna.dismantle_cd <= 0 and self.sukuna.energy >= 30 * self.sukuna.cost_mult and self.sukuna.technique_burnout == 0 and can_survive_counter:
+                                self.sukuna.slash_count = 3 # Controlled tactical burst
+                                self.sukuna.slash_type = "dismantle"
+                                self.sukuna.energy -= 10 * self.sukuna.cost_mult
+                                self.sukuna.dismantle_cd = 40
+                                self.sukuna.direction = -1 if self.sukuna.rect.x > self.gojo.rect.x else 1 # Face Gojo to fire
+                        
+                        # --- ACTIVE RCT BURST ---
                         # Sukuna checks if he has a very safe CE buffer (> 1000 CE) AND actually needs healing.
                         # If so, he dramatically speeds up healing at a heavy CE cost!
                         if needs_healing and self.sukuna.energy > 1000 * self.sukuna.cost_mult:
@@ -1530,14 +1570,14 @@ class Game:
                         # Note: If energy is <= 1000, he skips this burst and relies on his 0.3 CE passive RCT to save energy!
 
                         # --- MODIFIED: Attempt Domain Expansion as a defensive counter-measure while retreating! ---
-                        # Only do this if he has a safe amount of CE, since his goal might be to regen CE!
-                        if not needs_energy and self.sukuna.energy >= 200 * self.sukuna.cost_mult and self.sukuna.domain_cd == 0 and self.sukuna.technique_burnout == 0 and self.sukuna.domain_charge == 0 and not self.sukuna.domain_active and self.sukuna.attack_cooldown <= 0:
+                        # Only do this if he has a safe amount of CE, since his goal might be to regen CE! (Skip if in pure tactical evaluation)
+                        if not needs_energy and not is_tactical_eval and self.sukuna.energy >= 200 * self.sukuna.cost_mult and self.sukuna.domain_cd == 0 and self.sukuna.technique_burnout == 0 and self.sukuna.domain_charge == 0 and not self.sukuna.domain_active and self.sukuna.attack_cooldown <= 0:
                             self.sukuna.domain_charge = 60
                             de_cost = 200 * self.sukuna.cost_mult
                             self.sukuna.energy -= de_cost
 
                         # --- SMART CORNER DETECTION ---
-                        speed = 18
+                        speed = 18 if not is_tactical_eval else 24 # Move faster when strictly calculating odds from afar
                         run_dir = 1 if self.sukuna.rect.x > self.gojo.rect.x else -1
                         
                         # If he is within 150 pixels of the left wall and trying to run left, 
@@ -1562,11 +1602,11 @@ class Game:
                         if self.sukuna.dodge_cd <= 0 and self.sukuna.stamina >= 20 and not self.sukuna.stamina_exhausted:
                             self.sukuna.direction = run_dir # Dash in the smart escape direction!
                             self.sukuna.dodge()
-                            # Slightly faster dashes if his primary goal is to run for energy!
-                            self.sukuna.dodge_cd = 20 if needs_energy else 25
+                            # Slightly faster dashes if his primary goal is to run for energy or distance!
+                            self.sukuna.dodge_cd = 20 if needs_energy or is_tactical_eval else 25
                         # --- NEW: ANTI-BLUE DEFENSES ---
                         # 1. Covering Fire: Throw a quick Dismantle backward to interrupt Gojo's pursuit!
-                        if self.sukuna.dismantle_cd <= 0 and self.sukuna.energy >= 10 * self.sukuna.cost_mult and random.random() < 0.04 and self.sukuna.technique_burnout == 0 and not gojo_has_inf:
+                        if not is_tactical_eval and self.sukuna.dismantle_cd <= 0 and self.sukuna.energy >= 10 * self.sukuna.cost_mult and random.random() < 0.04 and self.sukuna.technique_burnout == 0 and not gojo_has_inf:
                             self.sukuna.slash_count = 1
                             self.sukuna.slash_type = "dismantle"
                             self.sukuna.energy -= 10 * self.sukuna.cost_mult
@@ -1574,7 +1614,8 @@ class Game:
                             self.sukuna.direction = -run_dir # Face backwards at Gojo to fire!
                             
                         # 2. Defensive Aura: Turn on Domain Amplification while healing to tank ALL incoming damage!
-                        if self.sukuna.energy > 15 * self.sukuna.cost_mult and self.sukuna.amp_cd <= 0:
+                        # Explicitly disabled during Tactical Evaluation because of the Vow Penalty!
+                        if not is_tactical_eval and self.sukuna.energy > 15 * self.sukuna.cost_mult and self.sukuna.amp_cd <= 0:
                             # max() ensures the duration is constantly refreshed so the shield doesn't flicker off!
                             self.sukuna.amp_duration = max(self.sukuna.amp_duration, 60) 
                             is_amp = True
@@ -1663,7 +1704,10 @@ class Game:
                             
                             if has_infinity:
                                 # HOLD 1: Domain Amp Beatdown (Infinity is UP)
-                                if self.sukuna.energy >= 15 * self.sukuna.cost_mult:
+                                # THE FIX: Sukuna CANNOT bypass his Binding Vow penalty to grab Gojo!
+                                is_da_locked_out = getattr(self.sukuna, "tactical_eval_timer", 0) > 0
+                                
+                                if self.sukuna.energy >= 15 * self.sukuna.cost_mult and not is_da_locked_out:
                                     self.sukuna.amp_duration = max(self.sukuna.amp_duration, 300) 
                                     is_amp = True
                                     
