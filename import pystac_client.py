@@ -1071,10 +1071,10 @@ class Game:
                         
                     self.gojo_combo_buffer.clear()
                         
-                # 2. RED POINT-BLANK (Cleave Escape)
+                # 2. RED POINT-BLANK (Cleave Escape / Beatdown Ender)
                 # LORE FIX: Gojo CAN use PB Red while his technique is burned out (during/after MS) 
                 # by performing a rapid Brain RCT Refresh! It instantly cures Burnout but costs extra CE!
-                elif keys[pygame.K_e] and keys[pygame.K_s] and self.pb_red_ready and self.gojo.energy >= 100 * self.gojo.cost_mult and self.gojo.red_cd == 0 and self.gojo.grab_timer > 0 and self.gojo.domain_charge == 0:
+                elif keys[pygame.K_e] and keys[pygame.K_s] and self.pb_red_ready and self.gojo.energy >= 100 * self.gojo.cost_mult and self.gojo.red_cd == 0 and (self.gojo.grab_timer > 0 or self.sukuna.grab_timer > 0) and self.gojo.domain_charge == 0:
                     self.pb_red_ready = False
                     self.gojo.grab_timer = 0
                     self.sukuna.grab_timer = 0
@@ -2021,13 +2021,71 @@ class Game:
                     
                     # --- NEW: CONTINUOUS GRAB DAMAGE & DRAGGING ---
                     if self.sukuna.grab_timer > 0 and getattr(self.sukuna, "grab_type", "") == "gojo_beatdown":
-                        # Gojo locks Sukuna in place and unleashes a rapid melee beatdown!
-                        self.sukuna.rect.centerx = self.gojo.rect.centerx + (40 * self.gojo.direction)
-                        self.sukuna.rect.centery = self.gojo.rect.centery
                         
-                        beatdown_dmg = 1.2
-                        
-                        # CE Imbue for Gojo's beatdown punches
+                        # --- TACTICAL AI: SUKUNA'S BEATDOWN COUNTER & ESCAPE ---
+                        escaped = False
+                        # Sukuna has a small chance each frame to process a counter-attack, making it feel organic rather than instant.
+                        if self.sukuna.attack_cooldown <= 0 and random.random() < 0.08:
+                            is_burned_out = (self.gojo.domain_uses >= 5 and self.gojo.technique_burnout > 0)
+                            has_infinity = self.gojo.infinity > 0 and self.gojo.energy > 0 and not is_burned_out
+                            is_da_locked_out = getattr(self.sukuna, "tactical_eval_timer", 0) > 0
+                            
+                            can_da_counter = has_infinity and self.sukuna.grab_cd <= 0 and self.sukuna.energy >= 15 * self.sukuna.cost_mult and not is_da_locked_out
+                            can_cleave_counter = not has_infinity and self.sukuna.grab_cd <= 0 and self.sukuna.energy >= 30 * self.sukuna.cost_mult and self.sukuna.cleave_cd <= 0
+                            can_da_escape = (self.sukuna.amp_cd <= 0 or self.sukuna.amp_duration > 0) and self.sukuna.energy >= 10 * self.sukuna.cost_mult and not is_da_locked_out
+
+                            # 1. The Counter-Beatdown
+                            if can_da_counter or can_cleave_counter:
+                                self.sukuna.grab_timer = 0 # Break Gojo's hold
+                                self.gojo.grab_timer = 300 # Take control of the duration!
+                                self.gojo.purple_charge = 0
+                                self.gojo.domain_charge = 0
+                                self.sukuna.attack_cooldown = 30
+                                escaped = True
+                                
+                                if can_da_counter:
+                                    self.gojo.grab_type = "amp_punch"
+                                    self.sukuna.amp_duration = max(self.sukuna.amp_duration, 300)
+                                    self.sukuna.energy -= 15 * self.sukuna.cost_mult
+                                    self.sukuna.grab_cd = 480
+                                    self.popups.append({"x": self.sukuna.rect.centerx, "y": self.sukuna.rect.centery - 80, "timer": 45, "text": "COUNTER: DA BEATDOWN!", "color": (255, 255, 0)})
+                                else:
+                                    self.gojo.grab_type = "cleave"
+                                    self.sukuna.amp_duration = 0
+                                    self.sukuna.energy -= 30 * self.sukuna.cost_mult
+                                    self.sukuna.cleave_cd = 600
+                                    self.sukuna.grab_cd = 600
+                                    self.popups.append({"x": self.sukuna.rect.centerx, "y": self.sukuna.rect.centery - 80, "timer": 45, "text": "COUNTER: CLEAVE!", "color": RED})
+                                    
+                                    # Visual Cleave setup
+                                    p = Projectile(self.gojo.rect.centerx, self.gojo.rect.centery, self.gojo.rect.centerx, self.gojo.rect.centery, 1, RED, size_mult=4.0, type="cleave")
+                                    p.vel = pygame.Vector2(random.uniform(-1, 1), random.uniform(-1, 1)).normalize() * 0.1
+                                    p.lifetime = 300
+                                    p.is_grab_cleave = True 
+                                    self.projectiles.append(p)
+                                    
+                            # 2. The DA Burst Escape (If countering is unavailable or unwise)
+                            elif can_da_escape and self.sukuna.hp < self.sukuna.max_hp * 0.65:
+                                self.sukuna.grab_timer = 0
+                                self.sukuna.amp_duration = max(self.sukuna.amp_duration, 60)
+                                self.sukuna.energy -= 10 * self.sukuna.cost_mult
+                                self.sukuna.attack_cooldown = 20
+                                escaped = True
+                                
+                                kb_dir = 1 if self.sukuna.rect.centerx > self.gojo.rect.centerx else -1
+                                self.sukuna.rect.x += kb_dir * 180
+                                self.gojo.rect.x -= kb_dir * 180
+                                self.shake_timer = 15
+                                self.popups.append({"x": self.sukuna.rect.centerx, "y": self.sukuna.rect.centery - 80, "timer": 45, "text": "DA BURST ESCAPE!", "color": WHITE})
+                                
+                        if not escaped:
+                            # Gojo locks Sukuna in place and unleashes a rapid melee beatdown!
+                            self.sukuna.rect.centerx = self.gojo.rect.centerx + (40 * self.gojo.direction)
+                            self.sukuna.rect.centery = self.gojo.rect.centery
+                            
+                            beatdown_dmg = 1.2
+                            
+                            # CE Imbue for Gojo's beatdown punches
                         imbue_cost = 2.0 * self.gojo.cost_mult
                         if self.gojo.energy >= imbue_cost:
                             self.gojo.energy -= imbue_cost
