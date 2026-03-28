@@ -1471,6 +1471,38 @@ class Game:
                     # STRATEGIC AI: If Gojo's domain is active, Sukuna frantically stays in point-blank contact!
                     rush_distance = 40 if self.gojo.domain_active else 110
                     
+                    # --- NEW: SMARTER SUKUNA AI (CE CONSERVATION & BINDING VOW) ---
+                    # Sukuna refuses to let his CE drop recklessly from tanking hits.
+                    is_draining_ce = self.sukuna.energy < (self.sukuna.max_energy * 0.65) # Lost 35% CE
+                    
+                    if is_draining_ce and not self.sukuna.ce_exhausted and self.gojo.grab_timer <= 0:
+                        # 1. CALCULATE THE ODDS (Flesh for Cursed Energy Binding Vow)
+                        # He evaluates if trading HP for CE benefits him right now.
+                        vow_hp_cost = self.sukuna.max_hp * 0.80 # BUFF: Costs a massive 80% of Max HP (400 HP)!
+                        vow_ce_gain = self.sukuna.max_energy * 0.40 # Restores 1200 CE
+                        
+                        # The Math: Will he survive the HP drop? (Needs at least a 20 HP buffer to not instantly die)
+                        can_afford_flesh_vow = self.sukuna.hp > (vow_hp_cost + 20)
+                        # Does he actually need the CE badly enough to justify the pain?
+                        desperate_for_ce = self.sukuna.energy < (self.sukuna.max_energy * 0.40)
+                        
+                        if can_afford_flesh_vow and desperate_for_ce:
+                            self.sukuna.hp -= vow_hp_cost
+                            self.sukuna.energy = min(self.sukuna.max_energy, self.sukuna.energy + vow_ce_gain)
+                            self.shake_timer = 20
+                            self.popups.append({"x": self.sukuna.rect.centerx, "y": self.sukuna.rect.centery - 100, "timer": 60, "text": "VOW: FLESH FOR CE!", "color": BLUE})
+                            for _ in range(30): # Massive blood burst from the sacrifice
+                                bx, by = self.sukuna.rect.center
+                                self.blood_particles.append([bx, by, random.uniform(-8, 8), random.uniform(-10, -2), 50, random.randint(4, 7)])
+                        
+                        # 2. CHANGE TACTICS: STOP TANKING!
+                        # If he is losing CE, he stops walking forward into punches and actively evades!
+                        elif dist < 180 and self.sukuna.dodge_cd <= 0 and self.sukuna.stamina >= 20:
+                            # Smart Backstep: Dodge AWAY from Gojo instead of through him!
+                            self.sukuna.direction = 1 if self.sukuna.rect.x > self.gojo.rect.x else -1
+                            self.sukuna.dodge()
+                            self.sukuna.dodge_cd = 25 # Fast evasion cooldown
+
                     # --- TACTICAL HEALING & ENERGY REGEN RETREAT ---
                     # Retreat if HP is below 40% OR if CE drops below 30% to actively buy time and regenerate!
                     needs_healing = self.sukuna.hp < (self.sukuna.max_hp * 0.4) and self.sukuna.energy > 50 and not self.sukuna.ce_exhausted
@@ -2065,7 +2097,7 @@ class Game:
                                 self.clash_winner = "GOJO WINS CLASH!"
                                 self.sukuna.end_domain()
                                 self.sukuna.domain_cd = 3000
-                                # THE FIX: Removed forced 720 burnout. Rely ONLY on the 3-use rule in end_domain()!
+                                self.gojo.domain_shrunk = True # FIX: Force the visual shrink if he wins!
                             else: 
                                 self.clash_winner = "SUKUNA WINS CLASH!"
                                 self.gojo.end_domain()
@@ -2252,19 +2284,12 @@ class Game:
                                 is_touching_gojo = enemy.rect.colliderect(self.gojo.rect)
                                 
                                 # --- SMARTER SUKUNA AI: THE SACRIFICIAL GAMBIT ---
-                                # Sukuna calculates if he has enough HP to survive letting Mahoraga adapt to UV.
-                                # LORE FIX: He ONLY does this if Mahoraga hasn't been summoned yet! (Wheel is hidden)
                                 if enemy.name == "Sukuna" and getattr(enemy, "simple_domain_active", False) and not is_touching_gojo and self.mahoraga is None:
-                                    # How many points left to hit 1.0 (Full Adaptation)?
-                                    points_needed = 250.0 - enemy.adaptation_points["void"]
+                                    # LORE FIX: He needs 1000 points to fully adapt. Tanking it all at once equals 750 dmg (Instant Death since paralysis disables RCT).
+                                    # NEW TACTIC: He tanks it in chunks! As long as his HP is safely above 45%, he drops the shield!
+                                    points_needed = 1000.0 - enemy.adaptation_points["void"]
                                     if points_needed > 0:
-                                        # He gets 2.0 points per frame. How many frames will it take?
-                                        frames_required = points_needed / 2.0
-                                        # Damage is 1.5 per frame. What is the total HP cost?
-                                        total_hp_cost = frames_required * 1.5
-                                        
-                                        # If he can survive the brain damage, drop the Simple Domain intentionally!
-                                        if enemy.hp > (total_hp_cost + 50): # 50 HP safety buffer
+                                        if enemy.hp > (enemy.max_hp * 0.45): 
                                             enemy.simple_domain_active = False
                                             enemy.sd_was_active = False
                                             self.popups.append({"x": enemy.rect.centerx, "y": enemy.rect.centery - 100, "timer": 45, "text": "GAMBIT: TANKING UV!", "color": MAHO_COLOR})
@@ -2509,13 +2534,13 @@ class Game:
                             # --- NEW: CE REINFORCEMENT DEFENSE FOR PURPLE ---
                             if p_target.energy > 0:
                                 # They use their raw CE to tank the imaginary mass
-                                reduction_mult = random.uniform(0.15, 0.35) # BUFF: Takes only 15-35% damage
+                                reduction_mult = random.uniform(0.5, 0.8)
                                 mitigated_dmg = purple_dmg * (1.0 - reduction_mult) 
                                 
                                 purple_dmg *= reduction_mult 
                                 
-                                # 2 CE spent for every 1 HP saved (Standard Sukuna/Mahoraga CE defense ratio)
-                                p_target.energy = max(0, p_target.energy - (mitigated_dmg * 2.0) * p_target.cost_mult)
+                                # TAX: Hollow Purple obliterates CE! Costs a massive 8.5x CE per HP saved!
+                                p_target.energy = max(0, p_target.energy - (mitigated_dmg * 8.5) * p_target.cost_mult)
                             
                             p_target.hp -= purple_dmg
                             p.active = False # Hit confirmed, remove projectile
