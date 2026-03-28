@@ -321,9 +321,9 @@ class Fighter:
         self.domain_timer = 0
         self.domain_uses += 1
         
-        # 5 times Domain Expansion no cooldowns, after 5 they get burnt out and cooldowns apply
+        # 5 times Domain Expansion 1 sec cooldowns, after 5 they get burnt out and heavy cooldowns apply
         if self.domain_uses <= 5:
-            self.domain_cd = 0
+            self.domain_cd = 60 # 1 second cooldown (60 frames)
             self.technique_burnout = 0
         else:
             self.domain_cd = 3000
@@ -1596,33 +1596,45 @@ class Game:
                             de_cost = 200 * self.sukuna.cost_mult
                             self.sukuna.energy -= de_cost
 
-                        # --- SMART CORNER DETECTION ---
-                        speed = 18 if not is_tactical_eval else 24 # Move faster when strictly calculating odds from afar
-                        run_dir = 1 if self.sukuna.rect.x > self.gojo.rect.x else -1
+                        # --- EVASIVE SHADOW STEPPING ---
+                        speed = 18 if not is_tactical_eval else 24 
                         
-                        # If he is within 150 pixels of the left wall and trying to run left, 
-                        # OR within 150 pixels of the right wall and trying to run right...
-                        if (self.sukuna.rect.left < 150 and run_dir == -1) or (self.sukuna.rect.right > WORLD_WIDTH - 150 and run_dir == 1):
-                            # He realizes he is cornered! Reverse direction to escape THROUGH Gojo.
-                            run_dir *= -1 
-                            # Force a jump to leap over Gojo's head!
-                            if self.sukuna.on_ground:
-                                self.sukuna.jump()
+                        # Base movement: Back away if too close, close in if too far, otherwise Dash Dance!
+                        if dist < 250:
+                            run_dir = 1 if self.sukuna.rect.x > self.gojo.rect.x else -1
+                        elif dist > 550:
+                            run_dir = -1 if self.sukuna.rect.x > self.gojo.rect.x else 1 # Dart back in!
                         else:
-                            # If running for energy, jump twice as often to be extra evasive!
-                            jump_chance = 0.06 if needs_energy else 0.03
-                            # Occasionally jump to evade Orbs while retreating normally in the open
+                            # The "Dash Dance": Rapidly switch directions to confuse Gojo while regenerating
+                            if getattr(self.sukuna, "dash_dance_timer", 0) <= 0:
+                                self.sukuna.dash_dance_dir = random.choice([-1, 1])
+                                self.sukuna.dash_dance_timer = random.randint(15, 35)
+                            else:
+                                self.sukuna.dash_dance_timer -= 1
+                            run_dir = getattr(self.sukuna, "dash_dance_dir", 1)
+
+                        # Smart corner logic so he bounces off walls dynamically
+                        if (self.sukuna.rect.left < 150 and run_dir == -1) or (self.sukuna.rect.right > WORLD_WIDTH - 150 and run_dir == 1):
+                            run_dir *= -1 
+                            if self.sukuna.on_ground: self.sukuna.jump()
+                        else:
+                            # Highly evasive jumps while shadow stepping
+                            jump_chance = 0.08 if needs_energy else 0.04
                             if self.sukuna.on_ground and random.random() < jump_chance:
                                 self.sukuna.jump()
                                 
                         # Apply the smart movement
                         self.sukuna.rect.x += speed * run_dir
                             
-                        # Aggressively spam dodge to escape and recharge!
+                        # Aggressively spam dodge to dash around!
                         if self.sukuna.dodge_cd <= 0 and self.sukuna.stamina >= 20 and not self.sukuna.stamina_exhausted:
-                            self.sukuna.direction = run_dir # Dash in the smart escape direction!
+                            # If dashing, give it a 30% chance to forcefully cross-up THROUGH Gojo to look menacing
+                            if dist < 350 and random.random() < 0.3:
+                                self.sukuna.direction = -1 if self.sukuna.rect.x > self.gojo.rect.x else 1
+                            else:
+                                self.sukuna.direction = run_dir
+                                
                             self.sukuna.dodge()
-                            # Slightly faster dashes if his primary goal is to run for energy or distance!
                             self.sukuna.dodge_cd = 20 if needs_energy or is_tactical_eval else 25
                         # --- NEW: ANTI-BLUE DEFENSES ---
                         # 1. Covering Fire: Throw a quick Dismantle backward to interrupt Gojo's pursuit!
@@ -2848,28 +2860,38 @@ class Game:
                         self.sukuna.energy -= 200 * self.sukuna.cost_mult
                         self.popups.append({"x": self.sukuna.rect.centerx, "y": self.sukuna.rect.centery - 100, "timer": 60, "text": "DESPERATE DOMAIN!", "color": RED})
                         
-                    # 3. PANIC RETREAT: CE-REINFORCED SPEED
-                    # FIX: Added 'and self.mahoraga_summon_timer <= 0' so he doesn't walk away while chanting
+                    # 3. PHANTOM BLITZ EVASION 
+                    # Instead of cowardly running, he zips furiously around the arena!
                     if self.gojo.grab_timer <= 0 and not self.gojo.domain_active and not self.sukuna.domain_active and self.mahoraga_summon_timer <= 0:
-                        run_dir = 1 if self.sukuna.rect.x > self.gojo.rect.x else -1
                         
-                        # Smart corner escape so he doesn't get trapped against the wall
+                        # If he's far away, he darts back IN to maintain pressure, otherwise backs off slightly
+                        if dist > 450:
+                            run_dir = -1 if self.sukuna.rect.x > self.gojo.rect.x else 1
+                        else:
+                            run_dir = 1 if self.sukuna.rect.x > self.gojo.rect.x else -1
+                        
+                        # Smart corner escape
                         if (self.sukuna.rect.left < 150 and run_dir == -1) or (self.sukuna.rect.right > WORLD_WIDTH - 150 and run_dir == 1):
                             run_dir *= -1
                             if self.sukuna.on_ground: self.sukuna.jump()
                         
-                        # Artificially bump speed to 22, but it actively drains his CE!
+                        # CE-Reinforced Speed
                         if self.sukuna.energy > 2.0 * self.sukuna.cost_mult and not self.sukuna.ce_exhausted:
                             self.sukuna.rect.x += 22 * run_dir
                             self.sukuna.energy -= 2.0 * self.sukuna.cost_mult
                         else:
-                            self.sukuna.rect.x += 18 * run_dir # Falls back to base 18 speed if out of juice
+                            self.sukuna.rect.x += 18 * run_dir 
                         
-                        # Spam dodge heavily to gain I-frames and distance
+                        # Aggressive phantom dodges
                         if self.sukuna.dodge_cd <= 0 and self.sukuna.stamina >= 20:
-                            self.sukuna.direction = run_dir
+                            # 50% chance to furiously dash straight through Gojo if close enough!
+                            if dist < 300 and random.random() < 0.5:
+                                self.sukuna.direction = -1 if self.sukuna.rect.x > self.gojo.rect.x else 1
+                            else:
+                                self.sukuna.direction = run_dir
+                                
                             self.sukuna.dodge()
-                            self.sukuna.dodge_cd = 15 # Tactical sequence, not a stat change
+                            self.sukuna.dodge_cd = 15 # Frenzied evasion
 
                 # Actual Death Logic (Immortality completely removed!)
                 if self.sukuna.hp <= 0:
