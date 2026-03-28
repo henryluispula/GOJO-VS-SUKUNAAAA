@@ -317,6 +317,7 @@ class Fighter:
         # 2. Proceed with ending
         self.domain_active = False 
         self.domain_timer = 0
+        self.domain_cd = 3000 # ABSOLUTE LOCK: Cooldown is forced to 50 seconds!
         self.domain_uses += 1
         
         if self.name == "Gojo":
@@ -1047,12 +1048,20 @@ class Game:
                     self.gojo_combo_buffer.clear()
                         
                 # 2. RED POINT-BLANK (Cleave Escape)
-                # THE FIX: Added 'and self.gojo.technique_burnout == 0' to prevent usage during burnout
-                elif keys[pygame.K_e] and keys[pygame.K_s] and self.pb_red_ready and self.gojo.energy >= 100 * self.gojo.cost_mult and self.gojo.red_cd == 0 and self.gojo.grab_timer > 0 and self.gojo.technique_burnout == 0 and self.gojo.domain_charge == 0:
+                # LORE FIX: Gojo CAN use PB Red while his technique is burned out (during/after MS) 
+                # by performing a rapid Brain RCT Refresh! It instantly cures Burnout but costs extra CE!
+                elif keys[pygame.K_e] and keys[pygame.K_s] and self.pb_red_ready and self.gojo.energy >= 100 * self.gojo.cost_mult and self.gojo.red_cd == 0 and self.gojo.grab_timer > 0 and self.gojo.domain_charge == 0:
                     self.pb_red_ready = False
                     self.gojo.grab_timer = 0
                     self.sukuna.grab_timer = 0
                     
+                    # --- BRAIN RCT REFRESH ---
+                    # LORE: If he is currently burned out, he destroys and heals his brain to instantly refresh his technique!
+                    if self.gojo.technique_burnout > 0:
+                        self.gojo.technique_burnout = 0
+                        self.gojo.energy -= 150 * self.gojo.cost_mult # Extra heavy CE tax for the brain refresh!
+                        self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 120, "timer": 60, "text": "BRAIN RCT REFRESH!", "color": HEAL_GREEN})
+                        
                     self.gojo.energy -= 100 * self.gojo.cost_mult
                     self.gojo.red_cd = 240  
                     self.gojo.tech_hits = min(self.gojo.max_tech_hits, self.gojo.tech_hits + 25) # Adds to Purple Pool
@@ -2055,12 +2064,12 @@ class Game:
                                 self.clash_winner = "GOJO WINS CLASH!"
                                 self.sukuna.end_domain()
                                 self.sukuna.domain_cd = 3000
-                                self.sukuna.technique_burnout = 720
-                            else: # <--- THIS 'ELSE' WAS MISSING!
+                                # THE FIX: Removed forced 720 burnout. Rely ONLY on the 3-use rule in end_domain()!
+                            else: 
                                 self.clash_winner = "SUKUNA WINS CLASH!"
                                 self.gojo.end_domain()
                                 self.gojo.domain_cd = 3000
-                                self.gojo.technique_burnout = 720
+                                # THE FIX: Removed forced 720 burnout. Rely ONLY on the 3-use rule in end_domain()!
                                 self.gojo.domain_shrunk = False 
                                 
                             self.clash_msg_timer = 90
@@ -2225,7 +2234,7 @@ class Game:
                     if self.mahoraga and self.mahoraga.hp > 0 and self.mahoraga.adaptation["void"] <= 0:
                         self.gojo.end_domain()
                         self.gojo.domain_cd = 3000
-                        self.gojo.technique_burnout = 720
+                        # THE FIX: Removed hardcoded 720 burnout! It now strictly obeys the 3-use rule in end_domain().
                         self.shake_timer = 30
                         # CHANGED: Now uses the central HUD announcement system instead of a popup
                         self.maho_announcements.append({"text": "MAHORAGA SHATTERED UNLIMITED VOID!", "timer": 180})
@@ -2237,6 +2246,22 @@ class Game:
                                 # LORE: Gojo's Infinity prevents Unlimited Void from hitting him directly
                                 is_touching_gojo = enemy.rect.colliderect(self.gojo.rect)
                                 
+                                # --- SMARTER SUKUNA AI: THE SACRIFICIAL GAMBIT ---
+                                # Sukuna calculates if he has enough HP to survive letting Mahoraga adapt to UV.
+                                if enemy.name == "Sukuna" and getattr(enemy, "simple_domain_active", False) and not is_touching_gojo:
+                                    # How many points left to hit 1.0 (Full Adaptation)?
+                                    points_needed = 250.0 - enemy.adaptation_points["void"]
+                                    if points_needed > 0:
+                                        # He gets 2.0 points per frame. How many frames will it take?
+                                        frames_required = points_needed / 2.0
+                                        # Damage is 1.5 per frame. What is the total HP cost?
+                                        total_hp_cost = frames_required * 1.5
+                                        
+                                        # If he can survive the brain damage, drop the Simple Domain intentionally!
+                                        if enemy.hp > (total_hp_cost + 50): # 50 HP safety buffer
+                                            enemy.simple_domain_active = False
+                                            enemy.sd_was_active = False
+                                            self.popups.append({"x": enemy.rect.centerx, "y": enemy.rect.centery - 100, "timer": 45, "text": "GAMBIT: TANKING UV!", "color": MAHO_COLOR})
                                 if getattr(enemy, "simple_domain_active", False) and not is_touching_gojo:
                                     enemy.is_paralyzed = False # Protected by Simple Domain!
                                     # UV sure-hit continuously grinds down the Simple Domain
@@ -2495,27 +2520,28 @@ class Game:
                         
                         # --- CHANGED: Massively increased the blast radius from 180 to 350! ---
                         if dist_x < 350 and dist_y < 350: 
-                            # Fuga ignores I-frames (is_dodging is ignored here)
-                            if dist_x < 120 and dist_y < 120: # Direct Hit center zone expanded
-                                dmg_perc = 1.0 # 100% MAX HEALTH
-                            else: # Caught in the massive outer blast
-                                dmg_perc = 1.0 # 100% MAX HEALTH
-                                
-                            fuga_hp_dmg = (self.gojo.max_hp * dmg_perc)
                             
-                            # --- NEW: GOJO'S 1:1 CE REINFORCEMENT DEFENSE ---
-                            if self.gojo.energy > 0: 
-                                reduction_mult = random.uniform(0.5, 0.8)
-                                mitigated_dmg = fuga_hp_dmg * (1.0 - reduction_mult)
-                                fuga_hp_dmg *= reduction_mult
-                                self.gojo.energy = max(0, self.gojo.energy - mitigated_dmg * self.gojo.cost_mult)
-                            
-                            fuga_ce_dmg = (self.gojo.max_energy * dmg_perc) # Scaled to Gojo's Max CE dynamically
-                            
+                            # --- THE FIX: INFINITY CHECK MOVED TO THE TOP ---
+                            # Infinity must be checked BEFORE physical CE reinforcement to prevent the double-tax bug!
                             if self.gojo.infinity > 0 and self.gojo.energy > 0 and self.gojo.technique_burnout == 0:
-                                self.gojo.energy = max(0, self.gojo.energy - fuga_ce_dmg) # Shreds CE pool
+                                # Infinity catches the nuke. Gojo takes NO physical HP damage, but the thermal energy shreds his CE!
+                                # Adjusted drain to 80% of Max CE so it's devastating but doesn't instantly zero out a full bar.
+                                fuga_ce_dmg = self.gojo.max_energy * 0.80 
+                                self.gojo.energy = max(0, self.gojo.energy - fuga_ce_dmg)
                             else:
+                                # Infinity is DOWN. The nuke hits his physical body!
+                                fuga_hp_dmg = self.gojo.max_hp * 1.0
+                                
+                                # --- GOJO'S 1:1 CE REINFORCEMENT DEFENSE ---
+                                # He only braces for physical impact if Infinity fails!
+                                if self.gojo.energy > 0: 
+                                    reduction_mult = random.uniform(0.5, 0.8)
+                                    mitigated_dmg = fuga_hp_dmg * (1.0 - reduction_mult)
+                                    fuga_hp_dmg *= reduction_mult
+                                    self.gojo.energy = max(0, self.gojo.energy - mitigated_dmg * self.gojo.cost_mult)
+                                
                                 self.gojo.hp -= fuga_hp_dmg
+                                
                             p.active = False # Hit confirmed, remove projectile
                     
                     # --- FIXED: LORE-ACCURATE SIMPLE DOMAIN ---
@@ -3313,7 +3339,8 @@ class Game:
             self.draw_bar_on(render_surf, WIDTH - 335, 145, max(0, self.sukuna.max_sd_hits - self.sukuna.sd_hits), self.sukuna.max_sd_hits, sd_color_s, 310, 6, sd_label_s)
 
             # --- SUKUNA HUD LOGIC ---
-            sukuna_is_burned_out = self.sukuna.technique_burnout > 0
+            # THE FIX: Ensure Sukuna's HUD strictly obeys the 3-use rule!
+            sukuna_is_burned_out = self.sukuna.technique_burnout > 0 and self.sukuna.domain_uses >= 3
             
             # Domain Amp can be used even during burnout in lore, so we leave it alone!
             da_cd = f"DOMAIN AMP: {'ACT' if (self.sukuna.amp_duration>0) else 'RDY' if self.sukuna.amp_cd == 0 else str(self.sukuna.amp_cd//60)+'s'}"
