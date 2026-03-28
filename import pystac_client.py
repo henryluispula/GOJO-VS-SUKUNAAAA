@@ -1549,13 +1549,13 @@ class Game:
                             
                             # --- TACTICAL VOW PENALTY: DA LOST ---
                             self.sukuna.amp_duration = 0 
-                            self.sukuna.amp_cd = 1200 # 20 SECONDS DA LOCKOUT (60 fps * 20s)
-                            self.sukuna.tactical_eval_timer = 1200 # 20 SECONDS OF TACTICAL AI
+                            self.sukuna.amp_cd = 600 # 10 SECONDS DA LOCKOUT (60 fps * 10s)
+                            self.sukuna.tactical_eval_timer = 600 # 10 SECONDS OF TACTICAL AI
                             is_amp = False
                             is_tactical_eval = True
                             
                             # --- UPGRADED ANNOUNCEMENT ---
-                            self.maho_announcements.append({"text": "SUKUNA VOW: 80% HP FOR CE! (DA LOST 20s)", "timer": 120})
+                            self.maho_announcements.append({"text": "SUKUNA VOW: 80% HP FOR CE! (DA LOST 10s)", "timer": 120})
                             for _ in range(30): # Massive blood burst from the sacrifice
                                 bx, by = self.sukuna.rect.center
                                 self.blood_particles.append([bx, by, random.uniform(-8, 8), random.uniform(-10, -2), 50, random.randint(4, 7)])
