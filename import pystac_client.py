@@ -273,6 +273,8 @@ class Fighter:
         self.using_blue = False 
         self.purple_charge = 0 
         self.fuga_charge = 0
+        self.world_slash_charge = 0 # NEW: World Slash charge
+        self.world_slash_cd = 0 # NEW: 30 sec cooldown
         self.domain_charge = 0 # NEW: Domain Expansion cast charge
         self.tech_hits = 0 
         self.slash_count = 0
@@ -317,22 +319,17 @@ class Fighter:
         # 2. Proceed with ending
         self.domain_active = False 
         self.domain_timer = 0
-        self.domain_cd = 3000 # ABSOLUTE LOCK: Cooldown is forced to 50 seconds!
         self.domain_uses += 1
         
-        if self.name == "Gojo":
-            if self.domain_uses >= 3:
-                self.technique_burnout = 1200
-                self.infinity = 0
-            else:
-                self.technique_burnout = 0
-
-        elif self.name == "Sukuna":
-            # Sukuna now gets 3 Domain Expansion uses before technique burnout
-            if self.domain_uses >= 3:
-                self.technique_burnout = 1200
-            else:
-                self.technique_burnout = 0                                         
+        # 5 times Domain Expansion no cooldowns, after 5 they get burnt out and cooldowns apply
+        if self.domain_uses <= 5:
+            self.domain_cd = 0
+            self.technique_burnout = 0
+        else:
+            self.domain_cd = 3000
+            self.technique_burnout = 1200
+            if self.name == "Gojo":
+                self.infinity = 0                                         
 
     def jump(self):
         if self.on_ground and not self.is_paralyzed:
@@ -372,7 +369,7 @@ class Fighter:
             if self.domain_timer <= 0:
                 self.end_domain()
                 
-        if self.name == "Gojo" and self.technique_burnout > 0 and self.domain_uses >= 3:
+        if self.name == "Gojo" and self.technique_burnout > 0 and self.domain_uses >= 5:
             self.infinity = 0
 
         # NEW: Freeze movement if grabbing or paralyzed
@@ -477,6 +474,7 @@ class Fighter:
         self.red_cd = max(0, self.red_cd - 1)
         self.purple_cd = max(0, self.purple_cd - 1)
         self.fuga_cd = max(0, self.fuga_cd - 1)
+        self.world_slash_cd = max(0, self.world_slash_cd - 1)
         self.dodge_cd = max(0, self.dodge_cd - 1)
         self.black_flash_timer = max(0, self.black_flash_timer - 1)
         self.potential_timer = max(0, self.potential_timer - 1)
@@ -628,6 +626,28 @@ class Fighter:
                         fpx = mid_x + random.randint(-burst // 2, burst // 2)
                         fpy = y + 40 + random.randint(-burst // 2, burst // 2)
                         pygame.draw.circle(surface, WHITE, (int(fpx), int(fpy)), random.randint(2, 6))
+
+        if self.name == "Sukuna" and getattr(self, "world_slash_charge", 0) > 0:
+            ct = (120 - self.world_slash_charge) / 120.0
+            
+            # Dark energy gathering at hands
+            pull_r = int(120 * (1.0 - ct))
+            pygame.draw.circle(surface, (10, 10, 15), (mid_x, y + 60), int(40 * ct), max(1, int(10 * ct)))
+            pygame.draw.circle(surface, WHITE, (mid_x, y + 60), int(45 * ct), 2)
+            
+            # Sparks pulling inwards simulating dimension distortion
+            for _ in range(10):
+                ang = random.uniform(0, math.pi * 2)
+                px = mid_x + math.cos(ang) * pull_r
+                py = y + 60 + math.sin(ang) * pull_r
+                pygame.draw.line(surface, WHITE, (px, py), (mid_x + math.cos(ang) * pull_r * 0.8, y + 60 + math.sin(ang) * pull_r * 0.8), 2)
+                pygame.draw.circle(surface, BLACK, (int(px), int(py)), 4)
+                
+            # Cross slash outline building up
+            if ct > 0.5:
+                slash_len = int(150 * ((ct - 0.5) * 2))
+                pygame.draw.line(surface, BLACK, (mid_x - slash_len, y + 60 - slash_len//2), (mid_x + slash_len, y + 60 + slash_len//2), 6)
+                pygame.draw.line(surface, WHITE, (mid_x - slash_len, y + 60 - slash_len//2), (mid_x + slash_len, y + 60 + slash_len//2), 2)
 
         if self.name == "Sukuna" and self.fuga_charge > 0:
             ct = (120 - self.fuga_charge) / 120.0
@@ -818,6 +838,7 @@ class Game:
         self.clock = pygame.time.Clock()
         self.prev_gojo_burnout = 0
         self.prev_sukuna_burnout = 0
+        self.prev_world_slash_cd = 0
         self.gojo = Fighter(200, WORLD_HEIGHT - 300, "Gojo")
         
         # --- OPTIMIZATION: Fonts and Text Caching ---
@@ -1200,7 +1221,7 @@ class Game:
 
                    # --- GOJO TECHNIQUE ORBS ---
                     # Define a helper check to see if Gojo is REALLY burned out
-                    is_actually_burned_out = (self.gojo.domain_uses >= 3 and self.gojo.technique_burnout > 0)
+                    is_actually_burned_out = (self.gojo.domain_uses >= 5 and self.gojo.technique_burnout > 0)
 
                     # Blue
                     if keys[pygame.K_w] and self.gojo.blue_cd == 0:
@@ -1297,7 +1318,7 @@ class Game:
                         can_interrupt = False
                         
                         # 1. Guaranteed Interruption Checks (Must hit before domain_charge reaches 0)
-                        if self.sukuna.world_slash_unlocked and self.sukuna.dismantle_cd <= 0 and self.sukuna.energy >= 80 * self.sukuna.cost_mult:
+                        if self.sukuna.world_slash_unlocked and self.sukuna.world_slash_cd <= 0 and getattr(self.sukuna, "world_slash_charge", 0) <= 0 and self.sukuna.energy >= 80 * self.sukuna.cost_mult:
                             can_interrupt = True # World Slash perfectly ignores Infinity
                         elif not gojo_has_inf and self.sukuna.dismantle_cd <= 0 and self.sukuna.energy >= 10 * self.sukuna.cost_mult:
                             can_interrupt = True # Normal slash only interrupts if Infinity is verified DOWN
@@ -1416,11 +1437,8 @@ class Game:
                             self.sukuna.direction = 1 if self.sukuna.rect.x < self.gojo.rect.x else -1
                             
                             # Priority 1: World Slash (Targets space, bypassing Infinity directly)
-                            if self.sukuna.world_slash_unlocked and self.sukuna.dismantle_cd <= 0 and self.sukuna.energy >= 80 * self.sukuna.cost_mult:
-                                self.sukuna.slash_count = 1
-                                self.sukuna.slash_type = "world_slash"
-                                self.sukuna.energy -= 80 * self.sukuna.cost_mult
-                                self.sukuna.dismantle_cd = 180
+                            if self.sukuna.world_slash_unlocked and self.sukuna.world_slash_cd <= 0 and getattr(self.sukuna, "world_slash_charge", 0) <= 0 and self.sukuna.energy >= 80 * self.sukuna.cost_mult:
+                                self.sukuna.world_slash_charge = 120
                                 
                             # Priority 2: Tactical Rush to interrupt
                             elif dist > 100:
@@ -1670,6 +1688,15 @@ class Game:
                             if can_survive_vow and (gojo_is_vulnerable or is_guaranteed_kill or self.sukuna.hp > self.sukuna.max_hp * 0.7):
                                 self.sukuna.fuga_charge = 120
                     
+                    if getattr(self.sukuna, "world_slash_charge", 0) > 0:
+                        self.sukuna.world_slash_charge -= 1
+                        if self.sukuna.world_slash_charge == 1:
+                            self.projectiles.append(Projectile(self.sukuna.rect.centerx, self.sukuna.rect.centery, self.gojo.rect.centerx, self.gojo.rect.centery, 130, BLACK, size_mult=6.0, type="world_slash"))
+                            ws_cost = 80 * self.sukuna.cost_mult
+                            self.sukuna.energy = max(0, self.sukuna.energy - ws_cost)
+                            self.sukuna.world_slash_cd = 1800 # 30 seconds cooldown
+                            self.shake_timer = 20
+
                     if self.sukuna.fuga_charge > 0:
                         self.sukuna.fuga_charge -= 1
                         if self.sukuna.fuga_charge == 1:
@@ -1699,7 +1726,7 @@ class Game:
                     if self.sukuna.technique_burnout == 0 and not fuga_priority and self.gojo.grab_timer <= 0:
                         
                         if self.sukuna.rect.colliderect(self.gojo.rect) and self.sukuna.grab_cd <= 0:
-                            is_burned_out = (self.gojo.domain_uses >= 3 and self.gojo.technique_burnout > 0)
+                            is_burned_out = (self.gojo.domain_uses >= 5 and self.gojo.technique_burnout > 0)
                             has_infinity = self.gojo.infinity > 0 and self.gojo.energy > 0 and not is_burned_out
                             
                             if has_infinity:
@@ -1774,12 +1801,8 @@ class Game:
                     if not is_amp and self.sukuna.energy > 40 * self.sukuna.cost_mult and not fuga_priority and self.sukuna.technique_burnout == 0 and self.gojo.grab_timer <= 0:
                         
                         # Priority 2: The World Cutting Slash
-                        if self.sukuna.world_slash_unlocked and self.sukuna.energy > 80 * self.sukuna.cost_mult and self.sukuna.dismantle_cd <= 0:
-                            self.sukuna.slash_count = 1
-                            self.sukuna.slash_type = "world_slash"
-                            ws_cost = 80 * self.sukuna.cost_mult
-                            self.sukuna.energy -= ws_cost
-                            self.sukuna.dismantle_cd = 180 
+                        if self.sukuna.world_slash_unlocked and self.sukuna.energy > 80 * self.sukuna.cost_mult and self.sukuna.world_slash_cd <= 0 and getattr(self.sukuna, "world_slash_charge", 0) <= 0:
+                            self.sukuna.world_slash_charge = 120 
                             
                         # Priority 3: Standard Dismantle Spacing (Only if Infinity is down!)
                         elif dist > 180 and self.sukuna.dismantle_cd == 0 and not gojo_has_inf:
@@ -1798,9 +1821,7 @@ class Game:
                     if self.sukuna.slash_count > 0 and self.sukuna.slash_type != "cleave": # Add this check
                         if self.sukuna.slash_delay <= 0:
                             if self.sukuna.slash_type == "world_slash":
-                                # Giant terrifying slash that travels incredibly fast
-                                self.projectiles.append(Projectile(self.sukuna.rect.centerx, self.sukuna.rect.centery, self.gojo.rect.centerx, self.gojo.rect.centery, 130, BLACK, size_mult=6.0, type="world_slash"))
-                                self.sukuna.slash_count -= 1
+                                self.sukuna.slash_count -= 1 # Handled by charge logic instead
                             else:
                                 offset_y = (self.sukuna.slash_count - 2.5) * 45
                                 size = 2.5 if self.sukuna.slash_type == "dismantle" else 4.2
@@ -2286,32 +2307,43 @@ class Game:
                             self.mahoraga.energy -= 1.0 * self.mahoraga.cost_mult
                             self.mahoraga.rct_timer = 5
 
-                    # --- Mahoraga Adaptation Announcements Tracking ---
-                    for key in self.mahoraga.adaptation:
-                        val = self.mahoraga.adaptation[key]
-                        prev = self.prev_adaptations[key]
-                        is_adapted = val <= 0.0 if key != "infinity" else val >= 1.0
-                        was_adapted = prev <= 0.0 if key != "infinity" else prev >= 1.0
+                    pass # Adaptation tracking moved globally to support Megumi's soul
 
-                        if is_adapted and not was_adapted:
+                # --- Universal Adaptation Announcements Tracking (Handles Sukuna's Secret Timer too) ---
+                tracker_source = self.mahoraga if (self.mahoraga and self.mahoraga.hp > 0) else self.sukuna
+                for key in tracker_source.adaptation:
+                    val = tracker_source.adaptation[key]
+                    prev = self.prev_adaptations[key]
+                    is_adapted = val <= 0.0 if key != "infinity" else val >= 1.0
+                    was_adapted = prev <= 0.0 if key != "infinity" else prev >= 1.0
+
+                    if is_adapted and not was_adapted:
+                        if key == "void" and (self.mahoraga is None or self.mahoraga.hp <= 0):
+                            self.maho_announcements.append({"text": "MEGUMI'S SOUL ADAPTED TO UNLIMITED VOID!", "timer": 180})
+                        else:
                             self.maho_announcements.append({"text": f"MAHORAGA HAS FULLY ADAPTED TO {key.upper()}!", "timer": 180})
+                        
+                        if key == "infinity" and not self.sukuna.world_slash_unlocked:
+                            self.sukuna.world_slash_unlocked = True
+                            self.maho_announcements.append({"text": "SUKUNA HAS ACQUIRED THE WORLD CUTTING SLASH!", "timer": 240})
                             
-                            # --- INSTANT WORLD SLASH UNLOCK (Does not require Mahoraga to die) ---
-                            if key == "infinity" and not self.sukuna.world_slash_unlocked:
-                                self.sukuna.world_slash_unlocked = True
-                                self.maho_announcements.append({"text": "SUKUNA HAS ACQUIRED THE WORLD CUTTING SLASH!", "timer": 240})
-                                
-                        self.prev_adaptations[key] = val
+                    self.prev_adaptations[key] = val
+
+                # --- World Slash Cooldown Announcement ---
+                if self.sukuna.world_slash_cd == 0 and self.prev_world_slash_cd == 1:
+                    self.maho_announcements.append({"text": "WORLD CUTTING SLASH IS READY!", "timer": 120})
+                self.prev_world_slash_cd = self.sukuna.world_slash_cd
 
                 # --- BURNOUT ANNOUNCEMENTS ---
                 # Ensuring announcement happens strictly AFTER the domain duration drops!
                 if not self.gojo.domain_active and self.gojo.technique_burnout > 0 and self.prev_gojo_burnout == 0:
-                    # STRICT LIMIT: Only pop up every 3rd domain use!
-                    if self.gojo.domain_uses > 0 and self.gojo.domain_uses % 3 == 0:
+                    # STRICT LIMIT: Only pop up every 5th domain use!
+                    if self.gojo.domain_uses > 0 and self.gojo.domain_uses % 5 == 0:
                         self.maho_announcements.append({"text": "GOJO'S CURSED TECHNIQUE HAS BURNED OUT!", "timer": 90})
                         
                 if not self.sukuna.domain_active and self.sukuna.technique_burnout > 0 and self.prev_sukuna_burnout == 0:
-                    self.maho_announcements.append({"text": "SUKUNA'S CURSED TECHNIQUE HAS BURNED OUT!", "timer": 90})
+                    if self.sukuna.domain_uses > 0 and self.sukuna.domain_uses % 5 == 0:
+                        self.maho_announcements.append({"text": "SUKUNA'S CURSED TECHNIQUE HAS BURNED OUT!", "timer": 90})
                 
                 self.prev_gojo_burnout = self.gojo.technique_burnout
                 self.prev_sukuna_burnout = self.sukuna.technique_burnout        
@@ -2677,7 +2709,7 @@ class Game:
                                 
                             # 3. Manual Slashes
                             else:
-                                is_burned_out = (self.gojo.domain_uses >= 3 and self.gojo.technique_burnout > 0)
+                                is_burned_out = (self.gojo.domain_uses >= 5 and self.gojo.technique_burnout > 0)
                                 
                                 if self.gojo.infinity > 0 and self.gojo.energy > 0 and not is_burned_out: 
                                     # --- CHANGED: Removed the tech_hits increase here! Slashes blocked by Infinity give NO Fuga progress. ---
@@ -3388,7 +3420,7 @@ class Game:
 
             # --- GOJO HUD LOGIC ---
             # Define burnout state first so we can apply it to all techniques
-            is_burned_out = self.gojo.technique_burnout > 0 and self.gojo.domain_uses >= 3
+            is_burned_out = self.gojo.technique_burnout > 0 and self.gojo.domain_uses >= 5
             
             # THE FIX: Apply the 'BURN' state to Blue and Red text displays
             b_cd = f"BLUE: {'BURN' if is_burned_out else 'RDY' if self.gojo.blue_cd==0 else str(self.gojo.blue_cd//60)+'s'}"
@@ -3406,7 +3438,7 @@ class Game:
 
             # Domain Burnout logic (Void)
             d_cd = f"VOID: {'BURN' if is_burned_out else 'ACT' if self.gojo.domain_active else 'RDY' if self.gojo.domain_cd==0 else str(self.gojo.domain_cd//60)+'s'}"
-            use_txt = f"USES: {self.gojo.domain_uses}/3"
+            use_txt = f"USES: {self.gojo.domain_uses}/5"
 
             # --- RENDERING (Shifted down) ---
             render_surf.blit(self.get_text(f"{b_cd} | {r_cd} | ", (200, 220, 255), font=self.mini_font), (25, 170))
@@ -3435,8 +3467,8 @@ class Game:
             self.draw_bar_on(render_surf, WIDTH - 335, 145, max(0, self.sukuna.max_sd_hits - self.sukuna.sd_hits), self.sukuna.max_sd_hits, sd_color_s, 310, 6, sd_label_s)
 
             # --- SUKUNA HUD LOGIC ---
-            # THE FIX: Ensure Sukuna's HUD strictly obeys the 3-use rule!
-            sukuna_is_burned_out = self.sukuna.technique_burnout > 0 and self.sukuna.domain_uses >= 3
+            # THE FIX: Ensure Sukuna's HUD strictly obeys the 5-use rule!
+            sukuna_is_burned_out = self.sukuna.technique_burnout > 0 and self.sukuna.domain_uses >= 5
             
             # Domain Amp can be used even during burnout in lore, so we leave it alone!
             da_cd = f"DOMAIN AMP: {'ACT' if (self.sukuna.amp_duration>0) else 'RDY' if self.sukuna.amp_cd == 0 else str(self.sukuna.amp_cd//60)+'s'}"
