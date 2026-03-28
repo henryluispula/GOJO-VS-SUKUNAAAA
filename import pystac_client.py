@@ -2814,8 +2814,16 @@ class Game:
                                 self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 100, "timer": 45, "text": "SD CRUMBLED!", "color": RED})
                                 self.shake_timer = 15
                                 
+                    # --- FIXED: MASSIVE HITBOX SCALING ---
+                    # Instead of checking just the 1x1 center pixel, we calculate a dynamic collision radius mapped perfectly to the size multiplier!
+                    hit_radius = 50 * p.size_mult if p.type in ["dismantle", "cleave", "world_slash"] else 20
+                    dist_to_gojo_center = pygame.Vector2(self.gojo.rect.center).distance_to(p.pos)
+                    
+                    # Collides if the center hits, OR if the radius overlaps Gojo's collision box (35 is half Gojo's width)
+                    is_colliding = self.gojo.rect.collidepoint(p.pos) or dist_to_gojo_center < (hit_radius + 35)
+
                     # Only apply physical body damage if SD didn't intercept it
-                    if not intercepted_by_sd and self.gojo.rect.collidepoint(p.pos) and p.type in ["normal", "dismantle", "cleave", "world_slash"] and not getattr(p, "is_grab_cleave", False):
+                    if not intercepted_by_sd and is_colliding and p.type in ["normal", "dismantle", "cleave", "world_slash"] and not getattr(p, "is_grab_cleave", False):
                         if not self.gojo.is_dodging:
                             
                             # 1. World Cutting Slash (Always damages HP!)
