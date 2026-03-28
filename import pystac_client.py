@@ -1147,11 +1147,11 @@ class Game:
                                 self.gojo.energy -= imbue_cost
                                 dmg *= 1.6 # CE Imbue Damage Boost!
                             
-                            # Black Flash Trigger Logic (Base: 0.5-1%, Zone: 5-10%)
+                            # Black Flash Trigger Logic (Base: 0.05-0.1%, Zone: 5-10%)
                             if self.gojo.potential_timer > 0:
-                                bf_chance = random.uniform(0.05, 0.10) # 5% to 10%
+                                bf_chance = random.uniform(0.05, 0.10) # 5% to 10% (The Zone)
                             else:
-                                bf_chance = random.uniform(0.005, 0.01) # 0.5% to 1%
+                                bf_chance = random.uniform(0.0005, 0.001) # SIGNIFICANTLY LOWERED: 0.05% to 0.1%
                                 
                             if random.random() < bf_chance:
                                 dmg *= math.pow(2.5, 2.5) 
@@ -1778,11 +1778,11 @@ class Game:
                                 self.sukuna.energy -= imbue_cost
                                 melee_dmg *= 1.6 # CE Imbue Damage Boost!
                             
-                            # Black Flash Trigger Logic (Base: 0.5-1%, Zone: 5-10%)
+                            # Black Flash Trigger Logic (Base: 0.05-0.1%, Zone: 5-10%)
                             if self.sukuna.potential_timer > 0:
-                                bf_chance = random.uniform(0.05, 0.10) # 5% to 10%
+                                bf_chance = random.uniform(0.05, 0.10) # 5% to 10% (The Zone)
                             else:
-                                bf_chance = random.uniform(0.005, 0.01) # 0.5% to 1%
+                                bf_chance = random.uniform(0.0005, 0.001) # SIGNIFICANTLY LOWERED: 0.05% to 0.1%
                                 
                             if random.random() < bf_chance:
                                 melee_dmg *= math.pow(2.5, 2.5) 
@@ -2182,11 +2182,11 @@ class Game:
                                 base_dmg *= 1.6 # CE Imbue Damage Boost!
 
                             # Black Flash Trigger Logic 
-                            # Mahoraga Scale (Base: 0.1%, Zone: 1-2%)
+                            # Mahoraga Scale (Base: 0.01%, Zone: 1-2%)
                             if self.mahoraga.potential_timer > 0:
-                                bf_chance = random.uniform(0.01, 0.02) # 1% to 2%
+                                bf_chance = random.uniform(0.01, 0.02) # 1% to 2% (The Zone)
                             else:
-                                bf_chance = 0.001 # 0.1% flat base
+                                bf_chance = 0.0001 # SIGNIFICANTLY LOWERED: 0.01% flat base
                                 
                             if random.random() < bf_chance:
                                 base_dmg *= math.pow(2.5, 2.5)
