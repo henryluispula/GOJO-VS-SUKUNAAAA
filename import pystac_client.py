@@ -1060,7 +1060,7 @@ class Game:
                 if keys[pygame.K_e] and keys[pygame.K_w] and self.pb_blue_ready and self.gojo.energy >= 60 * self.gojo.cost_mult and self.gojo.blue_cd == 0 and self.gojo.grab_timer <= 0 and self.gojo.technique_burnout == 0 and self.gojo.domain_charge == 0:
                     self.pb_blue_ready = False
                     self.gojo.energy -= 60 * self.gojo.cost_mult
-                    self.gojo.blue_cd = 120 # Shortened to 2 second cooldown
+                    self.gojo.blue_cd = 480 # EQUALIZED: 8 second cooldown
                     
                     # Damage: 15.0 (3x Base Punch)
                     self.sukuna.rect.centerx = self.gojo.rect.centerx + (50 * self.gojo.direction)
@@ -1390,9 +1390,18 @@ class Game:
                         # Strategic Offensive Domain (Gojo is vulnerable)
                         gojo_is_vulnerable = self.gojo.technique_burnout > 0 or self.gojo.domain_cd > 0 or self.gojo.energy < 150 * self.gojo.cost_mult
                         
+                        # --- TACTICAL AI UPGRADE: ANTI-STALL & HOARDING DETECTION ---
+                        # Sukuna calculates if Gojo is purposely withholding his Domain Expansion to trick Sukuna into wasting his 5 uses.
+                        gojo_is_hoarding = gojo_domains_left > sukuna_domains_left
+                        
                         # SMART AI: Only launch an offensive DE if Sukuna has a domain advantage, power advantage, or Gojo is highly vulnerable.
                         if gojo_is_vulnerable:
+                            # If Gojo is genuinely vulnerable, strike without hesitation!
                             should_cast_domain = True
+                        elif gojo_is_hoarding:
+                            # SUKUNA IS SMART: He detects the stalling tactic.
+                            # He refuses to cast an offensive domain to be baited. He will save his DE to answer Gojo, relying on DA or Fuga instead!
+                            should_cast_domain = False
                         elif domain_advantage and power_advantage and (self.sukuna.hp > self.sukuna.max_hp * 0.5):
                             # Confident in his stats, force Gojo into a clash to burn Gojo's uses!
                             if random.random() < 0.01: # Small chance so he doesn't spam it instantly
@@ -1641,9 +1650,12 @@ class Game:
                         # --- MODIFIED: Attempt Domain Expansion as a defensive counter-measure while retreating! ---
                         # Only do this if he has a safe amount of CE, since his goal might be to regen CE! (Skip if in pure tactical evaluation)
                         if not needs_energy and not is_tactical_eval and self.sukuna.energy >= 200 * self.sukuna.cost_mult and self.sukuna.domain_cd == 0 and self.sukuna.technique_burnout == 0 and self.sukuna.domain_charge == 0 and not self.sukuna.domain_active and self.sukuna.attack_cooldown <= 0:
-                            self.sukuna.domain_charge = 60
-                            de_cost = 200 * self.sukuna.cost_mult
-                            self.sukuna.energy -= de_cost
+                            # --- TACTICAL AI UPGRADE: ANTI-STALL CHECK ---
+                            # If Gojo is hoarding domains, Sukuna won't be baited into a panic domain cast just because he's retreating!
+                            if (5 - self.gojo.domain_uses) <= (5 - self.sukuna.domain_uses):
+                                self.sukuna.domain_charge = 60
+                                de_cost = 200 * self.sukuna.cost_mult
+                                self.sukuna.energy -= de_cost
 
                         # --- EVASIVE SHADOW STEPPING ---
                         speed = 18 if not is_tactical_eval else 24 
