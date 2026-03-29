@@ -1337,9 +1337,23 @@ class Game:
                     
                     should_cast_domain = False
                     
+                    # AI UPGRADE: Calculate overall combat readiness to see if clashing is favorable
+                    sukuna_est_power = self.sukuna.hp + self.sukuna.energy
+                    gojo_est_power = self.gojo.hp + self.gojo.energy
+                    power_advantage = sukuna_est_power >= gojo_est_power
+                    
+                    # AI UPGRADE: Factor in Domain uses remaining (Max 5 uses)
+                    sukuna_domains_left = 5 - self.sukuna.domain_uses
+                    gojo_domains_left = 5 - self.gojo.domain_uses
+                    domain_advantage = sukuna_domains_left >= gojo_domains_left
+                    
                     if self.gojo.domain_active:
-                        # If Gojo's domain is already up, pop ours to clash immediately!
-                        should_cast_domain = True
+                        # Gojo's domain is already up! 
+                        # SMART AI: If Sukuna is weak and out of uses, try stalling with Simple Domain if HP permits!
+                        if not power_advantage and self.sukuna.sd_broken_timer <= 0 and self.sukuna.energy > 50:
+                            should_cast_domain = False # Stall with Simple Domain to avoid a clash he calculates he'll lose!
+                        else:
+                            should_cast_domain = True # Pop ours to clash immediately!
                         
                     elif self.gojo.domain_charge > 0:
                         # Gojo is charging his domain! Calculate the best tactical response.
@@ -1354,9 +1368,6 @@ class Game:
                             can_interrupt = True # Close enough to instantly DA punch him
                             
                         # 2. Survivability Calculation (If we fail to interrupt)
-                        # Gojo's Domain lasts 400 frames. 
-                        # Sukuna's Simple Domain protects for his max_sd_hits (300 frames), leaving 100 frames of pure brain damage.
-                        # 100 frames * 1.5 HP damage/frame = 150 expected HP loss minimum!
                         can_survive_uv = True
                         frames_unprotected = max(0, 400 - self.sukuna.max_sd_hits) if self.sukuna.sd_broken_timer <= 0 else 400
                         expected_uv_damage = frames_unprotected * 1.5
@@ -1366,7 +1377,11 @@ class Game:
                             
                         # 3. Final Decision Logic
                         if not can_interrupt:
-                            should_cast_domain = True # Cannot interrupt, MUST clash!
+                            # If we can't interrupt, we MUST clash UNLESS we have a massive disadvantage and prefer stalling with SD
+                            if not power_advantage and can_survive_uv and self.sukuna.sd_broken_timer <= 0:
+                                should_cast_domain = False
+                            else:
+                                should_cast_domain = True 
                         elif can_interrupt and not can_survive_uv:
                             # Even if he thinks he can interrupt, if a single mistake means death, play it safe and clash!
                             should_cast_domain = True
@@ -1374,8 +1389,16 @@ class Game:
                     else:
                         # Strategic Offensive Domain (Gojo is vulnerable)
                         gojo_is_vulnerable = self.gojo.technique_burnout > 0 or self.gojo.domain_cd > 0 or self.gojo.energy < 150 * self.gojo.cost_mult
-                        if gojo_is_vulnerable or (self.sukuna.hp < (self.sukuna.max_hp * 0.3) and random.random() < 0.005):
+                        
+                        # SMART AI: Only launch an offensive DE if Sukuna has a domain advantage, power advantage, or Gojo is highly vulnerable.
+                        if gojo_is_vulnerable:
                             should_cast_domain = True
+                        elif domain_advantage and power_advantage and (self.sukuna.hp > self.sukuna.max_hp * 0.5):
+                            # Confident in his stats, force Gojo into a clash to burn Gojo's uses!
+                            if random.random() < 0.01: # Small chance so he doesn't spam it instantly
+                                should_cast_domain = True
+                        elif (self.sukuna.hp < (self.sukuna.max_hp * 0.3) and random.random() < 0.005):
+                            should_cast_domain = True # Desperation
 
                     if should_cast_domain:
                         self.sukuna.domain_charge = 60
@@ -2505,13 +2528,20 @@ class Game:
                                     # If Purple is ready, paralyzing himself to tank UV is guaranteed death!
                                     gojo_purple_ready = (self.gojo.tech_hits >= self.gojo.max_tech_hits) and (self.gojo.purple_cd == 0) and (self.gojo.energy >= 195 * self.gojo.cost_mult)
                                     
+                                    # AI UPGRADE: Check if it's worth taking the brain damage based on domain uses left.
+                                    # If Gojo has exhausted his 4 domains, there is less immediate pressure to adapt to UV.
+                                    gojo_domains_exhausted = self.gojo.domain_uses >= 4
+                                    
                                     # He will ONLY attempt the gambit if Gojo cannot currently fire Purple!
                                     if not gojo_purple_ready:
                                         # LORE FIX: Increased by 50%! He now needs 1500 points to fully adapt. 
                                         # NEW TACTIC: He tanks it in chunks! As long as his HP is safely above 45%, he drops the shield!
                                         points_needed = 1500.0 - enemy.adaptation_points["void"]
                                         if points_needed > 0:
-                                            if enemy.hp > (enemy.max_hp * 0.45): 
+                                            # SMART TANKING: If Gojo has no domains left, don't sacrifice HP as willingly.
+                                            min_hp_threshold = 0.65 if gojo_domains_exhausted else 0.45 
+                                            
+                                            if enemy.hp > (enemy.max_hp * min_hp_threshold): 
                                                 enemy.simple_domain_active = False
                                                 enemy.sd_was_active = False
                                                 self.popups.append({"x": enemy.rect.centerx, "y": enemy.rect.centery - 100, "timer": 45, "text": "GAMBIT: TANKING UV!", "color": MAHO_COLOR})
