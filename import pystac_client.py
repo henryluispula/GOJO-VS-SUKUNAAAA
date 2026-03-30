@@ -802,9 +802,15 @@ class Fighter:
         
         # Torso and Wounds
         if self.name == "Mahoraga": 
-            # Pulled the X coordinates inwards to make the torso significantly narrower
-            # CHANGED: Y offset from 20*scale to 10*scale so the torso connects to the head
-            body_rect = [(x + 25, y + int(10*scale)), (x + w - 25, y + int(10*scale)), (x + w - 15, y + int(100*scale)), (x + 15, y + int(100*scale))]
+            # --- FIX: V-SHAPED TORSO & HEAD CONNECTION ---
+            # Top points are wide (shoulders), bottom points are pulled in tight (waist)
+            # Y offset set to 0 so the torso connects perfectly to the center of the head circle
+            body_rect = [
+                (x - int(10*scale), y),                # Top Left (Wide)
+                (x + w + int(10*scale), y),            # Top Right (Wide)
+                (x + w - int(45*scale), y + int(100*scale)), # Bottom Right (Thin)
+                (x + int(45*scale), y + int(100*scale))      # Bottom Left (Thin)
+            ]
         else:
             body_rect = [(x+5, y+20), (x+65, y+20), (x+55, y+95), (x+15, y+95)]
         pygame.draw.polygon(surface, self.color, body_rect)
@@ -847,40 +853,33 @@ class Fighter:
             else: # Right arm punches
                 r_hand = (x + w - int(5*scale) + arm_ext * self.direction, y + int(65*scale) - (arm_ext * 0.2))
         
+        # Draw Normal Arms first for everyone
+        pygame.draw.line(surface, SKIN, l_shoulder, l_hand, int(thickness - 2))
+        pygame.draw.line(surface, SKIN, r_shoulder, r_hand, int(thickness - 2))
+        
+        # --- FIX: WRIST-MOUNTED SWORD OF EXTERMINATION ---
         if self.name == "Mahoraga":
-            # Left arm (normal)
-            pygame.draw.line(surface, SKIN, l_shoulder, l_hand, int(thickness - 2))
-            
-            # Right arm (Sword of Extermination)
-            # The arm itself is the blade! We draw it as a tapering polygon from the shoulder.
             blade_color = (180, 180, 195)
             blade_edge = WHITE
             
-            # Base of the arm/blade at the shoulder
-            bx1, by1 = r_shoulder[0] - int(15*scale), r_shoulder[1]
-            bx2, by2 = r_shoulder[0] + int(15*scale), r_shoulder[1]
+            # Attach blade to the right wrist/hand area
+            wrist_x, wrist_y = r_hand
             
-            # Tip of the blade (replaces the hand)
-            tip_x, tip_y = r_hand[0], r_hand[1] + int(40*scale)
-            
-            # Construct the heavy arm-blade
-            arm_blade_poly = [
-                (bx1, by1),
-                (bx2, by2),
-                (tip_x + int(10*scale), tip_y - int(20*scale)), # Outer edge bulge
-                (tip_x, tip_y), # Point
-                (tip_x - int(10*scale), tip_y - int(20*scale))  # Inner edge bulge
+            # The blade extends outward and downward from the wrist
+            blade_poly = [
+                (wrist_x - int(12*scale), wrist_y - int(10*scale)), # Top Left strap point
+                (wrist_x + int(12*scale), wrist_y - int(10*scale)), # Top Right strap point
+                (wrist_x + int(25*scale), wrist_y + int(60*scale)), # Outer bulge
+                (wrist_x, wrist_y + int(100*scale)),                # Sharp tip
+                (wrist_x - int(15*scale), wrist_y + int(60*scale))  # Inner bulge
             ]
             
-            pygame.draw.polygon(surface, blade_color, arm_blade_poly)
-            pygame.draw.polygon(surface, blade_edge, arm_blade_poly, max(1, int(2*scale)))
+            pygame.draw.polygon(surface, blade_color, blade_poly)
+            pygame.draw.polygon(surface, blade_edge, blade_poly, max(1, int(2*scale)))
             
-            # Draw an arm band/brace where the flesh meets the steel
-            pygame.draw.rect(surface, (50, 50, 50), (r_shoulder[0] - int(16*scale), r_shoulder[1] + int(20*scale), int(32*scale), int(10*scale)))
-
-        else:
-            pygame.draw.line(surface, SKIN, l_shoulder, l_hand, int(thickness - 2))
-            pygame.draw.line(surface, SKIN, r_shoulder, r_hand, int(thickness - 2))
+            # Draw the thick dark straps binding it to his arm
+            pygame.draw.line(surface, (30, 30, 30), (wrist_x - int(15*scale), wrist_y - int(5*scale)), (wrist_x + int(15*scale), wrist_y - int(5*scale)), int(8*scale))
+            pygame.draw.line(surface, (30, 30, 30), (wrist_x - int(15*scale), wrist_y + int(10*scale)), (wrist_x + int(15*scale), wrist_y + int(10*scale)), int(8*scale))
         
         # Head (MAINTAINING SIZE)
         pygame.draw.circle(surface, SKIN, (mid_x, y), 30 if self.name == "Mahoraga" else 26)
@@ -907,9 +906,10 @@ class Fighter:
             if len(tail_points) > 1:
                 # Draw segment by segment to create a tapering effect
                 for i in range(len(tail_points) - 1):
-                    # Thicker tail starting at 40 thickness, sharply tapering by 5.5 per segment
-                    t_thick = max(2, int(40 - (i * 5.5)))
-                    inner_thick = max(1, t_thick - 10)
+                    # --- FIX: THICKER TAIL ---
+                    # Starts at a massive 60 thickness, drops sharply by 8 per segment
+                    t_thick = max(4, int(60 - (i * 8.0)))
+                    inner_thick = max(1, t_thick - 12)
                     pygame.draw.line(surface, WHITE, tail_points[i], tail_points[i+1], t_thick)
                     pygame.draw.line(surface, (200, 200, 200), tail_points[i], tail_points[i+1], inner_thick)
 
