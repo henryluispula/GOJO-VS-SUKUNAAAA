@@ -453,7 +453,7 @@ class Fighter:
             if self.is_paralyzed:
                 heal_cost *= 4.0 
                 self.domain_cd = 600 
-                self.mahoraga_lockout = 1800 
+                self.mahoraga_lockout = 900 
                 
                 if random.random() < 0.1:
                     self.black_flash_timer = 2 
@@ -2074,11 +2074,11 @@ class Game:
                                 vy = random.uniform(-15, -2)
                                 size = random.randint(20, 50)
                                 c_shade = random.randint(180, 240)
-                                self.hit_sparks.append([dx, dy, vx, vy, size, (c_shade, c_shade, c_shade)])
-                        
-                    if self.sukuna.is_paralyzed and self.sukuna.rct_timer > 0 and getattr(self.sukuna, "mahoraga_lockout", 0) > 1798:
+                                self.hit_sparks.append([dx, dy, vx, vy, size, (c_shade, c_shade, c_shade)])                        
+
+                    if self.sukuna.is_paralyzed and self.sukuna.rct_timer > 0 and getattr(self.sukuna, "mahoraga_lockout", 0) > 898:
                         if pygame.time.get_ticks() - getattr(self, "last_uv_vow", 0) > 5000:
-                            self.maho_announcements.append({"text": "SUKUNA VOW: FORCED RCT IN UV! (MS 10s / MAHO 30s LOCKED)", "timer": 150})
+                            self.maho_announcements.append({"text": "SUKUNA VOW: FORCED RCT IN UV! (MS 10s / MAHO 15s LOCKED)", "timer": 150})
                             self.last_uv_vow = pygame.time.get_ticks()
                     
                     for f in active_fighters:
