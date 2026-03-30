@@ -329,9 +329,9 @@ class Fighter:
         self.domain_timer = 0
         self.domain_uses += 1
         
-        # 5 times Domain Expansion 1 sec cooldowns, after 5 they get burnt out and heavy cooldowns apply
+        # 5 times Domain Expansion 5 sec cooldowns, after 5 they get burnt out and heavy cooldowns apply
         if self.domain_uses <= 5:
-            self.domain_cd = 60 # 1 second cooldown (60 frames)
+            self.domain_cd = 300 # 5 second cooldown (300 frames)
             self.technique_burnout = 0
         else:
             self.domain_cd = 3000
