@@ -1237,7 +1237,7 @@ class Game:
                                     if self.sukuna.amp_duration <= 0:
                                         target.trigger_adaptation("punch", 15.0)
                                         turns = target.adaptation_points["punch"] / 250.0
-                                        target.adaptation["punch"] = max(0, 1.0 - min(1.0, turns))
+                                        target.adaptation["punch"] = max(0, 1.0 - min(1.0, turns / 5.0))
                         self.gojo.attack_cooldown = 12
 
                     if keys[pygame.K_q] and self.gojo.energy > 5 * self.gojo.cost_mult:
@@ -1314,7 +1314,7 @@ class Game:
                         self.shake_timer = 30
 
                 dist = abs(self.sukuna.rect.centerx - self.gojo.rect.centerx)
-                fuga_priority = (self.sukuna.tech_hits >= self.sukuna.max_tech_hits and self.sukuna.fuga_cd == 0 and self.sukuna.energy >= 195 * self.sukuna.cost_mult and not self.gojo.domain_active) or self.sukuna.fuga_charge > 0
+                fuga_priority = (self.sukuna.tech_hits >= self.sukuna.max_tech_hits and self.sukuna.fuga_cd == 0 and self.sukuna.energy >= 195 * self.sukuna.cost_mult and not self.gojo.domain_active and (self.gojo.domain_cd > 600 or self.gojo.energy < 190 * self.gojo.cost_mult)) or self.sukuna.fuga_charge > 0
                 gojo_has_inf = self.gojo.infinity > 0 and self.gojo.technique_burnout == 0
                 
                 if self.sukuna.energy >= 200 * self.sukuna.cost_mult and self.sukuna.domain_cd == 0 and self.sukuna.technique_burnout == 0 and self.sukuna.domain_charge == 0 and not self.sukuna.domain_active and not self.sukuna.is_paralyzed and self.gojo.grab_timer <= 0 and self.sukuna.attack_cooldown <= 0:
@@ -1631,7 +1631,7 @@ class Game:
                             elif self.sukuna.on_ground and random.random() < 0.02:
                                 self.sukuna.jump()
 
-                    if self.sukuna.energy >= 195 * self.sukuna.cost_mult and self.sukuna.fuga_cd == 0 and self.sukuna.fuga_charge == 0 and self.sukuna.technique_burnout == 0 and not self.gojo.domain_active:
+                    if self.sukuna.energy >= 195 * self.sukuna.cost_mult and self.sukuna.fuga_cd == 0 and self.sukuna.fuga_charge == 0 and self.sukuna.technique_burnout == 0 and not self.gojo.domain_active and (self.gojo.domain_cd > 600 or self.gojo.energy < 190 * self.gojo.cost_mult):
                         if self.sukuna.tech_hits >= self.sukuna.max_tech_hits:
                             vow_hp_cost = self.sukuna.max_hp * 0.50
                             can_survive_vow = self.sukuna.hp > (vow_hp_cost + 20)
@@ -2215,7 +2215,7 @@ class Game:
                             if self.sukuna.amp_duration <= 0:
                                 self.mahoraga.trigger_adaptation("infinity", 1.5)
                                 turns = self.mahoraga.adaptation_points["infinity"] / 250.0
-                                self.mahoraga.adaptation["infinity"] = min(1.0, turns / 5.0)
+                                self.mahoraga.adaptation["infinity"] = min(1.0, turns / 9.0)
 
                         if self.gojo.rect.colliderect(self.mahoraga.rect) and self.mahoraga.attack_cooldown == 0:
                             self.mahoraga.punch_timer = 20 
@@ -2385,13 +2385,13 @@ class Game:
                                         enemy.adapting_to = "void"
                                         enemy.adaptation_points["void"] += 2.0
                                         turns = enemy.adaptation_points["void"] / 250.0
-                                        enemy.adaptation["void"] = max(0, 1.0 - min(1.0, turns / 6.0)) 
+                                        enemy.adaptation["void"] = max(0, 1.0 - min(1.0, turns / 10.0)) 
 
                                 if enemy.name == "Mahoraga" and self.sukuna.amp_duration <= 0:
                                     enemy.adapting_to = "void"
                                     enemy.adaptation_points["void"] += 2.0
                                     turns = enemy.adaptation_points["void"] / 250.0
-                                    enemy.adaptation["void"] = max(0, 1.0 - min(1.0, turns / 6.0)) 
+                                    enemy.adaptation["void"] = max(0, 1.0 - min(1.0, turns / 10.0)) 
                 else:
                     self.sukuna.is_paralyzed = False
                     if self.mahoraga: self.mahoraga.is_paralyzed = False
@@ -2433,7 +2433,7 @@ class Game:
                             if p_target.name == "Mahoraga" and self.sukuna.amp_duration <= 0:
                                 p_target.trigger_adaptation("blue", 1.0)
                                 turns = p_target.adaptation_points["blue"] / 250.0
-                                p_target.adaptation["blue"] = max(0, 1.0 - min(1.0, turns / 4.0))
+                                p_target.adaptation["blue"] = max(0, 1.0 - min(1.0, turns / 8.0))
 
                             if not p_target.is_dodging:
                                 if p_target.name == "Mahoraga" and p_target.adaptation["blue"] <= 0:
@@ -2448,7 +2448,7 @@ class Game:
                                 if p_target.name == "Mahoraga" and self.sukuna.amp_duration <= 0:
                                     p_target.trigger_adaptation("blue", 2.0)
                                     turns = p_target.adaptation_points["blue"] / 250.0
-                                    p_target.adaptation["blue"] = max(0, 1.0 - min(1.0, turns / 4.0))
+                                    p_target.adaptation["blue"] = max(0, 1.0 - min(1.0, turns / 8.0))
                                     
                                 orb_dmg = 1 * (p_target.adaptation["blue"] if p_target.name == "Mahoraga" else 1.0)
                                 
@@ -2488,7 +2488,7 @@ class Game:
                             if p_target.name == "Mahoraga" and self.sukuna.amp_duration <= 0:
                                 p_target.trigger_adaptation("red", 1.0)
                                 turns = p_target.adaptation_points["red"] / 250.0
-                                p_target.adaptation["red"] = max(0, 1.0 - min(1.0, turns / 4.0))
+                                p_target.adaptation["red"] = max(0, 1.0 - min(1.0, turns / 8.0))
 
                             if not p_target.is_dodging:
                                 if p_target.name == "Mahoraga" and p_target.adaptation["red"] <= 0:
@@ -2503,7 +2503,7 @@ class Game:
                                 if p_target.name == "Mahoraga" and self.sukuna.amp_duration <= 0:
                                     p_target.trigger_adaptation("red", 2.0)
                                     turns = p_target.adaptation_points["red"] / 250.0
-                                    p_target.adaptation["red"] = max(0, 1.0 - min(1.0, turns / 4.0))
+                                    p_target.adaptation["red"] = max(0, 1.0 - min(1.0, turns / 8.0))
 
                                 orb_dmg = 1.5 * (p_target.adaptation["red"] if p_target.name == "Mahoraga" else 1.0)
                                 
@@ -2544,7 +2544,7 @@ class Game:
                             if p_target.name == "Mahoraga" and self.sukuna.amp_duration <= 0:
                                 p_target.trigger_adaptation("purple", 400.0)
                                 turns = p_target.adaptation_points["purple"] / 250.0
-                                p_target.adaptation["purple"] = max(0, 1.0 - min(1.0, turns / 5.0))
+                                p_target.adaptation["purple"] = max(0, 1.0 - min(1.0, turns / 9.0))
 
                             if dist_x < 80: 
                                 dmg_perc = 1.0
