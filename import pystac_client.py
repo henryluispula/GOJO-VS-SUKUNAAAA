@@ -1314,7 +1314,7 @@ class Game:
                         self.shake_timer = 30
 
                 dist = abs(self.sukuna.rect.centerx - self.gojo.rect.centerx)
-                fuga_priority = (self.sukuna.tech_hits >= self.sukuna.max_tech_hits and self.sukuna.fuga_cd == 0 and self.sukuna.energy >= 195 * self.sukuna.cost_mult and not self.gojo.domain_active and (self.gojo.domain_cd > 600 or self.gojo.energy < 190 * self.gojo.cost_mult)) or self.sukuna.fuga_charge > 0
+                fuga_priority = (self.sukuna.tech_hits >= self.sukuna.max_tech_hits and self.sukuna.fuga_cd == 0 and self.sukuna.energy >= 195 * self.sukuna.cost_mult and not self.gojo.domain_active and self.gojo.domain_cd > 600) or self.sukuna.fuga_charge > 0
                 gojo_has_inf = self.gojo.infinity > 0 and self.gojo.technique_burnout == 0
                 
                 if self.sukuna.energy >= 200 * self.sukuna.cost_mult and self.sukuna.domain_cd == 0 and self.sukuna.technique_burnout == 0 and self.sukuna.domain_charge == 0 and not self.sukuna.domain_active and not self.sukuna.is_paralyzed and self.gojo.grab_timer <= 0 and self.sukuna.attack_cooldown <= 0:
@@ -1537,7 +1537,7 @@ class Game:
                                 self.sukuna.domain_charge = 60
                                 self.sukuna.energy -= 200 * self.sukuna.cost_mult
                             
-                            elif self.sukuna.tech_hits >= self.sukuna.max_tech_hits and self.sukuna.fuga_cd == 0 and self.sukuna.energy >= 195 * self.sukuna.cost_mult and self.sukuna.technique_burnout == 0:
+                            elif self.sukuna.tech_hits >= self.sukuna.max_tech_hits and self.sukuna.fuga_cd == 0 and self.sukuna.energy >= 195 * self.sukuna.cost_mult and self.sukuna.technique_burnout == 0 and not self.gojo.domain_active and not self.sukuna.is_paralyzed:
                                 vow_hp_cost = self.sukuna.max_hp * 0.50
                                 if self.sukuna.hp > (vow_hp_cost + 40): 
                                     self.sukuna.fuga_charge = 120
@@ -1631,7 +1631,7 @@ class Game:
                             elif self.sukuna.on_ground and random.random() < 0.02:
                                 self.sukuna.jump()
 
-                    if self.sukuna.energy >= 195 * self.sukuna.cost_mult and self.sukuna.fuga_cd == 0 and self.sukuna.fuga_charge == 0 and self.sukuna.technique_burnout == 0 and not self.gojo.domain_active and (self.gojo.domain_cd > 600 or self.gojo.energy < 190 * self.gojo.cost_mult):
+                    if self.sukuna.energy >= 195 * self.sukuna.cost_mult and self.sukuna.fuga_cd == 0 and self.sukuna.fuga_charge == 0 and self.sukuna.technique_burnout == 0 and not self.gojo.domain_active and self.gojo.domain_cd > 600:
                         if self.sukuna.tech_hits >= self.sukuna.max_tech_hits:
                             vow_hp_cost = self.sukuna.max_hp * 0.50
                             can_survive_vow = self.sukuna.hp > (vow_hp_cost + 20)
@@ -1659,24 +1659,27 @@ class Game:
                             self.shake_timer = 40 
 
                     if self.sukuna.fuga_charge > 0:
-                        self.sukuna.fuga_charge -= 1
-                        if self.sukuna.fuga_charge == 1:
-                            self.projectiles.append(Projectile(self.sukuna.rect.centerx, self.sukuna.rect.centery, self.gojo.rect.centerx, self.gojo.rect.centery, 28, (255, 100, 0), size_mult=5.8, type="fuga_arrow"))
-                            
-                            fuga_cost = 195 * self.sukuna.cost_mult
-                            self.sukuna.energy = max(0, self.sukuna.energy - fuga_cost)
-                            
-                            vow_hp_cost = self.sukuna.max_hp * 0.50
-                            self.sukuna.hp -= vow_hp_cost
-                            self.shake_timer = 35 
-                            for _ in range(30): 
-                                bx, by = self.sukuna.rect.center
-                                self.blood_particles.append([bx, by, random.uniform(-8, 8), random.uniform(-10, 0), 50, random.randint(4, 7)])
-                            
-                            self.maho_announcements.append({"text": "SUKUNA VOW: 50% HP OFFERED FOR FUGA!", "timer": 120})
-                            
-                            self.sukuna.fuga_cd = 720
-                            self.sukuna.tech_hits = 0
+                        if self.sukuna.is_paralyzed or self.gojo.domain_active:
+                            self.sukuna.fuga_charge = 0 
+                        else:
+                            self.sukuna.fuga_charge -= 1
+                            if self.sukuna.fuga_charge == 1:
+                                self.projectiles.append(Projectile(self.sukuna.rect.centerx, self.sukuna.rect.centery, self.gojo.rect.centerx, self.gojo.rect.centery, 28, (255, 100, 0), size_mult=5.8, type="fuga_arrow"))
+                                
+                                fuga_cost = 195 * self.sukuna.cost_mult
+                                self.sukuna.energy = max(0, self.sukuna.energy - fuga_cost)
+                                
+                                vow_hp_cost = self.sukuna.max_hp * 0.50
+                                self.sukuna.hp -= vow_hp_cost
+                                self.shake_timer = 35 
+                                for _ in range(30): 
+                                    bx, by = self.sukuna.rect.center
+                                    self.blood_particles.append([bx, by, random.uniform(-8, 8), random.uniform(-10, 0), 50, random.randint(4, 7)])
+                                
+                                self.maho_announcements.append({"text": "SUKUNA VOW: 50% HP OFFERED FOR FUGA!", "timer": 120})
+                                
+                                self.sukuna.fuga_cd = 720
+                                self.sukuna.tech_hits = 0
 
                     if self.sukuna.technique_burnout == 0 and not fuga_priority and self.gojo.grab_timer <= 0:
                         
