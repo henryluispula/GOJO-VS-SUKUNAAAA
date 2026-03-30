@@ -470,7 +470,7 @@ class Fighter:
             # If paralyzed (caught inside UV), he forces his brain to use RCT to survive!
             if self.is_paralyzed:
                 heal_cost *= 4.0 # Massive CE tax for forcing RCT through a fried brain
-                self.domain_cd = 1800 # 30 seconds penalty to Domain Expansion
+                self.domain_cd = 600 # 10 seconds penalty to Domain Expansion
                 self.mahoraga_lockout = 1800 # 30 seconds penalty to Mahoraga Summoning
                 
                 # Dark visual flare to show he's tanking it through pure willpower
