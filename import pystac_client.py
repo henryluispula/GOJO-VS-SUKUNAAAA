@@ -2291,7 +2291,7 @@ class Game:
                     # --- NEW: ANNOUNCE THE UV SURVIVAL VOW ---
                     if self.sukuna.is_paralyzed and self.sukuna.rct_timer > 0 and getattr(self.sukuna, "mahoraga_lockout", 0) > 1798:
                         if pygame.time.get_ticks() - getattr(self, "last_uv_vow", 0) > 5000:
-                            self.maho_announcements.append({"text": "SUKUNA VOW: FORCED RCT IN UV! (MS/MAHO LOCKED 30s)", "timer": 150})
+                            self.maho_announcements.append({"text": "SUKUNA VOW: FORCED RCT IN UV! (MS 10s / MAHO 30s LOCKED)", "timer": 150})
                             self.last_uv_vow = pygame.time.get_ticks()
                     
                     # Log normal regen from update_physics
