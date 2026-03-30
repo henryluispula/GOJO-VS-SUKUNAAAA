@@ -802,8 +802,9 @@ class Fighter:
             else: 
                 r_hand = (x + w - int(5*scale) + arm_ext * self.direction, y + int(65*scale) - (arm_ext * 0.2))
         
-        pygame.draw.line(surface, SKIN, l_shoulder, l_hand, int(thickness - 2))
-        pygame.draw.line(surface, SKIN, r_shoulder, r_hand, int(thickness - 2))
+        arm_color = WHITE if self.name == "Mahoraga" else SKIN
+        pygame.draw.line(surface, arm_color, l_shoulder, l_hand, int(thickness - 2))
+        pygame.draw.line(surface, arm_color, r_shoulder, r_hand, int(thickness - 2))
         
         if self.name == "Mahoraga":
             blade_color = (180, 180, 195)
@@ -822,21 +823,23 @@ class Fighter:
                 ny = px * math.sin(rot) + py * math.cos(rot)
                 return (int(wrist_x + nx), int(wrist_y + ny))
 
+            # Scaled down blade size
             blade_poly = [
-                rot_pt(-8 * scale, -6 * scale),
-                rot_pt(8 * scale, -6 * scale),
-                rot_pt(15 * scale, 40 * scale),
-                rot_pt(0, 65 * scale),
-                rot_pt(-10 * scale, 40 * scale)
+                rot_pt(-5 * scale, -4 * scale),
+                rot_pt(5 * scale, -4 * scale),
+                rot_pt(10 * scale, 25 * scale),
+                rot_pt(0, 42 * scale),
+                rot_pt(-7 * scale, 25 * scale)
             ]
             
             pygame.draw.polygon(surface, blade_color, blade_poly)
             pygame.draw.polygon(surface, blade_edge, blade_poly, max(1, int(1*scale)))
             
-            pygame.draw.line(surface, (30, 30, 30), rot_pt(-10 * scale, -3 * scale), rot_pt(10 * scale, -3 * scale), int(5*scale))
-            pygame.draw.line(surface, (30, 30, 30), rot_pt(-10 * scale, 6 * scale), rot_pt(10 * scale, 6 * scale), int(5*scale))
+            pygame.draw.line(surface, (30, 30, 30), rot_pt(-8 * scale, -2 * scale), rot_pt(8 * scale, -2 * scale), int(4*scale))
+            pygame.draw.line(surface, (30, 30, 30), rot_pt(-8 * scale, 5 * scale), rot_pt(8 * scale, 5 * scale), int(4*scale))
 
-        pygame.draw.circle(surface, SKIN, (mid_x, y), 30 if self.name == "Mahoraga" else 26)
+        head_color = WHITE if self.name == "Mahoraga" else SKIN
+        pygame.draw.circle(surface, head_color, (mid_x, y), 30 if self.name == "Mahoraga" else 26)
         
         if self.name == "Sukuna":
             pygame.draw.line(surface, BLACK, (mid_x - 10, y + 5), (mid_x - 5, y + 15), 2)
@@ -844,14 +847,19 @@ class Fighter:
             pygame.draw.circle(surface, BLACK, (mid_x, y + 18), 3) 
             
         if self.name == "Mahoraga":
-            # Ear wings
-            pygame.draw.polygon(surface, MAHO_COLOR, [(mid_x - int(20*scale), y - int(10*scale)), (mid_x - int(50*scale), y - int(40*scale)), (mid_x - int(20*scale), y + int(5*scale))])
-            pygame.draw.polygon(surface, MAHO_COLOR, [(mid_x + int(20*scale), y - int(10*scale)), (mid_x + int(50*scale), y - int(40*scale)), (mid_x + int(20*scale), y + int(5*scale))])
+            # Eye wings (two on each eye socket)
+            # Left Eye
+            pygame.draw.polygon(surface, MAHO_COLOR, [(mid_x - int(12*scale), y - int(8*scale)), (mid_x - int(28*scale), y - int(24*scale)), (mid_x - int(4*scale), y - int(14*scale))])
+            pygame.draw.polygon(surface, MAHO_COLOR, [(mid_x - int(16*scale), y - int(2*scale)), (mid_x - int(38*scale), y - int(8*scale)), (mid_x - int(10*scale), y + int(4*scale))])
             
-            # Huge grinning mouth matching the image
-            mouth_w = int(24*scale)
-            mouth_h = int(12*scale)
-            mouth_rect = pygame.Rect(mid_x - mouth_w//2, y + int(5*scale), mouth_w, mouth_h)
+            # Right Eye
+            pygame.draw.polygon(surface, MAHO_COLOR, [(mid_x + int(12*scale), y - int(8*scale)), (mid_x + int(28*scale), y - int(24*scale)), (mid_x + int(4*scale), y - int(14*scale))])
+            pygame.draw.polygon(surface, MAHO_COLOR, [(mid_x + int(16*scale), y - int(2*scale)), (mid_x + int(38*scale), y - int(8*scale)), (mid_x + int(10*scale), y + int(4*scale))])
+            
+            # Smaller grinning mouth, properly fitted
+            mouth_w = int(14*scale)
+            mouth_h = int(7*scale)
+            mouth_rect = pygame.Rect(mid_x - mouth_w//2, y + int(8*scale), mouth_w, mouth_h)
             
             # Teeth background (light teal/grey tint)
             pygame.draw.ellipse(surface, (160, 190, 190), mouth_rect)
@@ -859,12 +867,12 @@ class Fighter:
             pygame.draw.ellipse(surface, (30, 35, 40), mouth_rect, max(1, int(1.5*scale)))
             
             # Grin line splitting top and bottom teeth
-            pygame.draw.line(surface, (30, 35, 40), (mid_x - mouth_w//2, y + int(5*scale) + mouth_h//2), (mid_x + mouth_w//2, y + int(5*scale) + mouth_h//2), max(1, int(1*scale)))
+            pygame.draw.line(surface, (30, 35, 40), (mid_x - mouth_w//2, y + int(8*scale) + mouth_h//2), (mid_x + mouth_w//2, y + int(8*scale) + mouth_h//2), max(1, int(1*scale)))
             
             # Vertical teeth lines
             for t_i in range(1, 5):
                 t_x = (mid_x - mouth_w//2) + (t_i * (mouth_w // 5))
-                pygame.draw.line(surface, (30, 35, 40), (t_x, y + int(5*scale)), (t_x, y + int(5*scale) + mouth_h), max(1, int(1*scale)))
+                pygame.draw.line(surface, (30, 35, 40), (t_x, y + int(8*scale)), (t_x, y + int(8*scale) + mouth_h), max(1, int(1*scale)))
 
         if self.rct_timer > 0:
             offsets = [-35, 0, 35] 
@@ -878,11 +886,12 @@ class Fighter:
             
             self.rct_timer -= 1
 
-        h_color = WHITE if self.name == "Gojo" else (20, 20, 25) if self.name == "Sukuna" else (160, 160, 170)
-        num_spikes = 7 if self.name == "Mahoraga" else 5
-        for i in range(num_spikes): 
-            h_x = mid_x - int(25*scale) + i * (10 if self.name != "Mahoraga" else int(8*scale))
-            pygame.draw.polygon(surface, h_color, [(h_x, y-5), (h_x+5, y-int(45*scale) if self.name != "Mahoraga" else y-int(30*scale)), (h_x+10, y-5)])
+        if self.name != "Mahoraga":
+            h_color = WHITE if self.name == "Gojo" else (20, 20, 25)
+            num_spikes = 5
+            for i in range(num_spikes): 
+                h_x = mid_x - int(25*scale) + i * 10
+                pygame.draw.polygon(surface, h_color, [(h_x, y-5), (h_x+5, y-int(45*scale)), (h_x+10, y-5)])
 
     def draw_death(self, surface):
         mx, my = self.rect.centerx, self.rect.centery
