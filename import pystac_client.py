@@ -803,13 +803,11 @@ class Fighter:
         # Torso and Wounds
         if self.name == "Mahoraga": 
             # --- FIX: V-SHAPED TORSO & HEAD CONNECTION ---
-            # Top points are wide (shoulders), bottom points are pulled in tight (waist)
-            # Y offset set to 0 so the torso connects perfectly to the center of the head circle
             body_rect = [
-                (x - int(10*scale), y),                # Top Left (Wide)
-                (x + w + int(10*scale), y),            # Top Right (Wide)
-                (x + w - int(45*scale), y + int(100*scale)), # Bottom Right (Thin)
-                (x + int(45*scale), y + int(100*scale))      # Bottom Left (Thin)
+                (x - int(10*scale), y),                      
+                (x + w + int(10*scale), y),                  
+                (x + w - int(25*scale), y + int(100*scale)), 
+                (x + int(25*scale), y + int(100*scale))      
             ]
         else:
             body_rect = [(x+5, y+20), (x+65, y+20), (x+55, y+95), (x+15, y+95)]
@@ -818,15 +816,15 @@ class Fighter:
         # --- NEW: SAGGY BLACK PANTS ---
         if self.name == "Mahoraga":
             pants_rect = [
-                (x + 10, y + int(90*scale)), # Top left
-                (x + w - 10, y + int(90*scale)), # Top right
-                (x + w + 15, y + int(135*scale)), # Bottom right (baggy)
-                (mid_x, y + int(115*scale)), # Crotch
-                (x - 15, y + int(135*scale))  # Bottom left (baggy)
+                (x + 10, y + int(90*scale)), 
+                (x + w - 10, y + int(90*scale)), 
+                (x + w + 15, y + int(135*scale)), 
+                (mid_x, y + int(115*scale)), 
+                (x - 15, y + int(135*scale))  
             ]
             pygame.draw.polygon(surface, BLACK, pants_rect)
         
-        # Dynamic bloody wounds/splatters mapped directly to character's HP
+        # Dynamic bloody wounds/splatters
         hp_ratio = self.hp / self.max_hp
         if hp_ratio < 0.7:
             pygame.draw.circle(surface, BLOOD, (int(mid_x - 10*scale), int(y + 40*scale)), int(8*scale))
@@ -847,10 +845,9 @@ class Fighter:
             phase = (20 - self.punch_timer) / 20.0
             arm_ext = 60 * scale * math.sin(phase * math.pi)
             
-            # Use punch_count to alternate arms
-            if self.punch_count % 2 == 1: # Left arm punches
+            if self.punch_count % 2 == 1: 
                 l_hand = (x + int(5*scale) - arm_ext * self.direction, y + int(65*scale) - (arm_ext * 0.2))
-            else: # Right arm punches
+            else: 
                 r_hand = (x + w - int(5*scale) + arm_ext * self.direction, y + int(65*scale) - (arm_ext * 0.2))
         
         # Draw Normal Arms first for everyone
@@ -862,25 +859,41 @@ class Fighter:
             blade_color = (180, 180, 195)
             blade_edge = WHITE
             
-            # Attach blade to the right wrist/hand area
-            wrist_x, wrist_y = r_hand
+            # Attach blade to the LEFT wrist/hand area (Fixed arm)
+            wrist_x, wrist_y = l_hand
             
-            # The blade extends outward and downward from the wrist
+            # The blade extends outward and downward from the wrist (Scaled down size)
             blade_poly = [
-                (wrist_x - int(12*scale), wrist_y - int(10*scale)), # Top Left strap point
-                (wrist_x + int(12*scale), wrist_y - int(10*scale)), # Top Right strap point
-                (wrist_x + int(25*scale), wrist_y + int(60*scale)), # Outer bulge
-                (wrist_x, wrist_y + int(100*scale)),                # Sharp tip
-                (wrist_x - int(15*scale), wrist_y + int(60*scale))  # Inner bulge
+                (wrist_x - int(8*scale), wrist_y - int(6*scale)),   
+                (wrist_x + int(8*scale), wrist_y - int(6*scale)),   
+                (wrist_x + int(15*scale), wrist_y + int(40*scale)), 
+                (wrist_x, wrist_y + int(65*scale)),                 
+                (wrist_x - int(10*scale), wrist_y + int(40*scale))  
             ]
             
             pygame.draw.polygon(surface, blade_color, blade_poly)
-            pygame.draw.polygon(surface, blade_edge, blade_poly, max(1, int(2*scale)))
+            pygame.draw.polygon(surface, blade_edge, blade_poly, max(1, int(1*scale)))
             
-            # Draw the thick dark straps binding it to his arm
-            pygame.draw.line(surface, (30, 30, 30), (wrist_x - int(15*scale), wrist_y - int(5*scale)), (wrist_x + int(15*scale), wrist_y - int(5*scale)), int(8*scale))
-            pygame.draw.line(surface, (30, 30, 30), (wrist_x - int(15*scale), wrist_y + int(10*scale)), (wrist_x + int(15*scale), wrist_y + int(10*scale)), int(8*scale))
-        
+            # Draw the thick dark straps binding it to his arm (Scaled down)
+            pygame.draw.line(surface, (30, 30, 30), (wrist_x - int(10*scale), wrist_y - int(3*scale)), (wrist_x + int(10*scale), wrist_y - int(3*scale)), int(5*scale))
+            pygame.draw.line(surface, (30, 30, 30), (wrist_x - int(10*scale), wrist_y + int(6*scale)), (wrist_x + int(10*scale), wrist_y + int(6*scale)), int(5*scale))
+
+        # --- FIX: DRAW TAIL BEFORE HEAD SO IT APPEARS BEHIND THE HEAD ---
+        if self.name == "Mahoraga":
+            tail_points = []
+            tail_x = mid_x + (25 * -self.direction)
+            tail_y = y - 5
+            for i in range(8):
+                px = tail_x + (i * 20 * -self.direction)
+                py = tail_y + (i * 25) + math.sin(t * 8 + i) * 15
+                tail_points.append((int(px), int(py)))
+            if len(tail_points) > 1:
+                for i in range(len(tail_points) - 1):
+                    t_thick = max(4, int(60 - (i * 8.0)))
+                    inner_thick = max(1, t_thick - 12)
+                    pygame.draw.line(surface, WHITE, tail_points[i], tail_points[i+1], t_thick)
+                    pygame.draw.line(surface, (200, 200, 200), tail_points[i], tail_points[i+1], inner_thick)
+
         # Head (MAINTAINING SIZE)
         pygame.draw.circle(surface, SKIN, (mid_x, y), 30 if self.name == "Mahoraga" else 26)
         
@@ -890,35 +903,14 @@ class Fighter:
             pygame.draw.circle(surface, BLACK, (mid_x, y + 18), 3) 
             
         if self.name == "Mahoraga":
-            # Wings/Mask
+            # Wings/Mask (Drawn after head so it sits on top of the head)
             pygame.draw.polygon(surface, MAHO_COLOR, [(mid_x - int(20*scale), y - int(10*scale)), (mid_x - int(50*scale), y - int(40*scale)), (mid_x - int(20*scale), y + int(5*scale))])
             pygame.draw.polygon(surface, MAHO_COLOR, [(mid_x + int(20*scale), y - int(10*scale)), (mid_x + int(50*scale), y - int(40*scale)), (mid_x + int(20*scale), y + int(5*scale))])
-            
-            # --- NEW: MAHORAGA HEAD TAIL ---
-            tail_points = []
-            # Start behind the head, loop downwards
-            tail_x = mid_x + (25 * -self.direction)
-            tail_y = y - 5
-            for i in range(8):
-                px = tail_x + (i * 20 * -self.direction)
-                py = tail_y + (i * 25) + math.sin(t * 8 + i) * 15
-                tail_points.append((int(px), int(py)))
-            if len(tail_points) > 1:
-                # Draw segment by segment to create a tapering effect
-                for i in range(len(tail_points) - 1):
-                    # --- FIX: THICKER TAIL ---
-                    # Starts at a massive 60 thickness, drops sharply by 8 per segment
-                    t_thick = max(4, int(60 - (i * 8.0)))
-                    inner_thick = max(1, t_thick - 12)
-                    pygame.draw.line(surface, WHITE, tail_points[i], tail_points[i+1], t_thick)
-                    pygame.draw.line(surface, (200, 200, 200), tail_points[i], tail_points[i+1], inner_thick)
 
         if self.rct_timer > 0:
-            # Three distinct flowing streams: Left, Center, Right
             offsets = [-35, 0, 35] 
             for j, x_off in enumerate(offsets):
-                for i in range(5): # 4 sparks per stream
-                    # Smooth sine wave + upward modulo flow
+                for i in range(5): 
                     sx = mid_x + x_off + math.sin(t * 5 + i + j) * 15
                     sy = (y + int(160*scale)) - ((t * 80 + i * 40 + j * 20) % int(150*scale))
                     
