@@ -2123,7 +2123,8 @@ class Game:
                             is_da_locked_out = getattr(self.sukuna, "tactical_eval_timer", 0) > 0
                             
                             can_da_counter = has_infinity and self.sukuna.grab_cd <= 0 and self.sukuna.energy >= 15 * self.sukuna.cost_mult and not is_da_locked_out
-                            can_cleave_counter = not has_infinity and self.sukuna.grab_cd <= 0 and self.sukuna.energy >= 30 * self.sukuna.cost_mult and self.sukuna.cleave_cd <= 0
+                            # LORE FIX: Allow Sukuna to counter with Cleave if Infinity is down OR if Domain Amp is inactive/locked out!
+                            can_cleave_counter = (not has_infinity or self.sukuna.amp_duration <= 0) and self.sukuna.grab_cd <= 0 and self.sukuna.energy >= 30 * self.sukuna.cost_mult and self.sukuna.cleave_cd <= 0
                             can_da_escape = (self.sukuna.amp_cd <= 0 or self.sukuna.amp_duration > 0) and self.sukuna.energy >= 10 * self.sukuna.cost_mult and not is_da_locked_out
 
                             # 1. The Counter-Beatdown
