@@ -727,6 +727,22 @@ class Fighter:
         w = self.rect.width
         h = self.rect.height
         
+        if self.name == "Mahoraga":
+            tail_points = []
+            tail_x = mid_x + (15 * -self.direction)
+            tail_y = y - 10
+            for i in range(8):
+                px = tail_x + (i * 15 * -self.direction)
+                py = tail_y + (i * 26) + (i * i * 0.4)
+                tail_points.append((int(px), int(py)))
+                
+            if len(tail_points) > 1:
+                for i in range(len(tail_points) - 1):
+                    t_thick = max(12, int(75 - (i * 7.5)))
+                    inner_thick = max(1, t_thick - 12)
+                    pygame.draw.line(surface, WHITE, tail_points[i], tail_points[i+1], t_thick)
+                    pygame.draw.line(surface, (210, 210, 215), tail_points[i], tail_points[i+1], inner_thick)
+
         leg_off = math.sin(t * 12) * (15 * scale) if not self.on_ground and not self.is_paralyzed else 0
         thickness = 32 if self.name == "Mahoraga" else 12
         
@@ -781,30 +797,23 @@ class Fighter:
         pygame.draw.line(surface, SKIN, l_shoulder, l_hand, int(thickness - 2))
         pygame.draw.line(surface, SKIN, r_shoulder, r_hand, int(thickness - 2))
         
-        # --- FIX: DYNAMIC WRIST-MOUNTED SWORD OF EXTERMINATION ---
         if self.name == "Mahoraga":
             blade_color = (180, 180, 195)
             blade_edge = WHITE
             
-            # Attach blade to the LEFT wrist/hand area
             wrist_x, wrist_y = l_hand
             
-            # Calculate the angle of the arm to point the blade in the same direction!
             arm_dx = l_hand[0] - l_shoulder[0]
             arm_dy = l_hand[1] - l_shoulder[1]
             arm_angle = math.atan2(arm_dy, arm_dx)
             
-            # The base blade points straight down (which is Pi/2 or 90 degrees in pygame math)
-            # We subtract Pi/2 to find how much we need to rotate our base coordinates
             rot = arm_angle - (math.pi / 2)
 
-            # Helper function to rotate a point around the wrist
             def rot_pt(px, py):
                 nx = px * math.cos(rot) - py * math.sin(rot)
                 ny = px * math.sin(rot) + py * math.cos(rot)
                 return (int(wrist_x + nx), int(wrist_y + ny))
 
-            # The blade extends outward from the wrist (Scaled down size)
             blade_poly = [
                 rot_pt(-8 * scale, -6 * scale),
                 rot_pt(8 * scale, -6 * scale),
@@ -816,24 +825,8 @@ class Fighter:
             pygame.draw.polygon(surface, blade_color, blade_poly)
             pygame.draw.polygon(surface, blade_edge, blade_poly, max(1, int(1*scale)))
             
-            # Draw the thick dark straps binding it to his arm (Scaled down)
             pygame.draw.line(surface, (30, 30, 30), rot_pt(-10 * scale, -3 * scale), rot_pt(10 * scale, -3 * scale), int(5*scale))
             pygame.draw.line(surface, (30, 30, 30), rot_pt(-10 * scale, 6 * scale), rot_pt(10 * scale, 6 * scale), int(5*scale))
-
-        if self.name == "Mahoraga":
-            tail_points = []
-            tail_x = mid_x + (25 * -self.direction)
-            tail_y = y - 5
-            for i in range(8):
-                px = tail_x + (i * 20 * -self.direction)
-                py = tail_y + (i * 25) + math.sin(t * 8 + i) * 15
-                tail_points.append((int(px), int(py)))
-            if len(tail_points) > 1:
-                for i in range(len(tail_points) - 1):
-                    t_thick = max(4, int(60 - (i * 8.0)))
-                    inner_thick = max(1, t_thick - 12)
-                    pygame.draw.line(surface, WHITE, tail_points[i], tail_points[i+1], t_thick)
-                    pygame.draw.line(surface, (200, 200, 200), tail_points[i], tail_points[i+1], inner_thick)
 
         pygame.draw.circle(surface, SKIN, (mid_x, y), 30 if self.name == "Mahoraga" else 26)
         
