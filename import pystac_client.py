@@ -462,10 +462,21 @@ class Fighter:
                 self.infinity = min(self.max_infinity, self.infinity + 3.5) 
                 self.energy -= cost
 
-        # Sukuna Constant Auto-Heal
-        # THE FIX: Massively buffed passive RCT (Heals 2.5 to 3.5 HP per frame!) CE cost remains untouched.
+        # Sukuna Constant Auto-Heal & UV Survival Binding Vow
         if self.name == "Sukuna" and self.hp > 0 and self.hp < self.max_hp and not self.ce_exhausted:
             heal_cost = 0.3 * self.cost_mult
+            
+            # --- NEW: UNLIMITED VOID SURVIVAL VOW ---
+            # If paralyzed (caught inside UV), he forces his brain to use RCT to survive!
+            if self.is_paralyzed:
+                heal_cost *= 4.0 # Massive CE tax for forcing RCT through a fried brain
+                self.domain_cd = 1800 # 30 seconds penalty to Domain Expansion
+                self.mahoraga_lockout = 1800 # 30 seconds penalty to Mahoraga Summoning
+                
+                # Dark visual flare to show he's tanking it through pure willpower
+                if random.random() < 0.1:
+                    self.black_flash_timer = 2 
+            
             if self.energy >= heal_cost:
                 self.hp = min(self.max_hp, self.hp + random.uniform(2.5, 3.5))
                 self.energy -= heal_cost
@@ -476,6 +487,7 @@ class Fighter:
 
         self.attack_cooldown = max(0, self.attack_cooldown - 1)
         self.dismantle_cd = max(0, self.dismantle_cd - 1)
+        self.mahoraga_lockout = max(0, getattr(self, "mahoraga_lockout", 0) - 1) # NEW: Vow Penalty Tracker
         self.cleave_cd = max(0, self.cleave_cd - 1)
         self.grab_cd = max(0, self.grab_cd - 1)
         self.blue_cd = max(0, self.blue_cd - 1)
@@ -1594,7 +1606,7 @@ class Game:
                         
                         # 2. CHANGE TACTICS: STOP TANKING!
                         # If he is losing CE, he stops walking forward into punches and actively evades!
-                        elif dist < 180 and self.sukuna.dodge_cd <= 0 and self.sukuna.stamina >= 20:
+                        elif dist < 180 and self.sukuna.dodge_cd <= 0 and self.sukuna.stamina >= 20 and not self.gojo.domain_active:
                             # Smart Backstep: Dodge AWAY from Gojo instead of through him!
                             self.sukuna.direction = 1 if self.sukuna.rect.x > self.gojo.rect.x else -1
                             self.sukuna.dodge()
@@ -1713,6 +1725,10 @@ class Game:
                             self.sukuna.amp_duration = max(self.sukuna.amp_duration, 60) 
                             is_amp = True
 
+                    # --- NEW: ABSOLUTE VERTICAL TETHERING ---
+                    elif self.gojo.domain_active and not self.sukuna.domain_active and self.gojo.rect.bottom < self.sukuna.rect.top - 20 and self.sukuna.on_ground:
+                        self.sukuna.jump()
+
                     elif dist > rush_distance or self.gojo.grab_timer > 0:
                         # Magnetic Lunge to trigger Cleave Hold (speed 28) or normal relentless walking (speed 9)
                         # AI FIX: If exhausted or surviving UV, aggressively rush at high speed!
@@ -1727,10 +1743,7 @@ class Game:
                             
                         # --- THE STRUGGLE PHASE: SMARTER TETHERING ---
                         if self.gojo.domain_active and not self.sukuna.domain_active:
-                            # Jump to reach Gojo if Gojo is in the air
-                            if self.gojo.rect.bottom < self.sukuna.rect.top - 20 and self.sukuna.on_ground:
-                                self.sukuna.jump()
-                            # Desperately dash to close the distance quickly
+                            # Desperately dash to close the distance quickly (Jump moved outside)
                             if self.sukuna.dodge_cd <= 0 and self.sukuna.stamina >= 20 and not self.sukuna.stamina_exhausted:
                                 self.sukuna.direction = -1 if self.sukuna.rect.x > self.gojo.rect.x else 1
                                 self.sukuna.dodge()
@@ -1997,11 +2010,13 @@ class Game:
                     # LORE ACCURACY: If Sukuna drops below 50% HP and hasn't unlocked the World Slash yet, bring out Big Raga!
                     # NEW CONDITION: Sukuna will wait until Gojo's Domain Expansion completely ends so Mahoraga doesn't instantly die paralyzed!
                     if self.sukuna.hp < (self.sukuna.max_hp * 0.5) and self.mahoraga is None and not self.sukuna.world_slash_unlocked and self.gojo.domain_cd > 0 and getattr(self, "clash_decision_timer", 0) == 0 and self.gojo.domain_charge == 0 and self.sukuna.domain_charge == 0 and not self.gojo.domain_active:
-                        self.mahoraga_summon_timer = 210
+                        if getattr(self.sukuna, "mahoraga_lockout", 0) <= 0:
+                            self.mahoraga_summon_timer = 210
                         
                     # NEW TACTIC: If Megumi's soul has fully adapted to Unlimited Void, instantly summon Mahoraga to shatter it!
                     if self.mahoraga is None and self.sukuna.adaptation["void"] <= 0.0 and self.mahoraga_summon_timer <= 0:
-                        self.mahoraga_summon_timer = 210
+                        if getattr(self.sukuna, "mahoraga_lockout", 0) <= 0:
+                            self.mahoraga_summon_timer = 210
 
                 # Sukuna Domain Execution Timer
                 if self.sukuna.domain_charge > 0:
@@ -2269,6 +2284,12 @@ class Game:
                     self.sukuna.update_physics()
                     if self.mahoraga and self.mahoraga.hp > 0: 
                         self.mahoraga.update_physics()
+                        
+                    # --- NEW: ANNOUNCE THE UV SURVIVAL VOW ---
+                    if self.sukuna.is_paralyzed and self.sukuna.rct_timer > 0 and getattr(self.sukuna, "mahoraga_lockout", 0) > 1798:
+                        if pygame.time.get_ticks() - getattr(self, "last_uv_vow", 0) > 5000:
+                            self.maho_announcements.append({"text": "SUKUNA VOW: FORCED RCT IN UV! (MS/MAHO LOCKED 30s)", "timer": 150})
+                            self.last_uv_vow = pygame.time.get_ticks()
                     
                     # Log normal regen from update_physics
                     for f in active_fighters:
