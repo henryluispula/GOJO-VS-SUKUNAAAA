@@ -528,7 +528,8 @@ class Fighter:
                 
         x, y, mid_x = self.rect.centerx - 35, self.rect.y, self.rect.centerx
 
-        if self.name == "Sukuna" and self.grab_timer > 0:
+        # Ensure we only draw Sukuna's grab arm if HE is the one attacking (not getting beaten up!)
+        if self.name == "Sukuna" and self.grab_timer > 0 and getattr(self, "grab_type", "") != "gojo_beatdown":
             # Draw a thick, reinforced arm reaching out
             arm_color = (100, 0, 0) # Darkened for emphasis
             grab_x = mid_x + (60 * self.direction)
@@ -1093,7 +1094,7 @@ class Game:
                     
                     self.sukuna.hp -= pb_blue_dmg 
                     
-                    self.sukuna.grab_timer = 240 # 4 SECOND BEATDOWN HOLD!
+                    self.sukuna.grab_timer = 180 # 3 SECOND BEATDOWN HOLD!
                     setattr(self.sukuna, "grab_type", "gojo_beatdown")
                     self.sukuna.fuga_charge = 0
                     self.sukuna.domain_charge = 0
@@ -1289,8 +1290,10 @@ class Game:
                                 self.gojo.attack_cooldown = 20
 
                     # Purple
-                    # 1. Check if the 'R' key is pressed and the move is not already charging/on cooldown
-                    if keys[pygame.K_r] and self.gojo.purple_cd == 0 and self.gojo.purple_charge == 0:
+                    # 1. Check if the 'R' key is pressed, not charging/on CD, AND not currently busy with a beatdown!
+                    is_beatdown_active = self.sukuna.grab_timer > 0 and getattr(self.sukuna, "grab_type", "") == "gojo_beatdown"
+                    
+                    if keys[pygame.K_r] and self.gojo.purple_cd == 0 and self.gojo.purple_charge == 0 and not is_beatdown_active:
                         
                         # 2. Check for Energy (Cursed Energy) requirement
                         if self.gojo.energy >= 195 * self.gojo.cost_mult:
