@@ -803,10 +803,22 @@ class Fighter:
         # Torso and Wounds
         if self.name == "Mahoraga": 
             # Pulled the X coordinates inwards to make the torso significantly narrower
-            body_rect = [(x + 25, y + int(20*scale)), (x + w - 25, y + int(20*scale)), (x + w - 15, y + int(100*scale)), (x + 15, y + int(100*scale))]
+            # CHANGED: Y offset from 20*scale to 10*scale so the torso connects to the head
+            body_rect = [(x + 25, y + int(10*scale)), (x + w - 25, y + int(10*scale)), (x + w - 15, y + int(100*scale)), (x + 15, y + int(100*scale))]
         else:
             body_rect = [(x+5, y+20), (x+65, y+20), (x+55, y+95), (x+15, y+95)]
         pygame.draw.polygon(surface, self.color, body_rect)
+        
+        # --- NEW: SAGGY BLACK PANTS ---
+        if self.name == "Mahoraga":
+            pants_rect = [
+                (x + 10, y + int(90*scale)), # Top left
+                (x + w - 10, y + int(90*scale)), # Top right
+                (x + w + 15, y + int(135*scale)), # Bottom right (baggy)
+                (mid_x, y + int(115*scale)), # Crotch
+                (x - 15, y + int(135*scale))  # Bottom left (baggy)
+            ]
+            pygame.draw.polygon(surface, BLACK, pants_rect)
         
         # Dynamic bloody wounds/splatters mapped directly to character's HP
         hp_ratio = self.hp / self.max_hp
@@ -835,8 +847,40 @@ class Fighter:
             else: # Right arm punches
                 r_hand = (x + w - int(5*scale) + arm_ext * self.direction, y + int(65*scale) - (arm_ext * 0.2))
         
-        pygame.draw.line(surface, SKIN, l_shoulder, l_hand, int(thickness - 2))
-        pygame.draw.line(surface, SKIN, r_shoulder, r_hand, int(thickness - 2))
+        if self.name == "Mahoraga":
+            # Left arm (normal)
+            pygame.draw.line(surface, SKIN, l_shoulder, l_hand, int(thickness - 2))
+            
+            # Right arm (Sword of Extermination)
+            # The arm itself is the blade! We draw it as a tapering polygon from the shoulder.
+            blade_color = (180, 180, 195)
+            blade_edge = WHITE
+            
+            # Base of the arm/blade at the shoulder
+            bx1, by1 = r_shoulder[0] - int(15*scale), r_shoulder[1]
+            bx2, by2 = r_shoulder[0] + int(15*scale), r_shoulder[1]
+            
+            # Tip of the blade (replaces the hand)
+            tip_x, tip_y = r_hand[0], r_hand[1] + int(40*scale)
+            
+            # Construct the heavy arm-blade
+            arm_blade_poly = [
+                (bx1, by1),
+                (bx2, by2),
+                (tip_x + int(10*scale), tip_y - int(20*scale)), # Outer edge bulge
+                (tip_x, tip_y), # Point
+                (tip_x - int(10*scale), tip_y - int(20*scale))  # Inner edge bulge
+            ]
+            
+            pygame.draw.polygon(surface, blade_color, arm_blade_poly)
+            pygame.draw.polygon(surface, blade_edge, arm_blade_poly, max(1, int(2*scale)))
+            
+            # Draw an arm band/brace where the flesh meets the steel
+            pygame.draw.rect(surface, (50, 50, 50), (r_shoulder[0] - int(16*scale), r_shoulder[1] + int(20*scale), int(32*scale), int(10*scale)))
+
+        else:
+            pygame.draw.line(surface, SKIN, l_shoulder, l_hand, int(thickness - 2))
+            pygame.draw.line(surface, SKIN, r_shoulder, r_hand, int(thickness - 2))
         
         # Head (MAINTAINING SIZE)
         pygame.draw.circle(surface, SKIN, (mid_x, y), 30 if self.name == "Mahoraga" else 26)
@@ -863,9 +907,9 @@ class Fighter:
             if len(tail_points) > 1:
                 # Draw segment by segment to create a tapering effect
                 for i in range(len(tail_points) - 1):
-                    # Starts at 24 thickness, decreases by 3 each segment down to a minimum of 2
-                    t_thick = max(2, int(24 - (i * 3.0)))
-                    inner_thick = max(1, t_thick - 8)
+                    # Thicker tail starting at 40 thickness, sharply tapering by 5.5 per segment
+                    t_thick = max(2, int(40 - (i * 5.5)))
+                    inner_thick = max(1, t_thick - 10)
                     pygame.draw.line(surface, WHITE, tail_points[i], tail_points[i+1], t_thick)
                     pygame.draw.line(surface, (200, 200, 200), tail_points[i], tail_points[i+1], inner_thick)
 
@@ -1806,10 +1850,20 @@ class Game:
                             gojo_is_vulnerable = self.gojo.infinity <= 0 or self.gojo.technique_burnout > 0 or self.gojo.ce_exhausted
                             is_guaranteed_kill = self.gojo.hp < 150 and gojo_is_vulnerable # Fuga will definitively end it
                             
+                            # --- AI UPGRADE: AVOID STUPID SUICIDE ---
+                            # If Gojo is extremely healthy (High HP + High CE + Infinity UP), 
+                            # Sukuna refuses to sacrifice 50% of his Max HP just to launch Fuga into a wall.
+                            gojo_is_tanky = self.gojo.hp > (self.gojo.max_hp * 0.7) and self.gojo.energy > (self.gojo.max_energy * 0.5) and self.gojo.infinity > 0
+                            
                             # 3. Decision
                             # Pop Fuga IF he can survive it AND (Gojo is vulnerable to it OR it's a guaranteed kill OR Sukuna is very healthy and wants to strip Gojo's CE)
-                            if can_survive_vow and (gojo_is_vulnerable or is_guaranteed_kill or self.sukuna.hp > self.sukuna.max_hp * 0.7):
-                                self.sukuna.fuga_charge = 120
+                            if can_survive_vow:
+                                if is_guaranteed_kill:
+                                    self.sukuna.fuga_charge = 120
+                                elif gojo_is_vulnerable and not gojo_is_tanky:
+                                    self.sukuna.fuga_charge = 120
+                                elif self.sukuna.hp > self.sukuna.max_hp * 0.85: # If Sukuna is basically at full health, he'll throw it to pressure Gojo
+                                    self.sukuna.fuga_charge = 120
                     
                     if getattr(self.sukuna, "world_slash_charge", 0) > 0:
                         self.sukuna.world_slash_charge -= 1
