@@ -452,8 +452,8 @@ class Fighter:
             
             if self.is_paralyzed:
                 heal_cost *= 4.0 
-                self.domain_cd = 600 
-                self.mahoraga_lockout = 900 
+                self.domain_cd = 900  
+                self.mahoraga_lockout = 600  
                 
                 if random.random() < 0.1:
                     self.black_flash_timer = 2 
@@ -847,14 +847,13 @@ class Fighter:
             pygame.draw.circle(surface, BLACK, (mid_x, y + 18), 3) 
             
         if self.name == "Mahoraga":
-            # Eye wings (two on each eye socket)
             # Left Eye
-            pygame.draw.polygon(surface, MAHO_COLOR, [(mid_x - int(12*scale), y - int(8*scale)), (mid_x - int(28*scale), y - int(24*scale)), (mid_x - int(4*scale), y - int(14*scale))])
-            pygame.draw.polygon(surface, MAHO_COLOR, [(mid_x - int(16*scale), y - int(2*scale)), (mid_x - int(38*scale), y - int(8*scale)), (mid_x - int(10*scale), y + int(4*scale))])
+            pygame.draw.polygon(surface, MAHO_COLOR, [(mid_x - int(12*scale), y - int(8*scale)), (mid_x - int(48*scale), y - int(36*scale)), (mid_x - int(4*scale), y - int(14*scale))])
+            pygame.draw.polygon(surface, MAHO_COLOR, [(mid_x - int(16*scale), y - int(2*scale)), (mid_x - int(58*scale), y - int(12*scale)), (mid_x - int(10*scale), y + int(4*scale))])
             
             # Right Eye
-            pygame.draw.polygon(surface, MAHO_COLOR, [(mid_x + int(12*scale), y - int(8*scale)), (mid_x + int(28*scale), y - int(24*scale)), (mid_x + int(4*scale), y - int(14*scale))])
-            pygame.draw.polygon(surface, MAHO_COLOR, [(mid_x + int(16*scale), y - int(2*scale)), (mid_x + int(38*scale), y - int(8*scale)), (mid_x + int(10*scale), y + int(4*scale))])
+            pygame.draw.polygon(surface, MAHO_COLOR, [(mid_x + int(12*scale), y - int(8*scale)), (mid_x + int(48*scale), y - int(36*scale)), (mid_x + int(4*scale), y - int(14*scale))])
+            pygame.draw.polygon(surface, MAHO_COLOR, [(mid_x + int(16*scale), y - int(2*scale)), (mid_x + int(58*scale), y - int(12*scale)), (mid_x + int(10*scale), y + int(4*scale))])
             
             # Smaller grinning mouth, properly fitted
             mouth_w = int(14*scale)
@@ -2105,9 +2104,9 @@ class Game:
                                 c_shade = random.randint(180, 240)
                                 self.hit_sparks.append([dx, dy, vx, vy, size, (c_shade, c_shade, c_shade)])                        
 
-                    if self.sukuna.is_paralyzed and self.sukuna.rct_timer > 0 and getattr(self.sukuna, "mahoraga_lockout", 0) > 898:
+                    if self.sukuna.is_paralyzed and self.sukuna.rct_timer > 0 and getattr(self.sukuna, "mahoraga_lockout", 0) > 598:
                         if pygame.time.get_ticks() - getattr(self, "last_uv_vow", 0) > 5000:
-                            self.maho_announcements.append({"text": "SUKUNA VOW: FORCED RCT IN UV! (MS 10s / MAHO 15s LOCKED)", "timer": 150})
+                            self.maho_announcements.append({"text": "SUKUNA VOW: FORCED RCT IN UV! (MS 15s / MAHO 10s LOCKED)", "timer": 150})
                             self.last_uv_vow = pygame.time.get_ticks()
                     
                     for f in active_fighters:
