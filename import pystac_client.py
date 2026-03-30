@@ -231,7 +231,11 @@ class Projectile:
 
 class Fighter:
     def __init__(self, x, y, name, color=CLOTHES):
-        self.rect = pygame.Rect(x, y, 70, 160)
+        # --- FIX: MAHORAGA TWICE THE SIZE ---
+        if name == "Mahoraga":
+            self.rect = pygame.Rect(x, y, 140, 320)
+        else:
+            self.rect = pygame.Rect(x, y, 70, 160)
         self.name = name
         self.max_hp = 500 if name == "Sukuna" else (480 if name == "Mahoraga" else 200)
         self.hp = self.max_hp
@@ -783,50 +787,56 @@ class Fighter:
                 pygame.draw.circle(surface, wheel_color, spoke_end, 6)
 
         # Character Rendering
-        leg_off = math.sin(t * 12) * 15 if not self.on_ground and not self.is_paralyzed else 0
-        thickness = 15 if self.name == "Mahoraga" else 12
+        scale = 2.0 if self.name == "Mahoraga" else 1.0
+        w = self.rect.width
+        h = self.rect.height
+        
+        leg_off = math.sin(t * 12) * (15 * scale) if not self.on_ground and not self.is_paralyzed else 0
+        thickness = 24 if self.name == "Mahoraga" else 12
         
         # Legs
-        pygame.draw.line(surface, self.color if self.name != "Mahoraga" else (180, 180, 160), (mid_x - 10, y + 90), (mid_x - 15 - leg_off, y + 160), thickness)
-        pygame.draw.line(surface, self.color if self.name != "Mahoraga" else (180, 180, 160), (mid_x + 10, y + 90), (mid_x + 15 + leg_off, y + 160), thickness)
+        pygame.draw.line(surface, self.color if self.name != "Mahoraga" else (180, 180, 160), (mid_x - 10*scale, y + 90*scale), (mid_x - 15*scale - leg_off, y + 160*scale), int(thickness))
+        pygame.draw.line(surface, self.color if self.name != "Mahoraga" else (180, 180, 160), (mid_x + 10*scale, y + 90*scale), (mid_x + 15*scale + leg_off, y + 160*scale), int(thickness))
         
         # Torso and Wounds
-        body_rect = [(x+5, y+20), (x+65, y+20), (x+55, y+95), (x+15, y+95)]
-        if self.name == "Mahoraga": body_rect = [(x-5, y+10), (x+75, y+10), (x+65, y+100), (x+5, y+100)]
+        if self.name == "Mahoraga": 
+            body_rect = [(x - 10, y + 20), (x + w + 10, y + 20), (x + w - 10, y + 200), (x + 10, y + 200)]
+        else:
+            body_rect = [(x+5, y+20), (x+65, y+20), (x+55, y+95), (x+15, y+95)]
         pygame.draw.polygon(surface, self.color, body_rect)
         
         # Dynamic bloody wounds/splatters mapped directly to character's HP
         hp_ratio = self.hp / self.max_hp
         if hp_ratio < 0.7:
-            pygame.draw.circle(surface, BLOOD, (mid_x - 10, y + 40), 8)
+            pygame.draw.circle(surface, BLOOD, (int(mid_x - 10*scale), int(y + 40*scale)), int(8*scale))
         if hp_ratio < 0.4:
-            pygame.draw.circle(surface, BLOOD, (mid_x + 15, y + 60), 12)
-            pygame.draw.line(surface, BLOOD, (mid_x, y + 30), (mid_x - 15, y + 70), 4)
+            pygame.draw.circle(surface, BLOOD, (int(mid_x + 15*scale), int(y + 60*scale)), int(12*scale))
+            pygame.draw.line(surface, BLOOD, (mid_x, y + 30*scale), (mid_x - 15*scale, y + 70*scale), int(4*scale))
         if hp_ratio < 0.2:
-            pygame.draw.circle(surface, BLOOD, (mid_x - 5, y + 80), 15)
-            pygame.draw.line(surface, BLOOD, (mid_x + 10, y + 80), (mid_x + 20, y + 90), 5)
+            pygame.draw.circle(surface, BLOOD, (int(mid_x - 5*scale), int(y + 80*scale)), int(15*scale))
+            pygame.draw.line(surface, BLOOD, (mid_x + 10*scale, y + 80*scale), (mid_x + 20*scale, y + 90*scale), int(5*scale))
         
         # --- Alternating Punching Animation ---
-        l_shoulder = (x + 10, y + 35)
-        r_shoulder = (x + 60, y + 35)
-        l_hand = (x + 5, y + 85)
-        r_hand = (x + 65, y + 85)
+        l_shoulder = (x + 10*scale, y + 35*scale)
+        r_shoulder = (x + w - 10*scale, y + 35*scale)
+        l_hand = (x + 5*scale, y + 85*scale)
+        r_hand = (x + w - 5*scale, y + 85*scale)
         
         if self.punch_timer > 0 and not self.is_paralyzed:
             phase = (20 - self.punch_timer) / 20.0
-            arm_ext = 60 * math.sin(phase * math.pi)
+            arm_ext = 60 * scale * math.sin(phase * math.pi)
             
             # Use punch_count to alternate arms
             if self.punch_count % 2 == 1: # Left arm punches
-                l_hand = (x + 5 - arm_ext * self.direction, y + 65 - (arm_ext * 0.2))
+                l_hand = (x + 5*scale - arm_ext * self.direction, y + 65*scale - (arm_ext * 0.2))
             else: # Right arm punches
-                r_hand = (x + 65 + arm_ext * self.direction, y + 65 - (arm_ext * 0.2))
+                r_hand = (x + w - 5*scale + arm_ext * self.direction, y + 65*scale - (arm_ext * 0.2))
         
-        pygame.draw.line(surface, SKIN, l_shoulder, l_hand, thickness - 2)
-        pygame.draw.line(surface, SKIN, r_shoulder, r_hand, thickness - 2)
+        pygame.draw.line(surface, SKIN, l_shoulder, l_hand, int(thickness - 2))
+        pygame.draw.line(surface, SKIN, r_shoulder, r_hand, int(thickness - 2))
         
-        # Head
-        pygame.draw.circle(surface, SKIN, (mid_x, y), 26 + (4 if self.name == "Mahoraga" else 0))
+        # Head (MAINTAINING SIZE)
+        pygame.draw.circle(surface, SKIN, (mid_x, y), 30 if self.name == "Mahoraga" else 26)
         
         if self.name == "Sukuna":
             pygame.draw.line(surface, BLACK, (mid_x - 10, y + 5), (mid_x - 5, y + 15), 2)
@@ -834,8 +844,22 @@ class Fighter:
             pygame.draw.circle(surface, BLACK, (mid_x, y + 18), 3) 
             
         if self.name == "Mahoraga":
+            # Wings/Mask
             pygame.draw.polygon(surface, MAHO_COLOR, [(mid_x - 20, y - 10), (mid_x - 50, y - 40), (mid_x - 20, y + 5)])
             pygame.draw.polygon(surface, MAHO_COLOR, [(mid_x + 20, y - 10), (mid_x + 50, y - 40), (mid_x + 20, y + 5)])
+            
+            # --- NEW: MAHORAGA HEAD TAIL ---
+            tail_points = []
+            # Start behind the head, loop downwards
+            tail_x = mid_x + (25 * -self.direction)
+            tail_y = y - 5
+            for i in range(8):
+                px = tail_x + (i * 20 * -self.direction)
+                py = tail_y + (i * 25) + math.sin(t * 8 + i) * 15
+                tail_points.append((int(px), int(py)))
+            if len(tail_points) > 1:
+                pygame.draw.lines(surface, WHITE, False, tail_points, 12)
+                pygame.draw.lines(surface, (200, 200, 200), False, tail_points, 6)
 
         if self.rct_timer > 0:
             # Three distinct flowing streams: Left, Center, Right
@@ -844,7 +868,7 @@ class Fighter:
                 for i in range(5): # 4 sparks per stream
                     # Smooth sine wave + upward modulo flow
                     sx = mid_x + x_off + math.sin(t * 5 + i + j) * 15
-                    sy = (y + 160) - ((t * 80 + i * 40 + j * 20) % 150)
+                    sy = (y + 160*scale) - ((t * 80 + i * 40 + j * 20) % int(150*scale))
                     
                     r_color = [(150, 255, 150), (255, 255, 200), (100, 255, 150)][(i+j) % 3]
                     pygame.draw.circle(surface, r_color, (int(sx), int(sy)), 3)
@@ -2014,12 +2038,12 @@ class Game:
                     # NEW CONDITION: Sukuna will wait until Gojo's Domain Expansion completely ends so Mahoraga doesn't instantly die paralyzed!
                     if self.sukuna.hp < (self.sukuna.max_hp * 0.5) and self.mahoraga is None and not self.sukuna.world_slash_unlocked and self.gojo.domain_cd > 0 and getattr(self, "clash_decision_timer", 0) == 0 and self.gojo.domain_charge == 0 and self.sukuna.domain_charge == 0 and not self.gojo.domain_active:
                         if getattr(self.sukuna, "mahoraga_lockout", 0) <= 0:
-                            self.mahoraga_summon_timer = 210
+                            self.mahoraga_summon_timer = 300 # 5 SECONDS!
                         
                     # NEW TACTIC: If Megumi's soul has fully adapted to Unlimited Void, instantly summon Mahoraga to shatter it!
                     if self.mahoraga is None and self.sukuna.adaptation["void"] <= 0.0 and self.mahoraga_summon_timer <= 0:
                         if getattr(self.sukuna, "mahoraga_lockout", 0) <= 0:
-                            self.mahoraga_summon_timer = 210
+                            self.mahoraga_summon_timer = 300 # 5 SECONDS!
 
                 # Sukuna Domain Execution Timer
                 if self.sukuna.domain_charge > 0:
@@ -2288,6 +2312,27 @@ class Game:
                     self.sukuna.update_physics()
                     if self.mahoraga and self.mahoraga.hp > 0: 
                         self.mahoraga.update_physics()
+                        
+                        # --- MASSIVE SHOCKWAVE ON MAHORAGA LANDING ---
+                        if getattr(self.mahoraga, "is_cinematic_landing", False) and self.mahoraga.on_ground:
+                            self.mahoraga.is_cinematic_landing = False
+                            self.shake_timer = 50 # HUGE screen shake
+                            
+                            # Shockwave Knockback to Gojo!
+                            dist_to_gojo = abs(self.gojo.rect.centerx - self.mahoraga.rect.centerx)
+                            if dist_to_gojo < 600:
+                                kb_dir = 1 if self.gojo.rect.centerx > self.mahoraga.rect.centerx else -1
+                                self.gojo.rect.x += kb_dir * 150 # Blows Gojo back
+                                
+                            # Massive dust cloud
+                            for _ in range(80):
+                                dx = self.mahoraga.rect.centerx + random.randint(-150, 150)
+                                dy = self.mahoraga.rect.bottom - random.randint(0, 40)
+                                vx = random.uniform(-25, 25)
+                                vy = random.uniform(-15, -2)
+                                size = random.randint(20, 50)
+                                c_shade = random.randint(180, 240)
+                                self.hit_sparks.append([dx, dy, vx, vy, size, (c_shade, c_shade, c_shade)])
                         
                     # --- NEW: ANNOUNCE THE UV SURVIVAL VOW ---
                     if self.sukuna.is_paralyzed and self.sukuna.rct_timer > 0 and getattr(self.sukuna, "mahoraga_lockout", 0) > 1798:
@@ -3011,9 +3056,14 @@ class Game:
             if self.mahoraga_summon_timer > 0:
                 self.mahoraga_summon_timer -= 1
                 if self.mahoraga_summon_timer == 1:
-                    self.mahoraga = Fighter(self.sukuna.rect.x - 100, WORLD_HEIGHT - 300, "Mahoraga", MAHO_COLOR)
-                    self.mahoraga.hp = self.mahoraga.max_hp # Dynamic Initialization!
-                    # NEW: Transfer the wheel's adaptation progress from Sukuna to Mahoraga!
+                    # --- CINEMATIC FALL: Spawns high in the sky! ---
+                    self.mahoraga = Fighter(self.sukuna.rect.x - 100, WORLD_HEIGHT - 1800, "Mahoraga", MAHO_COLOR)
+                    self.mahoraga.hp = self.mahoraga.max_hp 
+                    self.mahoraga.vel_y = 120 # Fucking plummets from the sky!
+                    self.mahoraga.on_ground = False
+                    setattr(self.mahoraga, "is_cinematic_landing", True) # Flag for shockwave
+                    
+                    # Transfer the wheel's adaptation progress from Sukuna to Mahoraga!
                     self.mahoraga.adaptation_points = self.sukuna.adaptation_points.copy()
                     self.mahoraga.adaptation = self.sukuna.adaptation.copy()
 
@@ -3402,8 +3452,8 @@ class Game:
                 self.world_surf.blit(self.shared_world_overlay, (0,0))
                 chants = ["With this treasure I summon...", "Eight-Handled Sword...", "Divergent Sila...", "Divine General Mahoraga!"]
                 
-                # Math updated for 84 frames. 84 / 4 parts = 21 frames per chant.
-                idx = 3 - (self.mahoraga_summon_timer // 22) 
+                # Math updated for 300 frames (5 seconds). 300 / 4 parts = 75 frames per chant.
+                idx = 3 - (self.mahoraga_summon_timer // 76) 
                 idx = max(0, min(3, idx)) # Safety clamp so the list index never goes out of bounds
                 
                 txt = self.get_text(chants[idx], MAHO_COLOR)
