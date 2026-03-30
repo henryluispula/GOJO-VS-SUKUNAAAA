@@ -2560,9 +2560,9 @@ class Game:
                                 if enemy.name == "Sukuna" and getattr(enemy, "simple_domain_active", False) and not is_touching_gojo and self.mahoraga is None:
                                     
                                     # --- NEW: HOLLOW PURPLE THREAT ASSESSMENT ---
-                                    # Sukuna checks if Gojo has Purple ready OR is dangerously close to unlocking it (700+ hits).
+                                    # Sukuna checks if Gojo has Purple ready OR is dangerously close to unlocking it (800+ hits).
                                     # If Gojo is that close, paralyzing himself to tank UV is a massive risk!
-                                    gojo_purple_danger = (self.gojo.tech_hits >= 700) and (self.gojo.purple_cd == 0) and (self.gojo.energy >= 195 * self.gojo.cost_mult)
+                                    gojo_purple_danger = (self.gojo.tech_hits >= 800) and (self.gojo.purple_cd == 0) and (self.gojo.energy >= 195 * self.gojo.cost_mult)
                                     
                                     # Also verify there isn't one already flying or charging!
                                     purple_flying = any(p.type == "purple_orb" for p in self.projectiles)
