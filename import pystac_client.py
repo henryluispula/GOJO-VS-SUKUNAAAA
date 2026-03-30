@@ -1093,7 +1093,7 @@ class Game:
                     
                     self.sukuna.hp -= pb_blue_dmg 
                     
-                    self.sukuna.grab_timer = 90 # 1.5 SECOND BEATDOWN HOLD!
+                    self.sukuna.grab_timer = 240 # 4 SECOND BEATDOWN HOLD!
                     setattr(self.sukuna, "grab_type", "gojo_beatdown")
                     self.sukuna.fuga_charge = 0
                     self.sukuna.domain_charge = 0
@@ -2557,16 +2557,20 @@ class Game:
                                 if enemy.name == "Sukuna" and getattr(enemy, "simple_domain_active", False) and not is_touching_gojo and self.mahoraga is None:
                                     
                                     # --- NEW: HOLLOW PURPLE THREAT ASSESSMENT ---
-                                    # Sukuna checks if Gojo is currently holding onto a fully charged Hollow Purple.
-                                    # If Purple is ready, paralyzing himself to tank UV is guaranteed death!
-                                    gojo_purple_ready = (self.gojo.tech_hits >= self.gojo.max_tech_hits) and (self.gojo.purple_cd == 0) and (self.gojo.energy >= 195 * self.gojo.cost_mult)
+                                    # Sukuna checks if Gojo has Purple ready OR is dangerously close to unlocking it (700+ hits).
+                                    # If Gojo is that close, paralyzing himself to tank UV is a massive risk!
+                                    gojo_purple_danger = (self.gojo.tech_hits >= 700) and (self.gojo.purple_cd == 0) and (self.gojo.energy >= 195 * self.gojo.cost_mult)
+                                    
+                                    # Also verify there isn't one already flying or charging!
+                                    purple_flying = any(p.type == "purple_orb" for p in self.projectiles)
+                                    is_purple_threat = gojo_purple_danger or self.gojo.purple_charge > 0 or purple_flying
                                     
                                     # AI UPGRADE: Check if it's worth taking the brain damage based on domain uses left.
                                     # If Gojo has exhausted his 4 domains, there is less immediate pressure to adapt to UV.
                                     gojo_domains_exhausted = self.gojo.domain_uses >= 4
                                     
-                                    # He will ONLY attempt the gambit if Gojo cannot currently fire Purple!
-                                    if not gojo_purple_ready:
+                                    # He will ONLY attempt the gambit if Purple is completely off the board and not close to ready!
+                                    if not is_purple_threat:
                                         # LORE FIX: Increased by 50%! He now needs 1500 points to fully adapt. 
                                         # NEW TACTIC: He tanks it in chunks! As long as his HP is safely above 45%, he drops the shield!
                                         points_needed = 1500.0 - enemy.adaptation_points["void"]
