@@ -750,16 +750,24 @@ class Fighter:
         pygame.draw.line(surface, self.color if self.name != "Mahoraga" else (180, 180, 160), (mid_x + int(10*scale), y + int(90*scale)), (mid_x + int(15*scale) + leg_off, y + int(160*scale)), int(thickness))
         
         if self.name == "Mahoraga": 
+            # Make the top points less sharp by tapering the polygon
             body_rect = [
-                (x - int(10*scale), y),                      
-                (x + w + int(10*scale), y),                  
-                (x + w - int(25*scale), y + int(100*scale)), 
-                (x + int(25*scale), y + int(100*scale))      
+                (x + int(5*scale), y),                        
+                (x + w - int(5*scale), y),                    
+                (x + w + int(5*scale), y + int(15*scale)),    
+                (x + w - int(25*scale), y + int(100*scale)),  
+                (x + int(25*scale), y + int(100*scale)),      
+                (x - int(5*scale), y + int(15*scale))         
             ]
         else:
             body_rect = [(x+5, y+20), (x+65, y+20), (x+55, y+95), (x+15, y+95)]
+            
         pygame.draw.polygon(surface, self.color, body_rect)
         
+        if self.name == "Mahoraga":
+            # Neck shadow overlay (not too dark)
+            pygame.draw.ellipse(surface, (190, 190, 175), (mid_x - int(15*scale), y - int(5*scale), int(30*scale), int(25*scale)))
+
         if self.name == "Mahoraga":
             pants_rect = [
                 (x + 10, y + int(90*scale)), 
@@ -836,8 +844,27 @@ class Fighter:
             pygame.draw.circle(surface, BLACK, (mid_x, y + 18), 3) 
             
         if self.name == "Mahoraga":
+            # Ear wings
             pygame.draw.polygon(surface, MAHO_COLOR, [(mid_x - int(20*scale), y - int(10*scale)), (mid_x - int(50*scale), y - int(40*scale)), (mid_x - int(20*scale), y + int(5*scale))])
             pygame.draw.polygon(surface, MAHO_COLOR, [(mid_x + int(20*scale), y - int(10*scale)), (mid_x + int(50*scale), y - int(40*scale)), (mid_x + int(20*scale), y + int(5*scale))])
+            
+            # Huge grinning mouth matching the image
+            mouth_w = int(24*scale)
+            mouth_h = int(12*scale)
+            mouth_rect = pygame.Rect(mid_x - mouth_w//2, y + int(5*scale), mouth_w, mouth_h)
+            
+            # Teeth background (light teal/grey tint)
+            pygame.draw.ellipse(surface, (160, 190, 190), mouth_rect)
+            # Dark Mouth Outline
+            pygame.draw.ellipse(surface, (30, 35, 40), mouth_rect, max(1, int(1.5*scale)))
+            
+            # Grin line splitting top and bottom teeth
+            pygame.draw.line(surface, (30, 35, 40), (mid_x - mouth_w//2, y + int(5*scale) + mouth_h//2), (mid_x + mouth_w//2, y + int(5*scale) + mouth_h//2), max(1, int(1*scale)))
+            
+            # Vertical teeth lines
+            for t_i in range(1, 5):
+                t_x = (mid_x - mouth_w//2) + (t_i * (mouth_w // 5))
+                pygame.draw.line(surface, (30, 35, 40), (t_x, y + int(5*scale)), (t_x, y + int(5*scale) + mouth_h), max(1, int(1*scale)))
 
         if self.rct_timer > 0:
             offsets = [-35, 0, 35] 
