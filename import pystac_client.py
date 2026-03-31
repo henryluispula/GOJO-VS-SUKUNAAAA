@@ -1317,7 +1317,8 @@ class Game:
                 fuga_priority = (self.sukuna.tech_hits >= self.sukuna.max_tech_hits and self.sukuna.fuga_cd == 0 and self.sukuna.energy >= 195 * self.sukuna.cost_mult and not self.gojo.domain_active and self.gojo.domain_cd > 600) or self.sukuna.fuga_charge > 0
                 gojo_has_inf = self.gojo.infinity > 0 and self.gojo.technique_burnout == 0
                 
-                if self.sukuna.energy >= 200 * self.sukuna.cost_mult and self.sukuna.domain_cd == 0 and self.sukuna.technique_burnout == 0 and self.sukuna.domain_charge == 0 and not self.sukuna.domain_active and not self.sukuna.is_paralyzed and self.gojo.grab_timer <= 0 and self.sukuna.attack_cooldown <= 0:
+                # Must not be summoning Mahoraga, as the Divine General takes absolute priority!
+                if self.sukuna.energy >= 200 * self.sukuna.cost_mult and self.sukuna.domain_cd == 0 and self.sukuna.technique_burnout == 0 and self.sukuna.domain_charge == 0 and not self.sukuna.domain_active and not self.sukuna.is_paralyzed and self.gojo.grab_timer <= 0 and self.sukuna.attack_cooldown <= 0 and self.mahoraga_summon_timer <= 0:
                     
                     should_cast_domain = False
                     
@@ -1330,10 +1331,9 @@ class Game:
                     domain_advantage = sukuna_domains_left >= gojo_domains_left
                     
                     if self.gojo.domain_active:
-                        if not power_advantage and self.sukuna.sd_broken_timer <= 0 and self.sukuna.energy > 50:
-                            should_cast_domain = False 
-                        else:
-                            should_cast_domain = True 
+                        # ABSOLUTE PRIORITY: If trapped inside UV, immediately launch MS to trigger a Domain Clash!
+                        # No more holding back. The tanking gambit happens strictly during the clash.
+                        should_cast_domain = True 
                         
                     elif self.gojo.domain_charge > 0:
                         can_interrupt = False
@@ -1849,11 +1849,18 @@ class Game:
                     if (purple_active or self.gojo.purple_charge > 0) and self.sukuna.on_ground:
                         if random.random() < 0.15: self.sukuna.jump()
 
-                    if self.sukuna.hp < (self.sukuna.max_hp * 0.5) and self.mahoraga is None and not self.sukuna.world_slash_unlocked and self.gojo.domain_cd > 0 and getattr(self, "clash_decision_timer", 0) == 0 and self.gojo.domain_charge == 0 and self.sukuna.domain_charge == 0 and not self.gojo.domain_active:
+                    # PRIORITY 1: If trapped inside UV, ONLY summon Mahoraga if adaptation is completely finished!
+                    # Otherwise, he must keep Mahoraga hidden in the shadows to safely bear the burden of the domain.
+                    if self.gojo.domain_active and self.mahoraga is None and self.sukuna.adaptation["void"] <= 0.0 and getattr(self.sukuna, "mahoraga_lockout", 0) <= 0 and self.mahoraga_summon_timer <= 0:
+                        self.mahoraga_summon_timer = 300 
+                        
+                    # PRIORITY 2: Standard HP / Tactical triggers for Mahoraga (Strictly OUTSIDE of Gojo's Domain)
+                    elif self.sukuna.hp < (self.sukuna.max_hp * 0.5) and self.mahoraga is None and not self.sukuna.world_slash_unlocked and self.gojo.domain_cd > 0 and getattr(self, "clash_decision_timer", 0) == 0 and self.gojo.domain_charge == 0 and self.sukuna.domain_charge == 0 and not self.gojo.domain_active:
                         if getattr(self.sukuna, "mahoraga_lockout", 0) <= 0:
                             self.mahoraga_summon_timer = 300 
                         
-                    if self.mahoraga is None and self.sukuna.adaptation["void"] <= 0.0 and self.mahoraga_summon_timer <= 0:
+                    # PRIORITY 3: Summon immediately if adaptation finished outside of UV
+                    elif self.mahoraga is None and self.sukuna.adaptation["void"] <= 0.0 and self.mahoraga_summon_timer <= 0 and not self.gojo.domain_active:
                         if getattr(self.sukuna, "mahoraga_lockout", 0) <= 0:
                             self.mahoraga_summon_timer = 300 
 
@@ -2185,11 +2192,27 @@ class Game:
                     self.sukuna.domain_timer = max(self.sukuna.domain_timer, 200)
                     
                     # Sukuna's AI: Toggle DA to survive vs Disable DA to Adapt
-                    incoming_threats = [p for p in self.projectiles if p.active and p.type in ["blue_orb", "red_orb"] and abs(p.pos.x - self.sukuna.rect.centerx) < 250]
+                    incoming_threats = [p for p in self.projectiles if p.active and p.type in ["blue_orb", "red_orb", "purple_orb"] and abs(p.pos.x - self.sukuna.rect.centerx) < 300]
                     dist_clash = abs(self.gojo.rect.centerx - self.sukuna.rect.centerx)
                     
-                    if (incoming_threats or (self.gojo.punch_timer > 0 and dist_clash < 150)) and self.sukuna.energy > 5:
+                    # STRATEGIC DA TOGGLE: Smarter threat detection for small arenas
+                    
+                    # 1. Is Gojo actually facing Sukuna, or just punching the air?
+                    gojo_is_facing = (self.gojo.direction == 1 and self.gojo.rect.centerx < self.sukuna.rect.centerx) or \
+                                     (self.gojo.direction == -1 and self.gojo.rect.centerx > self.sukuna.rect.centerx)
+                    
+                    # 2. Is it a true threat? (Within actual punch hitbox of 140)
+                    actual_punch_threat = self.gojo.punch_timer > 0 and dist_clash < 140 and gojo_is_facing
+                    
+                    # 3. ADAPTATION GREED: If Sukuna is healthy, he will purposefully tank physical punches to adapt faster.
+                    # He saves DA strictly for Blue, Red, Purple, Grabs, or when he is actually dying.
+                    is_greedy = self.sukuna.hp > (self.sukuna.max_hp * 0.65)
+                    
+                    if (incoming_threats or getattr(self.gojo, "grab_timer", 0) > 0 or (actual_punch_threat and not is_greedy)) and self.sukuna.energy > 5:
                         self.sukuna.amp_duration = max(self.sukuna.amp_duration, 20)
+                    else:
+                        # Purposely drop Domain Amplification. Let Megumi take the burden!
+                        self.sukuna.amp_duration = 0 
                     
                     # THE GAMBIT: Sukuna's sure-hit protects himself, but NOT Megumi's soul. 
                     # If DA is off, the wheel continues bearing the burden of UV!
@@ -2198,26 +2221,39 @@ class Game:
                         self.sukuna.adaptation_points["void"] += 1.25 # Slowly builds 1500 points over the 20s window
                         turns = self.sukuna.adaptation_points["void"] / 250.0
                         self.sukuna.adaptation["void"] = max(0, 1.0 - min(1.0, turns / 10.0))
+                        
+                        # Terminal Logging for Megumi's Adaptation
+                        if int(self.sukuna.adaptation_points["void"]) % 50 == 0:
+                            print(f"[CLASH LOG] Megumi adapting to UV... Points: {int(self.sukuna.adaptation_points['void'])}/1500 | Turn progress: {turns:.2f}/6")
+                    else:
+                        # Clear adapting_to so the visual wheel knows to turn off when DA is on!
+                        self.sukuna.adapting_to = None
                     
                     # --- WIN/LOSS CONDITIONS ---
                     damage_dealt_to_sukuna = getattr(self, "sukuna_hp_at_clash_start", self.sukuna.hp) - self.sukuna.hp
                     
                     if damage_dealt_to_sukuna >= (self.sukuna.max_hp * 0.50):
+                        print("[CLASH LOG] GOJO WINS THE CLASH! Sukuna took 50% HP damage. Shrine shattered.")
                         # GOJO WINS: Sukuna took 50% HP damage! Shrine collapses, UV stays up!
                         self.clash_phase_timer = 0
                         self.clash_winner = "GOJO WINS CLASH!"
                         self.sukuna.end_domain()
                         self.gojo.domain_shrunk = False 
+                        # Reset Gojo's domain timer so it plays out naturally!
+                        self.gojo.domain_timer = 400
                         self.clash_msg_timer = 90
                         self.shake_timer = 40
                         self.popups.append({"x": self.sukuna.rect.centerx, "y": self.sukuna.rect.centery - 100, "timer": 60, "text": "SHRINE COLLAPSED!", "color": BLUE})
                         
                     elif self.clash_phase_timer == 0:
+                        print("[CLASH LOG] SUKUNA WINS THE CLASH! 20 seconds survived. UV collapsed.")
                         # SUKUNA WINS: 20 seconds passed. UV Collapses, Shrine stays up!
                         self.clash_winner = "SUKUNA WINS CLASH!"
                         self.gojo.end_domain()
                         self.gojo.domain_shrunk = False
                         self.gojo.technique_burnout = 1200
+                        # Reset Sukuna's domain timer so it plays out naturally!
+                        self.sukuna.domain_timer = 400
                         self.clash_msg_timer = 90
                         self.shake_timer = 40
                         self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 100, "timer": 60, "text": "UV COLLAPSED!", "color": RED})
@@ -2375,24 +2411,8 @@ class Game:
                             if enemy and enemy.hp > 0:
                                 is_touching_gojo = enemy.rect.colliderect(self.gojo.rect)
                                 
-                                if enemy.name == "Sukuna" and getattr(enemy, "simple_domain_active", False) and not is_touching_gojo and self.mahoraga is None:
-                                    
-                                    gojo_purple_danger = (self.gojo.tech_hits >= 800) and (self.gojo.purple_cd == 0) and (self.gojo.energy >= 195 * self.gojo.cost_mult)
-                                    
-                                    purple_flying = any(p.type == "purple_orb" for p in self.projectiles)
-                                    is_purple_threat = gojo_purple_danger or self.gojo.purple_charge > 0 or purple_flying
-                                    
-                                    gojo_domains_exhausted = self.gojo.domain_uses >= 4
-                                    
-                                    if not is_purple_threat:
-                                        points_needed = 1500.0 - enemy.adaptation_points["void"]
-                                        if points_needed > 0:
-                                            min_hp_threshold = 0.65 if gojo_domains_exhausted else 0.45 
-                                            
-                                            if enemy.hp > (enemy.max_hp * min_hp_threshold): 
-                                                enemy.simple_domain_active = False
-                                                enemy.sd_was_active = False
-                                                self.popups.append({"x": enemy.rect.centerx, "y": enemy.rect.centery - 100, "timer": 45, "text": "GAMBIT: TANKING UV!", "color": MAHO_COLOR})
+                                # The Gambit now ONLY happens strategically during Domain Clashes!
+                                # Trapped normally in UV, Sukuna maintains his defenses to survive until he can cast MS.
                                 if getattr(enemy, "simple_domain_active", False) and not is_touching_gojo:
                                     enemy.is_paralyzed = False 
                                     enemy.sd_hits += 1
@@ -3092,7 +3112,11 @@ class Game:
                 self.world_surf.blit(txt, (self.sukuna.rect.centerx - txt.get_width()//2, self.sukuna.rect.y - 120))
                 self.sukuna.draw_detailed(self.world_surf, effect="summoning")
             else:
-                eff = "summoning" if (self.sukuna.is_paralyzed and self.gojo.domain_active and (self.mahoraga is None or self.mahoraga.hp <= 0)) else None
+                # Show the wheel if he's paralyzed & summoning, OR if he's actively adapting to UV with DA turned off!
+                is_adapting_now = self.sukuna.adapting_to == "void" and self.sukuna.amp_duration <= 0 and self.gojo.domain_active
+                is_summoning = self.sukuna.is_paralyzed and self.gojo.domain_active and (self.mahoraga is None or self.mahoraga.hp <= 0)
+                
+                eff = "summoning" if (is_summoning or is_adapting_now) else None
                 self.sukuna.draw_detailed(self.world_surf, effect=eff, is_amp=(self.sukuna.amp_duration > 0))
             
             self.gojo.draw_detailed(self.world_surf, punching)
