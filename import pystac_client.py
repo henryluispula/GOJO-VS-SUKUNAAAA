@@ -1206,6 +1206,11 @@ class Game:
                                 bf_chance = random.uniform(0.0005, 0.001) 
                                 
                             if random.random() < bf_chance:
+                                # Trigger cinematic slow-mo zoom ONLY on the initial hit!
+                                if self.gojo.potential_timer <= 0:
+                                    self.bf_zoom_timer = 45 # 45 frames of glorious hit-stop/zoom
+                                    self.bf_zoom_pos = (target.rect.centerx, target.rect.centery)
+                                    
                                 dmg *= math.pow(2.5, 2.5) 
                                 self.gojo.black_flash_timer = 20
                                 self.gojo.potential_timer = 600 
@@ -1798,6 +1803,11 @@ class Game:
                                 bf_chance = random.uniform(0.0005, 0.001) 
                                 
                             if random.random() < bf_chance:
+                                # Trigger cinematic slow-mo zoom ONLY on the initial hit!
+                                if self.sukuna.potential_timer <= 0:
+                                    self.bf_zoom_timer = 45 
+                                    self.bf_zoom_pos = (self.gojo.rect.centerx, self.gojo.rect.centery)
+                                    
                                 melee_dmg *= math.pow(2.5, 2.5) 
                                 self.sukuna.black_flash_timer = 20
                                 self.sukuna.potential_timer = 600 
@@ -2317,8 +2327,14 @@ class Game:
                                 bf_chance = 0.0001 
                                 
                             if random.random() < bf_chance:
+                                # Trigger cinematic slow-mo zoom ONLY on the initial hit!
+                                if getattr(self.mahoraga, "potential_timer", 0) <= 0:
+                                    self.bf_zoom_timer = 45
+                                    self.bf_zoom_pos = (self.gojo.rect.centerx, self.gojo.rect.centery)
+                                    
                                 base_dmg *= math.pow(2.5, 2.5)
                                 self.mahoraga.black_flash_timer = 20
+                                self.mahoraga.potential_timer = 600 # Track potential so it only zooms once!
                                 self.shake_timer = 15
                                 
                                 ce_recovery = self.mahoraga.max_energy * 0.20
@@ -3180,8 +3196,27 @@ class Game:
                 target_center_x = (min_x + max_x) / 2
                 target_center_y = (min_y + max_y) / 2
             
-            self.cam_width += (target_cam_width - self.cam_width) * 0.1 
-            self.cam_height += (target_cam_height - self.cam_height) * 0.1
+            # --- EPIC BLACK FLASH SLOW-MO ZOOM ---
+            if getattr(self, "bf_zoom_timer", 0) > 0:
+                self.bf_zoom_timer -= 1
+                
+                # Extreme zoom into the point of impact!
+                target_cam_width = WIDTH * 0.35 
+                target_cam_height = HEIGHT * 0.35
+                target_center_x, target_center_y = self.bf_zoom_pos
+                
+                # Snappy camera movement for intense impact
+                self.cam_width += (target_cam_width - self.cam_width) * 0.4 
+                self.cam_height += (target_cam_height - self.cam_height) * 0.4
+                self.cam_x += (target_center_x - getattr(self, "cam_x", target_center_x)) * 0.4
+                self.cam_y += (target_center_y - getattr(self, "cam_y", target_center_y)) * 0.4
+                
+                # Introduce heavy hit-stop / slow-mo by delaying frame processing!
+                pygame.time.delay(40) 
+            else:
+                # Smooth, normal camera tracking
+                self.cam_width += (target_cam_width - self.cam_width) * 0.1 
+                self.cam_height += (target_cam_height - self.cam_height) * 0.1
             
             if not hasattr(self, "cam_x"):
                 self.cam_x = target_center_x
@@ -3395,7 +3430,7 @@ class Game:
                 render_surf.blit(self.get_text(sm_txt, WHITE, font=self.micro_font), (WIDTH - 335, 270))
 
             # --- EPIC SYSTEM ANNOUNCEMENTS ---
-            y_offset = 120  # Start higher up so it feels like a universal broadcast
+            y_offset = 320  # Lowered strictly below the HUDs so they never overlap!
             active_ann = []
             for ann in self.maho_announcements:
                 text_str = ann["text"]
