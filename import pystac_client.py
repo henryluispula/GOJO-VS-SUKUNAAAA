@@ -1501,7 +1501,10 @@ class Game:
                         can_afford_flesh_vow = self.sukuna.hp > (vow_hp_cost + 20)
                         desperate_for_ce = self.sukuna.energy < (self.sukuna.max_energy * 0.40)
                         
-                        if can_afford_flesh_vow and desperate_for_ce:
+                        # Prevent Sukuna from instantly losing the domain clash by sacrificing his own HP!
+                        in_clash = getattr(self, "clash_phase_timer", 0) > 0
+                        
+                        if can_afford_flesh_vow and desperate_for_ce and not in_clash:
                             self.sukuna.hp -= vow_hp_cost
                             self.sukuna.energy = min(self.sukuna.max_energy, self.sukuna.energy + vow_ce_gain)
                             self.shake_timer = 20
@@ -3391,14 +3394,50 @@ class Game:
                 
                 render_surf.blit(self.get_text(sm_txt, WHITE, font=self.micro_font), (WIDTH - 335, 270))
 
-            y_offset = HEIGHT // 2 - 150
+            # --- EPIC SYSTEM ANNOUNCEMENTS ---
+            y_offset = 120  # Start higher up so it feels like a universal broadcast
             active_ann = []
             for ann in self.maho_announcements:
-                txt = self.get_text(ann["text"], MAHO_COLOR)
-                render_surf.blit(self.get_text(ann["text"], BLACK), (WIDTH//2 - txt.get_width()//2 + 2, y_offset + 2))
-                render_surf.blit(txt, (WIDTH//2 - txt.get_width()//2, y_offset))
+                text_str = ann["text"]
+                
+                # Contextual coloring based on the type of announcement
+                if "VOW:" in text_str:
+                    base_color = (255, 80, 80) # Intense Red for Binding Vows
+                elif "ADAPTED" in text_str or "ACQUIRED" in text_str:
+                    base_color = (100, 255, 255) # Cyan for Mahoraga/Adaptation
+                elif "SHATTERED" in text_str or "BURNED" in text_str:
+                    base_color = (255, 100, 255) # Purple for Domain breaks
+                else:
+                    base_color = (255, 220, 100) # Gold default
+                
+                txt = self.get_text(text_str, base_color)
+                banner_h = txt.get_height() + 24
+                
+                # Create a cinematic semi-transparent banner
+                ann_surf = pygame.Surface((WIDTH, banner_h), pygame.SRCALPHA)
+                
+                # Dark background across the whole screen width
+                pygame.draw.rect(ann_surf, (5, 5, 10, 200), (0, 0, WIDTH, banner_h))
+                
+                # Glowing top and bottom accent lines
+                line_thickness = max(1, min(3, ann["timer"] // 10))
+                pygame.draw.line(ann_surf, base_color + (180,), (0, 0), (WIDTH, 0), line_thickness)
+                pygame.draw.line(ann_surf, base_color + (180,), (0, banner_h - 1), (WIDTH, banner_h - 1), line_thickness)
+                
+                # Draw text with shadow for maximum readability
+                shadow = self.get_text(text_str, BLACK)
+                ann_surf.blit(shadow, (WIDTH//2 - shadow.get_width()//2 + 2, 12 + 2))
+                ann_surf.blit(txt, (WIDTH//2 - txt.get_width()//2, 12))
+                
+                # Fade out smoothly in the last 20 frames
+                if ann["timer"] <= 20:
+                    ann_surf.set_alpha(int((ann["timer"] / 20.0) * 255))
+                    
+                render_surf.blit(ann_surf, (0, y_offset))
+                
                 ann["timer"] -= 1
-                y_offset += 40
+                y_offset += banner_h + 10 # Spacing between multiple announcements
+                
                 if ann["timer"] > 0:
                     active_ann.append(ann)
             self.maho_announcements = active_ann
