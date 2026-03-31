@@ -3354,6 +3354,7 @@ class Game:
             sd_color_g = (0, 255, 255) if self.gojo.sd_broken_timer == 0 else (100, 100, 100)
             self.draw_bar_on(render_surf, 25, 145, max(0, self.gojo.max_sd_hits - self.gojo.sd_hits), self.gojo.max_sd_hits, sd_color_g, 310, 6, sd_label_g)
 
+            # Restored normal burnout rules so Blue/Red accurately say RDY
             is_burned_out = self.gojo.technique_burnout > 0 and self.gojo.domain_uses >= 5
             
             b_cd = f"BLUE: {'BURN' if is_burned_out else 'RDY' if self.gojo.blue_cd==0 else str(self.gojo.blue_cd//60)+'s'}"
@@ -3367,7 +3368,9 @@ class Game:
                 p_label = f"PRPLE: {p_status}"
                 p_color = RED if is_burned_out else (200, 100, 255) 
 
-            d_cd = f"VOID: {'BURN' if is_burned_out else 'ACT' if self.gojo.domain_active else 'RDY' if self.gojo.domain_cd==0 else str(self.gojo.domain_cd//60)+'s'}"
+            # FIXED: HUD now checks whichever timer is higher (Domain CD or the 20s Clash Penalty)
+            actual_domain_cooldown = max(self.gojo.domain_cd, self.gojo.technique_burnout)
+            d_cd = f"VOID: {'BURN' if is_burned_out else 'ACT' if self.gojo.domain_active else 'RDY' if actual_domain_cooldown==0 else str(actual_domain_cooldown//60)+'s'}"
             use_txt = f"USES: {self.gojo.domain_uses}/5"
 
             render_surf.blit(self.get_text(f"{b_cd} | {r_cd} | ", (200, 220, 255), font=self.mini_font), (25, 170))
@@ -3414,7 +3417,9 @@ class Game:
                 fu_label = f"FUGA: {fu_status}"
                 fu_color = RED if sukuna_is_burned_out else (255, 150, 50)
                 
-            sd_cd = f"SHRINE: {'BURN' if sukuna_is_burned_out else 'ACT' if self.sukuna.domain_active else 'RDY' if self.sukuna.domain_cd==0 else str(self.sukuna.domain_cd//60)+'s'}"
+            # FIXED: Same logic for Sukuna's Domain Expansion HUD
+            sukuna_actual_domain_cooldown = max(self.sukuna.domain_cd, self.sukuna.technique_burnout)
+            sd_cd = f"SHRINE: {'BURN' if sukuna_is_burned_out else 'ACT' if self.sukuna.domain_active else 'RDY' if sukuna_actual_domain_cooldown==0 else str(sukuna_actual_domain_cooldown//60)+'s'}"
 
             da_txt = self.get_text(da_cd, (150, 220, 255), font=self.mini_font)
             render_surf.blit(da_txt, (WIDTH - 335, 170))
