@@ -2155,30 +2155,72 @@ class Game:
                         if self.clash_decision_timer == 0:
                             self.clash_resolved = True
                             
-                            shrink_bonus = random.randint(100, 1500) if getattr(self.gojo, "domain_shrunk", False) else 0
-                            gojo_power = self.gojo.hp + self.gojo.energy + shrink_bonus
-                            
-                            sukuna_power = self.sukuna.hp + self.sukuna.energy + random.randint(0, 500)
-                            
-                            self.gojo_clash_power = int(gojo_power)
-                            self.sukuna_clash_power = int(sukuna_power)
-                            self.clash_power_timer = 120 
-                            
-                            if gojo_power >= sukuna_power:
-                                self.clash_winner = "GOJO WINS CLASH!"
-                                self.sukuna.end_domain()
-                                self.gojo.domain_shrunk = True 
-                            else: 
+                            if getattr(self.gojo, "domain_shrunk", False) and not getattr(self, "clash_failed", False):
+                                # SUCCESS: 20-second Clash Phase begins.
+                                self.clash_phase_timer = 1200 # 20 seconds at 60 FPS
+                                self.sukuna_hp_at_clash_start = self.sukuna.hp 
+                                self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 100, "timer": 60, "text": "DOMAIN CLASH: 20 SECONDS!", "color": WHITE})
+                                self.shake_timer = 20
+                            else:
+                                # FAILURE: UV Shatters instantly. Survival Mode begins!
                                 self.clash_winner = "SUKUNA WINS CLASH!"
                                 self.gojo.end_domain()
-                                self.gojo.domain_shrunk = False 
+                                self.gojo.domain_shrunk = False
+                                self.gojo.technique_burnout = 1200
+                                self.clash_msg_timer = 90
+                                self.shake_timer = 30
+                                self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 100, "timer": 60, "text": "SURVIVAL MODE!", "color": RED})
                                 
-                            self.clash_msg_timer = 90
-                            self.shake_timer = 30
                 else:
                     self.clash_resolved = False 
                     self.clash_decision_timer = 0
                     self.clash_failed = False
+                    
+                # --- 20-SECOND CLASH PHASE MECHANIC ---
+                if getattr(self, "clash_phase_timer", 0) > 0:
+                    self.clash_phase_timer -= 1
+                    
+                    # Freeze standard domain timers so the winner gets to play out the rest of their domain
+                    self.gojo.domain_timer = max(self.gojo.domain_timer, 200)
+                    self.sukuna.domain_timer = max(self.sukuna.domain_timer, 200)
+                    
+                    # Sukuna's AI: Toggle DA to survive vs Disable DA to Adapt
+                    incoming_threats = [p for p in self.projectiles if p.active and p.type in ["blue_orb", "red_orb"] and abs(p.pos.x - self.sukuna.rect.centerx) < 250]
+                    dist_clash = abs(self.gojo.rect.centerx - self.sukuna.rect.centerx)
+                    
+                    if (incoming_threats or (self.gojo.punch_timer > 0 and dist_clash < 150)) and self.sukuna.energy > 5:
+                        self.sukuna.amp_duration = max(self.sukuna.amp_duration, 20)
+                    
+                    # THE GAMBIT: Sukuna's sure-hit protects himself, but NOT Megumi's soul. 
+                    # If DA is off, the wheel continues bearing the burden of UV!
+                    if self.sukuna.amp_duration <= 0:
+                        self.sukuna.adapting_to = "void"
+                        self.sukuna.adaptation_points["void"] += 1.25 # Slowly builds 1500 points over the 20s window
+                        turns = self.sukuna.adaptation_points["void"] / 250.0
+                        self.sukuna.adaptation["void"] = max(0, 1.0 - min(1.0, turns / 10.0))
+                    
+                    # --- WIN/LOSS CONDITIONS ---
+                    damage_dealt_to_sukuna = getattr(self, "sukuna_hp_at_clash_start", self.sukuna.hp) - self.sukuna.hp
+                    
+                    if damage_dealt_to_sukuna >= (self.sukuna.max_hp * 0.50):
+                        # GOJO WINS: Sukuna took 50% HP damage! Shrine collapses, UV stays up!
+                        self.clash_phase_timer = 0
+                        self.clash_winner = "GOJO WINS CLASH!"
+                        self.sukuna.end_domain()
+                        self.gojo.domain_shrunk = False 
+                        self.clash_msg_timer = 90
+                        self.shake_timer = 40
+                        self.popups.append({"x": self.sukuna.rect.centerx, "y": self.sukuna.rect.centery - 100, "timer": 60, "text": "SHRINE COLLAPSED!", "color": BLUE})
+                        
+                    elif self.clash_phase_timer == 0:
+                        # SUKUNA WINS: 20 seconds passed. UV Collapses, Shrine stays up!
+                        self.clash_winner = "SUKUNA WINS CLASH!"
+                        self.gojo.end_domain()
+                        self.gojo.domain_shrunk = False
+                        self.gojo.technique_burnout = 1200
+                        self.clash_msg_timer = 90
+                        self.shake_timer = 40
+                        self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 100, "timer": 60, "text": "UV COLLAPSED!", "color": RED})
 
                 if self.mahoraga and self.mahoraga.hp > 0:
                     self.mahoraga.update_physics()
@@ -2366,6 +2408,8 @@ class Game:
                                 else:
                                     if enemy.name == "Mahoraga" and enemy.adaptation["void"] <= 0:
                                         enemy.is_paralyzed = False 
+                                    elif enemy.name == "Sukuna" and enemy.domain_active:
+                                        enemy.is_paralyzed = False 
                                     else:
                                         enemy.is_paralyzed = True
                                         uv_dmg = 1.5 * (enemy.adaptation["void"] if enemy.name == "Mahoraga" else 1.0)
@@ -2402,7 +2446,8 @@ class Game:
                 if self.sukuna.domain_active and not self.sukuna.is_paralyzed:
                     self.sukuna.tech_hits = min(self.sukuna.max_tech_hits, self.sukuna.tech_hits + 2)
                     
-                    if self.sukuna.domain_timer % 8 == 0:
+                    # Sure-hits ONLY fire if Gojo's domain is down! If both domains are up, they cancel out.
+                    if self.sukuna.domain_timer % 8 == 0 and not self.gojo.domain_active:
                         self.sukuna.tech_hits = min(self.sukuna.max_tech_hits, self.sukuna.tech_hits + 2)
                         
                         sx = self.gojo.rect.centerx + random.randint(-40, 40)
@@ -3194,26 +3239,19 @@ class Game:
                 render_surf.blit(self.clash_msg_bg, (WIDTH//2 - bg_w//2, HEIGHT//2 - 100), (0, 0, bg_w, bg_h))
                 render_surf.blit(clash_txt, (WIDTH//2 - clash_txt.get_width()//2, HEIGHT//2 - 90))
 
-            if getattr(self, "clash_power_timer", 0) > 0:
-                self.clash_power_timer -= 1
+            # --- DRAW 20-SECOND CLASH TIMER & DAMAGE GOAL ---
+            if getattr(self, "clash_phase_timer", 0) > 0:
+                seconds_left = self.clash_phase_timer / 60.0
+                clash_txt = self.get_text(f"DOMAIN CLASH: {seconds_left:.1f}s", (255, 255, 100))
+                render_surf.blit(clash_txt, (WIDTH//2 - clash_txt.get_width()//2, 80))
                 
-                g_color = (0, 255, 255) if self.gojo_clash_power >= self.sukuna_clash_power else (150, 150, 150)
-                s_color = RED if self.sukuna_clash_power > self.gojo_clash_power else (150, 150, 150)
+                damage_goal = (self.sukuna.max_hp * 0.50)
+                current_damage = max(0, getattr(self, "sukuna_hp_at_clash_start", self.sukuna.hp) - self.sukuna.hp)
+                damage_remaining = max(0, damage_goal - current_damage)
                 
-                g_txt = self.get_text(f"GOJO: {self.gojo_clash_power}", g_color)
-                vs_txt = self.get_text(" VS ", WHITE)
-                s_txt = self.get_text(f"SUKUNA: {self.sukuna_clash_power}", s_color)
-                
-                total_w = g_txt.get_width() + vs_txt.get_width() + s_txt.get_width() + 40
-                start_x = WIDTH // 2 - total_w // 2
-                
-                bg_rect = pygame.Rect(start_x - 20, 80, total_w + 40, 50)
-                pygame.draw.rect(render_surf, (20, 20, 25), bg_rect, border_radius=10)
-                pygame.draw.rect(render_surf, WHITE, bg_rect, 2, border_radius=10)
-                
-                render_surf.blit(g_txt, (start_x, 90))
-                render_surf.blit(vs_txt, (start_x + g_txt.get_width() + 20, 90))
-                render_surf.blit(s_txt, (start_x + g_txt.get_width() + vs_txt.get_width() + 40, 90))
+                if damage_remaining > 0:
+                    health_txt = self.get_text(f"DAMAGE TO BREAK SHRINE: {int(damage_remaining)}", WHITE, font=self.mini_font)
+                    render_surf.blit(health_txt, (WIDTH//2 - health_txt.get_width()//2, 115))
 
             render_surf.blit(self.gojo_hud_bg, (10, 10))
             
