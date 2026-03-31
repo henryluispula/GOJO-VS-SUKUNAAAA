@@ -448,20 +448,24 @@ class Fighter:
                 self.energy -= cost
 
         if self.name == "Sukuna" and self.hp > 0 and self.hp < self.max_hp and not self.ce_exhausted:
-            heal_cost = 0.3 * self.cost_mult
-            
-            if self.is_paralyzed:
-                heal_cost *= 4.0 
-                self.domain_cd = 900  
-                self.mahoraga_lockout = 600  
+            # If paralyzed in UV and Mahoraga is DEAD, the brain is completely fried. NO HEALING!
+            if self.is_paralyzed and getattr(self, "mahoraga_is_dead", False):
+                pass # Equivalent exchange is broken. Sukuna cannot heal here.
+            else:
+                heal_cost = 0.3 * self.cost_mult
                 
-                if random.random() < 0.1:
-                    self.black_flash_timer = 2 
-            
-            if self.energy >= heal_cost:
-                self.hp = min(self.max_hp, self.hp + random.uniform(2.5, 3.5))
-                self.energy -= heal_cost
-                self.rct_timer = 5
+                if self.is_paralyzed:
+                    heal_cost *= 4.0 
+                    self.domain_cd = 900  
+                    self.mahoraga_lockout = 600  
+                    
+                    if random.random() < 0.1:
+                        self.black_flash_timer = 2 
+                
+                if self.energy >= heal_cost:
+                    self.hp = min(self.max_hp, self.hp + random.uniform(2.5, 3.5))
+                    self.energy -= heal_cost
+                    self.rct_timer = 5
 
         if self.name == "Mahoraga" and self.rct_timer > 0:
             self.hp = min(self.max_hp, self.hp + 1.2) 
@@ -1862,18 +1866,22 @@ class Game:
                     if (purple_active or self.gojo.purple_charge > 0) and self.sukuna.on_ground:
                         if random.random() < 0.15: self.sukuna.jump()
 
-                    # PRIORITY 1: If trapped inside UV, ONLY summon Mahoraga if adaptation is completely finished!
-                    # Otherwise, he must keep Mahoraga hidden in the shadows to safely bear the burden of the domain.
-                    if self.gojo.domain_active and self.mahoraga is None and self.sukuna.adaptation["void"] <= 0.0 and getattr(self.sukuna, "mahoraga_lockout", 0) <= 0 and self.mahoraga_summon_timer <= 0:
+                    # Calculate Adaptation Percentage (1.0 = 0%, 0.0 = 100%)
+                    uv_adapt_percent = (1.0 - self.sukuna.adaptation["void"])
+                    can_summon_lore = uv_adapt_percent >= 0.65
+                    is_fully_adapted = self.sukuna.adaptation["void"] <= 0.0
+
+                    # PRIORITY 1: If trapped inside UV, ONLY summon Mahoraga if adaptation is 100% finished!
+                    if self.gojo.domain_active and self.mahoraga is None and is_fully_adapted and getattr(self.sukuna, "mahoraga_lockout", 0) <= 0 and self.mahoraga_summon_timer <= 0:
                         self.mahoraga_summon_timer = 300 
                         
-                    # PRIORITY 2: Standard HP / Tactical triggers for Mahoraga (Strictly OUTSIDE of Gojo's Domain)
-                    elif self.sukuna.hp < (self.sukuna.max_hp * 0.5) and self.mahoraga is None and not self.sukuna.world_slash_unlocked and self.gojo.domain_cd > 0 and getattr(self, "clash_decision_timer", 0) == 0 and self.gojo.domain_charge == 0 and self.sukuna.domain_charge == 0 and not self.gojo.domain_active:
+                    # PRIORITY 2: Standard Tactical triggers (Requires at least 65% Adaptation!)
+                    elif can_summon_lore and self.sukuna.hp < (self.sukuna.max_hp * 0.5) and self.mahoraga is None and not self.sukuna.world_slash_unlocked and self.gojo.domain_cd > 0 and getattr(self, "clash_decision_timer", 0) == 0 and self.gojo.domain_charge == 0 and self.sukuna.domain_charge == 0 and not self.gojo.domain_active:
                         if getattr(self.sukuna, "mahoraga_lockout", 0) <= 0:
                             self.mahoraga_summon_timer = 300 
                         
-                    # PRIORITY 3: Summon immediately if adaptation finished outside of UV
-                    elif self.mahoraga is None and self.sukuna.adaptation["void"] <= 0.0 and self.mahoraga_summon_timer <= 0 and not self.gojo.domain_active:
+                    # PRIORITY 3: Summon immediately if 100% adapted outside UV
+                    elif self.mahoraga is None and is_fully_adapted and self.mahoraga_summon_timer <= 0 and not self.gojo.domain_active:
                         if getattr(self.sukuna, "mahoraga_lockout", 0) <= 0:
                             self.mahoraga_summon_timer = 300 
 
@@ -2101,6 +2109,12 @@ class Game:
                                 self.blood_particles.append([self.gojo.rect.centerx, self.gojo.rect.centery, random.uniform(-5, 5), random.uniform(-5, 0), 30, random.randint(3, 6)])
                     
                     self.gojo.update_physics()
+                    
+                    # Track if Mahoraga was killed so Sukuna knows his shield is gone!
+                    if getattr(self.sukuna, "mahoraga_was_summoned", False):
+                        if self.mahoraga is None or self.mahoraga.hp <= 0:
+                            self.sukuna.mahoraga_is_dead = True
+                            
                     self.sukuna.update_physics()
                     if self.mahoraga and self.mahoraga.hp > 0: 
                         self.mahoraga.update_physics()
@@ -2784,6 +2798,7 @@ class Game:
                 self.mahoraga_summon_timer -= 1
                 if self.mahoraga_summon_timer == 1:
                     self.mahoraga = Fighter(self.sukuna.rect.x - 100, WORLD_HEIGHT - 1800, "Mahoraga", MAHO_COLOR)
+                    self.sukuna.mahoraga_was_summoned = True
                     self.mahoraga.hp = self.mahoraga.max_hp 
                     self.mahoraga.vel_y = 120 
                     self.mahoraga.on_ground = False
@@ -3206,9 +3221,9 @@ class Game:
             if getattr(self, "bf_zoom_timer", 0) > 0:
                 self.bf_zoom_timer -= 1
                 
-                # Extreme zoom into the point of impact!
-                target_cam_width = WIDTH * 0.35 
-                target_cam_height = HEIGHT * 0.35
+                # Cinematic zoom into the point of impact! (Widened to 55% to keep fighters in view)
+                target_cam_width = WIDTH * 0.55 
+                target_cam_height = HEIGHT * 0.55
                 target_center_x, target_center_y = self.bf_zoom_pos
                 
                 # Snappy camera movement for intense impact
@@ -3217,8 +3232,7 @@ class Game:
                 self.cam_x += (target_center_x - getattr(self, "cam_x", target_center_x)) * 0.4
                 self.cam_y += (target_center_y - getattr(self, "cam_y", target_center_y)) * 0.4
                 
-                # Introduce heavy hit-stop / slow-mo by delaying frame processing!
-                pygame.time.delay(40) 
+                # True slow-mo is now handled beautifully by the clock at the end of the loop!
             else:
                 # Smooth, normal camera tracking
                 self.cam_width += (target_cam_width - self.cam_width) * 0.1 
@@ -3565,7 +3579,14 @@ class Game:
             
             self.screen.blit(render_surf, display_offset)
             pygame.display.flip()
-            self.clock.tick(FPS)
+            
+            # --- TRUE SLOW-MO EFFECT ---
+            # If the zoom timer is active, we temporarily drop the framerate to literally slow down time!
+            if getattr(self, "bf_zoom_timer", 0) > 0:
+                self.clock.tick(24) # Drops speed to 40% (Smooth cinematic slow-mo)
+            else:
+                self.clock.tick(FPS) # Normal 60 FPS
+                
         pygame.quit()
 
 if __name__ == "__main__":
