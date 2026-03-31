@@ -2831,11 +2831,13 @@ class Game:
                         change = fighter.energy - fighter.prev_energy
                         # Filter out passive drain, only pop up for chunks
                         if change < -5.0 and fighter.name in ["Gojo", "Sukuna"]:
-                            x_offset = random.randint(-20, 20)
+                            x_offset = random.randint(-15, 15)
                             if fighter.name == "Gojo":
-                                self.ce_hud_popups.append({"x": 97 + x_offset, "y": 95, "val": int(abs(change)), "timer": 45, "color": PURPLE})
+                                # Spawns perfectly to the right of the "CURSE ENERGY" text!
+                                self.ce_hud_popups.append({"x": 165 + x_offset, "y": 75, "val": int(abs(change)), "timer": 45, "color": PURPLE})
                             elif fighter.name == "Sukuna":
-                                self.ce_hud_popups.append({"x": WIDTH - 180 + x_offset, "y": 95, "val": int(abs(change)), "timer": 45, "color": BLUE})
+                                # Spawns perfectly to the right of the "CURSE ENERGY" text!
+                                self.ce_hud_popups.append({"x": WIDTH - 205 + x_offset, "y": 75, "val": int(abs(change)), "timer": 45, "color": BLUE})
 
                     fighter.prev_hp = fighter.hp
                     fighter.prev_energy = fighter.energy
@@ -3462,7 +3464,7 @@ class Game:
                 self.ce_hud_popups = active_ce_popups
 
             # --- EPIC SYSTEM ANNOUNCEMENTS ---
-            y_offset = 55  # Lowered so it smoothly clears the 'PRESS P TO PAUSE' text!
+            y_offset = 80  # Lowered just a bit more to give the Pause text plenty of breathing room!
             active_ann = []
             for ann in self.maho_announcements:
                 text_str = ann["text"]
