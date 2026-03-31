@@ -1925,7 +1925,6 @@ class Game:
 
                     for f in active_fighters:
                         if f is None: continue
-                        f.prev_energy = f.energy 
                         
                         base_regen = 25.0 if f.name == "Gojo" else 0.8 if f.name == "Mahoraga" else 1.0 
                         regen_mult = 1.2 if f.potential_timer > 0 else 1.0
@@ -1954,9 +1953,6 @@ class Game:
                                 f.infinity = min(f.max_infinity, f.infinity + 3.5)
                                 f.energy -= inf_cost                    
                 else:
-                    for f in active_fighters:
-                        if f: f.prev_energy = f.energy
-                    
                     if self.sukuna.grab_timer > 0 and getattr(self.sukuna, "grab_type", "") == "gojo_beatdown":
                         
                         escaped = False
@@ -2132,12 +2128,7 @@ class Game:
                             self.maho_announcements.append({"text": "SUKUNA VOW: FORCED RCT IN UV! (MS 15s / MAHO 10s LOCKED)", "timer": 150})
                             self.last_uv_vow = pygame.time.get_ticks()
                     
-                    for f in active_fighters:
-                        if f and f.energy != f.prev_energy:
-                            change = f.energy - f.prev_energy
-                            tag = "REGEN" if change > 0 else "DRAIN"
-                                            
-                gojo_can_clash = self.gojo.technique_burnout == 0 and self.gojo.infinity > 0 and self.gojo.energy >= 50
+                    gojo_can_clash = self.gojo.technique_burnout == 0 and self.gojo.infinity > 0 and self.gojo.energy >= 50
 
                 if self.gojo.domain_active and self.sukuna.domain_active and gojo_can_clash:
                     clash_window = 20
@@ -2806,35 +2797,48 @@ class Game:
                 self.shake_timer -= 1
                 display_offset = (random.randint(-10, 10), random.randint(-10, 10))
 
+            if not hasattr(self, "ce_hud_popups"): self.ce_hud_popups = []
+
             for fighter in [self.gojo, self.sukuna, self.mahoraga]:
-                if fighter is not None and fighter.hp < fighter.prev_hp:
-                    damage = fighter.prev_hp - fighter.hp
-                    
-                    if fighter.domain_charge > 0:
-                        fighter.domain_charge = 0
-                        
-                        fighter.domain_cd = 300 
-                        
-                        self.popups.append({"x": fighter.rect.centerx, "y": fighter.rect.centery - 100, "timer": 45, "text": "DOMAIN INTERRUPTED!", "color": WHITE})
-                    
-                    if fighter.name == "Sukuna" and damage >= 60: 
-                        if fighter.domain_active:
-                            break_chance = 0.75 if damage >= 120 else 0.30 
-                            
-                            if random.random() < break_chance:
-                                fighter.end_domain()
-                                self.shake_timer = 20 
-                                self.popups.append({"x": fighter.rect.centerx, "y": fighter.rect.centery - 100, "timer": 60, "text": "DOMAIN SHATTERED!", "color": WHITE})
-                    
-                    num_drops = min(int(damage * 1.5), 40) 
-                    for _ in range(num_drops):
-                        bx = fighter.rect.centerx + random.randint(-30, 30)
-                        by = fighter.rect.centery + random.randint(-50, 50)
-                        vx = random.uniform(-6, 6)
-                        vy = random.uniform(-10, -2)
-                        self.blood_particles.append([bx, by, vx, vy, random.randint(20, 45), random.randint(2, 6)])
                 if fighter is not None:
+                    # HP Drop Logic
+                    if fighter.hp < fighter.prev_hp:
+                        damage = fighter.prev_hp - fighter.hp
+                        
+                        if fighter.domain_charge > 0:
+                            fighter.domain_charge = 0
+                            fighter.domain_cd = 300 
+                            self.popups.append({"x": fighter.rect.centerx, "y": fighter.rect.centery - 100, "timer": 45, "text": "DOMAIN INTERRUPTED!", "color": WHITE})
+                        
+                        if fighter.name == "Sukuna" and damage >= 60: 
+                            if fighter.domain_active:
+                                break_chance = 0.75 if damage >= 120 else 0.30 
+                                if random.random() < break_chance:
+                                    fighter.end_domain()
+                                    self.shake_timer = 20 
+                                    self.popups.append({"x": fighter.rect.centerx, "y": fighter.rect.centery - 100, "timer": 60, "text": "DOMAIN SHATTERED!", "color": WHITE})
+                        
+                        num_drops = min(int(damage * 1.5), 40) 
+                        for _ in range(num_drops):
+                            bx = fighter.rect.centerx + random.randint(-30, 30)
+                            by = fighter.rect.centery + random.randint(-50, 50)
+                            vx = random.uniform(-6, 6)
+                            vy = random.uniform(-10, -2)
+                            self.blood_particles.append([bx, by, vx, vy, random.randint(20, 45), random.randint(2, 6)])
+                    
+                    # CE Drop Logic
+                    if fighter.energy < fighter.prev_energy:
+                        change = fighter.energy - fighter.prev_energy
+                        # Filter out passive drain, only pop up for chunks
+                        if change < -5.0 and fighter.name in ["Gojo", "Sukuna"]:
+                            x_offset = random.randint(-20, 20)
+                            if fighter.name == "Gojo":
+                                self.ce_hud_popups.append({"x": 97 + x_offset, "y": 95, "val": int(abs(change)), "timer": 45, "color": PURPLE})
+                            elif fighter.name == "Sukuna":
+                                self.ce_hud_popups.append({"x": WIDTH - 180 + x_offset, "y": 95, "val": int(abs(change)), "timer": 45, "color": BLUE})
+
                     fighter.prev_hp = fighter.hp
+                    fighter.prev_energy = fighter.energy
 
             if not hasattr(self, "cached_shinjuku_bg"):
                 self.cached_shinjuku_bg = pygame.Surface((WORLD_WIDTH, WORLD_HEIGHT))
@@ -3429,49 +3433,79 @@ class Game:
                 
                 render_surf.blit(self.get_text(sm_txt, WHITE, font=self.micro_font), (WIDTH - 335, 270))
 
+            # --- HUD CE LOSS POPUPS ---
+            if hasattr(self, "ce_hud_popups"):
+                active_ce_popups = []
+                for cp in self.ce_hud_popups:
+                    cp["y"] -= 1.0 # Float upwards
+                    alpha = min(255, cp["timer"] * 8)
+                    
+                    txt_surf = self.get_text(f"-{cp['val']} CE", cp["color"], font=self.mini_font)
+                    shadow = self.get_text(f"-{cp['val']} CE", BLACK, font=self.mini_font)
+                    
+                    # Apply fading transparency
+                    fade_surf = pygame.Surface(txt_surf.get_size(), pygame.SRCALPHA)
+                    fade_surf.blit(txt_surf, (0, 0))
+                    fade_surf.set_alpha(alpha)
+                    
+                    shadow_surf = pygame.Surface(shadow.get_size(), pygame.SRCALPHA)
+                    shadow_surf.blit(shadow, (0, 0))
+                    shadow_surf.set_alpha(alpha)
+                    
+                    # Render shadow then text
+                    render_surf.blit(shadow_surf, (cp["x"] - shadow.get_width()//2 + 1, int(cp["y"]) + 1))
+                    render_surf.blit(fade_surf, (cp["x"] - txt_surf.get_width()//2, int(cp["y"])))
+                    
+                    cp["timer"] -= 1
+                    if cp["timer"] > 0:
+                        active_ce_popups.append(cp)
+                self.ce_hud_popups = active_ce_popups
+
             # --- EPIC SYSTEM ANNOUNCEMENTS ---
-            y_offset = 320  # Lowered strictly below the HUDs so they never overlap!
+            y_offset = 55  # Lowered so it smoothly clears the 'PRESS P TO PAUSE' text!
             active_ann = []
             for ann in self.maho_announcements:
                 text_str = ann["text"]
                 
-                # Contextual coloring based on the type of announcement
+                # Contextual coloring
                 if "VOW:" in text_str:
-                    base_color = (255, 80, 80) # Intense Red for Binding Vows
+                    base_color = (255, 80, 80)
                 elif "ADAPTED" in text_str or "ACQUIRED" in text_str:
-                    base_color = (100, 255, 255) # Cyan for Mahoraga/Adaptation
+                    base_color = (100, 255, 255)
                 elif "SHATTERED" in text_str or "BURNED" in text_str:
-                    base_color = (255, 100, 255) # Purple for Domain breaks
+                    base_color = (255, 100, 255)
                 else:
-                    base_color = (255, 220, 100) # Gold default
+                    base_color = (255, 220, 100)
                 
                 txt = self.get_text(text_str, base_color)
-                banner_h = txt.get_height() + 24
                 
-                # Create a cinematic semi-transparent banner
-                ann_surf = pygame.Surface((WIDTH, banner_h), pygame.SRCALPHA)
+                # Dynamically size the banner to ONLY wrap the text so it doesn't cover the HUDs!
+                banner_w = txt.get_width() + 40
+                banner_h = txt.get_height() + 16
                 
-                # Dark background across the whole screen width
-                pygame.draw.rect(ann_surf, (5, 5, 10, 200), (0, 0, WIDTH, banner_h))
+                ann_surf = pygame.Surface((banner_w, banner_h), pygame.SRCALPHA)
                 
-                # Glowing top and bottom accent lines
+                # Dark background with rounded cinematic corners
+                pygame.draw.rect(ann_surf, (5, 5, 10, 220), (0, 0, banner_w, banner_h), border_radius=8)
+                
+                # Glowing border outline
                 line_thickness = max(1, min(3, ann["timer"] // 10))
-                pygame.draw.line(ann_surf, base_color + (180,), (0, 0), (WIDTH, 0), line_thickness)
-                pygame.draw.line(ann_surf, base_color + (180,), (0, banner_h - 1), (WIDTH, banner_h - 1), line_thickness)
+                pygame.draw.rect(ann_surf, base_color + (180,), (0, 0, banner_w, banner_h), line_thickness, border_radius=8)
                 
-                # Draw text with shadow for maximum readability
+                # Draw text with shadow
                 shadow = self.get_text(text_str, BLACK)
-                ann_surf.blit(shadow, (WIDTH//2 - shadow.get_width()//2 + 2, 12 + 2))
-                ann_surf.blit(txt, (WIDTH//2 - txt.get_width()//2, 12))
+                ann_surf.blit(shadow, (banner_w//2 - shadow.get_width()//2 + 2, 8 + 2))
+                ann_surf.blit(txt, (banner_w//2 - txt.get_width()//2, 8))
                 
-                # Fade out smoothly in the last 20 frames
+                # Fade out smoothly
                 if ann["timer"] <= 20:
                     ann_surf.set_alpha(int((ann["timer"] / 20.0) * 255))
                     
-                render_surf.blit(ann_surf, (0, y_offset))
+                # Blit perfectly in the top center of the screen
+                render_surf.blit(ann_surf, (WIDTH//2 - banner_w//2, y_offset))
                 
                 ann["timer"] -= 1
-                y_offset += banner_h + 10 # Spacing between multiple announcements
+                y_offset += banner_h + 8 
                 
                 if ann["timer"] > 0:
                     active_ann.append(ann)
