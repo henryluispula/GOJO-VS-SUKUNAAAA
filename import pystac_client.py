@@ -2108,16 +2108,20 @@ class Game:
                                 self.shake_timer = 5
                                 self.blood_particles.append([self.gojo.rect.centerx, self.gojo.rect.centery, random.uniform(-5, 5), random.uniform(-5, 0), 30, random.randint(3, 6)])
                     
-                    self.gojo.update_physics()
-                    
-                    # Track if Mahoraga was killed so Sukuna knows his shield is gone!
-                    if getattr(self.sukuna, "mahoraga_was_summoned", False):
-                        if self.mahoraga is None or self.mahoraga.hp <= 0:
-                            self.sukuna.mahoraga_is_dead = True
-                            
-                    self.sukuna.update_physics()
-                    if self.mahoraga and self.mahoraga.hp > 0: 
-                        self.mahoraga.update_physics()
+                    # --- FIGHTER SLOW-MO DURING BLACK FLASH ---
+                    # By only updating physics every 3 frames, we create a beautiful "Matrix-style" 
+                    # slow-motion effect specifically for the punch, while the camera smoothly zooms!
+                    if getattr(self, "bf_zoom_timer", 0) <= 0 or getattr(self, "bf_zoom_timer", 0) % 3 == 0:
+                        self.gojo.update_physics()
+                        
+                        # Track if Mahoraga was killed so Sukuna knows his shield is gone!
+                        if getattr(self.sukuna, "mahoraga_was_summoned", False):
+                            if self.mahoraga is None or self.mahoraga.hp <= 0:
+                                self.sukuna.mahoraga_is_dead = True
+                                
+                        self.sukuna.update_physics()
+                        if self.mahoraga and self.mahoraga.hp > 0: 
+                            self.mahoraga.update_physics()
                         
                         if getattr(self.mahoraga, "is_cinematic_landing", False) and self.mahoraga.on_ground:
                             self.mahoraga.is_cinematic_landing = False
@@ -2139,7 +2143,7 @@ class Game:
 
                     if self.sukuna.is_paralyzed and self.sukuna.rct_timer > 0 and getattr(self.sukuna, "mahoraga_lockout", 0) > 598:
                         if pygame.time.get_ticks() - getattr(self, "last_uv_vow", 0) > 5000:
-                            self.maho_announcements.append({"text": "SUKUNA VOW: FORCED RCT IN UV! (MS 15s / MAHO 10s LOCKED)", "timer": 150})
+                            self.maho_announcements.append({"text": "SUKUNA VOW: FORCED RCT IN UV!(MS 15s/MAHO 10s LOCKED)", "timer": 150})
                             self.last_uv_vow = pygame.time.get_ticks()
                     
                     gojo_can_clash = self.gojo.technique_burnout == 0 and self.gojo.infinity > 0 and self.gojo.energy >= 50
@@ -3221,9 +3225,9 @@ class Game:
             if getattr(self, "bf_zoom_timer", 0) > 0:
                 self.bf_zoom_timer -= 1
                 
-                # Cinematic zoom into the point of impact! (Widened to 55% to keep fighters in view)
-                target_cam_width = WIDTH * 0.55 
-                target_cam_height = HEIGHT * 0.55
+                # Cinematic zoom into the point of impact! (Decreased zoom to 70% to keep the action readable)
+                target_cam_width = WIDTH * 0.70 
+                target_cam_height = HEIGHT * 0.70
                 target_center_x, target_center_y = self.bf_zoom_pos
                 
                 # Snappy camera movement for intense impact
@@ -3494,8 +3498,19 @@ class Game:
                     base_color = (255, 220, 100)
                 
                 txt = self.get_text(text_str, base_color)
+                shadow = self.get_text(text_str, BLACK)
                 
-                # Dynamically size the banner to ONLY wrap the text so it doesn't cover the HUDs!
+                # --- STRICT WIDTH LIMITER ---
+                # The safe zone between Gojo and Sukuna's HUDs is exactly 580 pixels wide.
+                # If an announcement is too long, we dynamically squish it down so it NEVER overlaps!
+                if txt.get_width() > 540:
+                    scale_ratio = 540.0 / txt.get_width()
+                    new_w = 540
+                    new_h = max(10, int(txt.get_height() * scale_ratio))
+                    txt = pygame.transform.scale(txt, (new_w, new_h))
+                    shadow = pygame.transform.scale(shadow, (new_w, new_h))
+                
+                # Dynamically size the banner to ONLY wrap the safe text
                 banner_w = txt.get_width() + 40
                 banner_h = txt.get_height() + 16
                 
@@ -3509,7 +3524,6 @@ class Game:
                 pygame.draw.rect(ann_surf, base_color + (180,), (0, 0, banner_w, banner_h), line_thickness, border_radius=8)
                 
                 # Draw text with shadow
-                shadow = self.get_text(text_str, BLACK)
                 ann_surf.blit(shadow, (banner_w//2 - shadow.get_width()//2 + 2, 8 + 2))
                 ann_surf.blit(txt, (banner_w//2 - txt.get_width()//2, 8))
                 
@@ -3580,12 +3594,9 @@ class Game:
             self.screen.blit(render_surf, display_offset)
             pygame.display.flip()
             
-            # --- TRUE SLOW-MO EFFECT ---
-            # If the zoom timer is active, we temporarily drop the framerate to literally slow down time!
-            if getattr(self, "bf_zoom_timer", 0) > 0:
-                self.clock.tick(24) # Drops speed to 40% (Smooth cinematic slow-mo)
-            else:
-                self.clock.tick(FPS) # Normal 60 FPS
+            # The fighters are now individually slowed down via the 1/3 physics skip!
+            # Keeping the engine at 60 FPS ensures the camera zoom and UI remain buttery smooth.
+            self.clock.tick(FPS) 
                 
         pygame.quit()
 
