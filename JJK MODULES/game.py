@@ -452,7 +452,7 @@ class Game:
             if getattr(self, "bf_zoom_timer", 0) > 0:
                 self.bf_zoom_timer -= 1
                 
-                # Cinematic zoom into the point of impact! (Decreased zoom to 70% to keep the action readable)
+                # Cinematic zoom into the point of impact!
                 target_cam_width = WIDTH * 0.70 
                 target_cam_height = HEIGHT * 0.70
                 target_center_x, target_center_y = self.bf_zoom_pos
