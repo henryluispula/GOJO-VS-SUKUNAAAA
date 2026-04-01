@@ -1,0 +1,219 @@
+import pygame, random, math # type: ignore
+from settings import *
+from projectile import Projectile
+
+
+def update_domain_boundary(game):
+    """Constrains fighters within the shrunk UV bubble."""
+    g = game.gojo
+    if g.domain_active and getattr(g, "domain_shrunk", False):
+        if not hasattr(g, "domain_center_x"):
+            g.domain_center_x = max(750, min(WORLD_WIDTH - 750, g.rect.centerx))
+            g.domain_center_y = max(450, min(WORLD_HEIGHT - 450, g.rect.centery))
+    else:
+        g.domain_shrunk = False
+        for attr in ("domain_center_x", "domain_center_y"):
+            if hasattr(g, attr): delattr(g, attr)
+
+    if g.domain_active and getattr(g, "domain_shrunk", False) and hasattr(g, "domain_center_x"):
+        cx, cy, radius = g.domain_center_x, g.domain_center_y, 400
+        for f in [g, game.sukuna]:
+            if f and f.hp > 0:
+                dx, dy = f.rect.centerx - cx, f.rect.centery - cy
+                d = math.hypot(dx, dy)
+                if d > radius - 35 and d > 0:
+                    push = (radius - 35 - d) * 0.8
+                    f.rect.x += (dx / d) * push; f.rect.y += (dy / d) * push
+
+
+def update_physics_and_grabs(game):
+    """CE regen (cinematic), beatdown/grab damage, physics tick. Returns gojo_can_clash."""
+    g = game.gojo; s = game.sukuna
+    is_cinematic = g.domain_charge > 0 or s.domain_charge > 0 or getattr(game, "clash_decision_timer", 0) > 0
+    active_fighters = [f for f in [g, s, game.mahoraga] if f]
+
+    if is_cinematic:
+        g.vel_y = 0; s.vel_y = 0
+        if game.mahoraga: game.mahoraga.vel_y = 0
+        for f in active_fighters:
+            base_regen = 25.0 if f.name == "Gojo" else 0.8 if f.name == "Mahoraga" else 1.0
+            regen_mult = 1.2 if f.potential_timer > 0 else 1.0
+            if f.energy <= 0.5:
+                f.ce_exhausted = True
+                if f.name == "Gojo": f.infinity = 0
+            if f.ce_exhausted:
+                regen_mult *= 0.8 if f.name == "Sukuna" else 0.4
+                thresh = 80 if f.name == "Sukuna" else (420 if f.name == "Gojo" else 30)
+                if f.energy >= thresh: f.ce_exhausted = False
+            f.energy = min(f.max_energy, f.energy + base_regen * regen_mult)
+            if f.name == "Gojo" and f.infinity < f.max_infinity and f.technique_burnout == 0:
+                inf_cost = 0.1 * f.cost_mult
+                if f.energy >= inf_cost:
+                    f.prev_energy = f.energy
+                    f.infinity = min(f.max_infinity, f.infinity + 3.5)
+                    f.energy -= inf_cost
+    else:
+        # ── Sukuna beatdown escape ───────────────────────────────────────────
+        if s.grab_timer > 0 and getattr(s, "grab_type", "") == "gojo_beatdown":
+            escaped = False
+            if s.attack_cooldown <= 0 and random.random() < 0.08:
+                is_burned_out = (g.domain_uses >= 5 and g.technique_burnout > 0)
+                has_infinity = g.infinity > 0 and g.energy > 0 and not is_burned_out
+                is_da_locked_out = getattr(s, "tactical_eval_timer", 0) > 0
+                can_da_counter = has_infinity and s.grab_cd <= 0 and s.energy >= 15 * s.cost_mult and not is_da_locked_out
+                can_cleave_counter = (not has_infinity or s.amp_duration <= 0) and s.grab_cd <= 0 and s.energy >= 30 * s.cost_mult and s.cleave_cd <= 0
+                can_da_escape = (s.amp_cd <= 0 or s.amp_duration > 0) and s.energy >= 10 * s.cost_mult and not is_da_locked_out
+                if can_da_counter or can_cleave_counter:
+                    s.grab_timer = 0; g.grab_timer = 300; g.purple_charge = 0; g.domain_charge = 0; s.attack_cooldown = 30; escaped = True
+                    if can_da_counter:
+                        g.grab_type = "amp_punch"; s.amp_duration = max(s.amp_duration, 300); s.energy -= 15 * s.cost_mult; s.grab_cd = 480
+                        game.popups.append({"x": s.rect.centerx, "y": s.rect.centery - 80, "timer": 45, "text": "COUNTER: DA BEATDOWN!", "color": (255, 255, 0)})
+                    else:
+                        g.grab_type = "cleave"; s.amp_duration = 0; s.energy -= 30 * s.cost_mult; s.cleave_cd = 600; s.grab_cd = 600
+                        game.popups.append({"x": s.rect.centerx, "y": s.rect.centery - 80, "timer": 45, "text": "COUNTER: CLEAVE!", "color": RED})
+                        p = Projectile(g.rect.centerx, g.rect.centery, g.rect.centerx, g.rect.centery, 1, RED, size_mult=4.0, type="cleave")
+                        p.vel = pygame.Vector2(random.uniform(-1, 1), random.uniform(-1, 1)).normalize() * 0.1
+                        p.lifetime = 300; p.is_grab_cleave = True; game.projectiles.append(p)
+                elif can_da_escape and s.hp < s.max_hp * 0.65:
+                    s.grab_timer = 0; s.amp_duration = max(s.amp_duration, 60); s.energy -= 10 * s.cost_mult; s.attack_cooldown = 20; escaped = True
+                    kb_dir = 1 if s.rect.centerx > g.rect.centerx else -1
+                    s.rect.x += kb_dir * 180; g.rect.x -= kb_dir * 180; game.shake_timer = 15
+                    game.popups.append({"x": s.rect.centerx, "y": s.rect.centery - 80, "timer": 45, "text": "DA BURST ESCAPE!", "color": WHITE})
+
+            if not escaped:
+                s.rect.centerx = g.rect.centerx + (40 * g.direction); s.rect.centery = g.rect.centery
+                beatdown_dmg = 1.2
+                imbue_cost = 2.0 * g.cost_mult
+                if g.energy >= imbue_cost: g.energy -= imbue_cost; beatdown_dmg *= 1.6
+                if s.energy > 0:
+                    rm = random.uniform(0.15, 0.35); md = beatdown_dmg * (1.0 - rm); beatdown_dmg *= rm
+                    s.energy = max(0, s.energy - (md * 2.0) * s.cost_mult)
+                s.hp -= beatdown_dmg; g.tech_hits = min(g.max_tech_hits, g.tech_hits + beatdown_dmg)
+                if s.grab_timer % 6 == 0:
+                    game.shake_timer = 3; sc = WHITE if random.random() < 0.5 else BLUE
+                    for _ in range(6): game.hit_sparks.append([s.rect.centerx + random.randint(-20, 20), s.rect.centery + random.randint(-30, 30), random.uniform(-10, 10), random.uniform(-10, 10), random.randint(15, 30), sc])
+
+        # ── Gojo grab (Sukuna holds Gojo) ────────────────────────────────────
+        if g.grab_timer > 0:
+            g.rect.centerx = s.rect.centerx + (40 * s.direction); g.rect.centery = s.rect.centery
+            grab_type = getattr(g, "grab_type", "cleave")
+
+            def _cleave_tick():
+                cleave_dmg = 0.4
+                if g.energy > 0:
+                    rm = random.uniform(0.15, 0.35); md = cleave_dmg * (1.0 - rm); cleave_dmg *= rm
+                    g.energy = max(0, g.energy - (md * 3.5) * g.cost_mult)
+                g.hp -= cleave_dmg; s.tech_hits = min(s.max_tech_hits, s.tech_hits + 0.5)
+                if g.grab_timer % 10 == 0:
+                    game.shake_timer = 5
+                    game.blood_particles.append([g.rect.centerx, g.rect.centery, random.uniform(-5, 5), random.uniform(-5, 0), 30, random.randint(3, 6)])
+
+            if grab_type == "amp_punch":
+                s.amp_duration = max(s.amp_duration, 10); bd = 0.2
+                if s.energy >= 2.0 * s.cost_mult: s.energy -= 2.0 * s.cost_mult; bd *= 1.6
+                if g.energy > 0:
+                    rm = random.uniform(0.15, 0.35); md = bd * (1.0 - rm); bd *= rm
+                    g.energy = max(0, g.energy - (md * 3.5) * g.cost_mult)
+                g.hp -= bd; s.tech_hits = min(s.max_tech_hits, s.tech_hits + bd)
+                if g.grab_timer % 8 == 0:
+                    game.shake_timer = 4; sc = WHITE if random.random() < 0.5 else RED
+                    for _ in range(5): game.hit_sparks.append([g.rect.centerx + random.randint(-15, 15), g.rect.centery + random.randint(-20, 20), random.uniform(-8, 8), random.uniform(-8, 8), random.randint(15, 30), sc])
+            elif grab_type == "cleave":
+                _cleave_tick()
+
+            if g.infinity > 0 and g.energy > 0 and g.technique_burnout == 0:
+                g.energy = max(0, g.energy - 1.5 * g.cost_mult); s.tech_hits = min(s.max_tech_hits, s.tech_hits + 0.5)
+                if random.random() < 0.3:
+                    game.hit_sparks.append([g.rect.centerx + random.randint(-20, 20), g.rect.centery + random.randint(-30, 30), random.uniform(-5, 5), random.uniform(-5, 5), random.randint(15, 25), INF_COLOR])
+            else:
+                _cleave_tick()
+
+        # ── Physics tick ─────────────────────────────────────────────────────
+        if getattr(game, "bf_zoom_timer", 0) <= 0 or getattr(game, "bf_zoom_timer", 0) % 3 == 0:
+            g.update_physics()
+            if getattr(game.sukuna, "mahoraga_was_summoned", False):
+                if game.mahoraga is None or game.mahoraga.hp <= 0: game.sukuna.mahoraga_is_dead = True
+            game.sukuna.update_physics()
+            if game.mahoraga and game.mahoraga.hp > 0: game.mahoraga.update_physics()
+            if getattr(game.mahoraga, "is_cinematic_landing", False) and game.mahoraga and game.mahoraga.on_ground:
+                game.mahoraga.is_cinematic_landing = False; game.shake_timer = 50
+                dist_to_gojo = abs(g.rect.centerx - game.mahoraga.rect.centerx)
+                if dist_to_gojo < 600:
+                    kb_dir = 1 if g.rect.centerx > game.mahoraga.rect.centerx else -1; g.rect.x += kb_dir * 150
+                for _ in range(80):
+                    dx = game.mahoraga.rect.centerx + random.randint(-150, 150); dy = game.mahoraga.rect.bottom - random.randint(0, 40)
+                    c = random.randint(180, 240)
+                    game.hit_sparks.append([dx, dy, random.uniform(-25, 25), random.uniform(-15, -2), random.randint(20, 50), (c, c, c)])
+
+        if game.sukuna.is_paralyzed and game.sukuna.rct_timer > 0 and getattr(game.sukuna, "mahoraga_lockout", 0) > 598:
+            if pygame.time.get_ticks() - getattr(game, "last_uv_vow", 0) > 5000:
+                game.maho_announcements.append({"text": "SUKUNA VOW: FORCED RCT IN UV!(MS 15s/MAHO 10s)", "timer": 150})
+                game.last_uv_vow = pygame.time.get_ticks()
+
+    return g.technique_burnout == 0 and g.infinity > 0 and g.energy >= 50
+
+
+def update_domain_clash(game, keys, gojo_can_clash):
+    """Domain clash initiation (shrink timing) and 20-second clash phase."""
+    g = game.gojo; s = game.sukuna
+
+    if g.domain_active and s.domain_active and gojo_can_clash:
+        clash_window = 20
+        if getattr(game, "clash_decision_timer", 0) == 0 and not getattr(game, "clash_resolved", False):
+            game.clash_decision_timer = clash_window; game.clash_failed = False
+        if getattr(game, "clash_decision_timer", 0) > 0:
+            game.clash_decision_timer -= 1
+            is_sweet_spot = 1 <= game.clash_decision_timer <= 5
+            if keys[pygame.K_z] and keys[pygame.K_v] and not getattr(game, "clash_failed", False):
+                if is_sweet_spot and not getattr(g, "domain_shrunk", False):
+                    g.domain_shrunk = True; game.shake_timer = 20
+                    game.popups.append({"x": g.rect.centerx, "y": g.rect.centery - 100, "timer": 60, "text": "CRITICAL SHRINK!", "color": (0, 255, 255)})
+                elif game.clash_decision_timer > 5:
+                    game.clash_failed = True
+                    game.popups.append({"x": g.rect.centerx, "y": g.rect.centery - 50, "timer": 30, "text": "TOO EARLY!", "color": RED})
+            if game.clash_decision_timer == 0:
+                game.clash_resolved = True
+                if getattr(g, "domain_shrunk", False) and not getattr(game, "clash_failed", False):
+                    game.clash_phase_timer = 1200; game.sukuna_hp_at_clash_start = s.hp
+                    game.popups.append({"x": g.rect.centerx, "y": g.rect.centery - 100, "timer": 60, "text": "DOMAIN CLASH: 20 SECONDS!", "color": WHITE})
+                    game.shake_timer = 20
+                else:
+                    game.clash_winner = "SUKUNA WINS CLASH!"; g.end_domain(); g.domain_shrunk = False
+                    g.technique_burnout = 1200; game.clash_msg_timer = 90; game.shake_timer = 30
+                    game.popups.append({"x": g.rect.centerx, "y": g.rect.centery - 100, "timer": 60, "text": "SURVIVAL MODE!", "color": RED})
+    else:
+        game.clash_resolved = False; game.clash_decision_timer = 0; game.clash_failed = False
+
+    if getattr(game, "clash_phase_timer", 0) > 0:
+        game.clash_phase_timer -= 1
+        g.domain_timer = max(g.domain_timer, 200); s.domain_timer = max(s.domain_timer, 200)
+        incoming_threats = [p for p in game.projectiles if p.active and p.type in ["blue_orb", "red_orb", "purple_orb"] and abs(p.pos.x - s.rect.centerx) < 300]
+        dist_clash = abs(g.rect.centerx - s.rect.centerx)
+        gojo_is_facing = (g.direction == 1 and g.rect.centerx < s.rect.centerx) or (g.direction == -1 and g.rect.centerx > s.rect.centerx)
+        actual_punch_threat = g.punch_timer > 0 and dist_clash < 140 and gojo_is_facing
+        is_greedy = s.hp > (s.max_hp * 0.65)
+        purple_charging_or_ready = g.purple_charge > 0 or (g.purple_cd == 0 and g.tech_hits >= g.max_tech_hits)
+        if (incoming_threats or purple_charging_or_ready or getattr(g, "grab_timer", 0) > 0 or (actual_punch_threat and not is_greedy)) and s.energy > 5:
+            s.amp_duration = max(s.amp_duration, 20)
+        else:
+            s.amp_duration = 0
+        if s.amp_duration <= 0:
+            s.adapting_to = "void"; s.adaptation_points["void"] += 1.25
+            turns = s.adaptation_points["void"] / 250.0
+            s.adaptation["void"] = max(0, 1.0 - min(1.0, turns / 10.0))
+            if int(s.adaptation_points["void"]) % 50 == 0:
+                print(f"[CLASH LOG] Megumi adapting... Points: {int(s.adaptation_points['void'])}/1500 | Turns: {turns:.2f}/6")
+        else:
+            s.adapting_to = None
+
+        damage_dealt = getattr(game, "sukuna_hp_at_clash_start", s.hp) - s.hp
+        if damage_dealt >= (s.max_hp * 0.50):
+            print("[CLASH LOG] GOJO WINS THE CLASH!")
+            game.clash_phase_timer = 0; game.clash_winner = "GOJO WINS CLASH!"; s.end_domain()
+            g.domain_shrunk = False; g.domain_timer = 400; game.clash_msg_timer = 90; game.shake_timer = 40
+            game.popups.append({"x": s.rect.centerx, "y": s.rect.centery - 100, "timer": 60, "text": "SHRINE COLLAPSED!", "color": BLUE})
+        elif game.clash_phase_timer == 0:
+            print("[CLASH LOG] SUKUNA WINS THE CLASH!")
+            game.clash_winner = "SUKUNA WINS CLASH!"; g.end_domain(); g.domain_shrunk = False
+            g.technique_burnout = 1200; s.domain_timer = 400; game.clash_msg_timer = 90; game.shake_timer = 40
+            game.popups.append({"x": g.rect.centerx, "y": g.rect.centery - 100, "timer": 60, "text": "UV COLLAPSED!", "color": RED})
