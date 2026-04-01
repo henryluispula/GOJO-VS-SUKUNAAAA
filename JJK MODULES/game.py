@@ -1,4 +1,4 @@
-import pygame
+import pygame # type: ignore
 import math
 import random
 import time
@@ -191,7 +191,9 @@ class Game:
                             self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 100, "timer": 30, "text": "NOT ENOUGH CE!", "color": RED})
                             self.gojo.attack_cooldown = 20
                 
-                if keys[pygame.K_e] and keys[pygame.K_w] and self.pb_blue_ready and self.gojo.energy >= 60 * self.gojo.cost_mult and self.gojo.blue_cd == 0 and self.gojo.grab_timer <= 0 and self.gojo.technique_burnout == 0 and self.gojo.domain_charge == 0:
+                is_actually_burned_out = (self.gojo.domain_uses >= 5 and self.gojo.technique_burnout > 0)
+                
+                if keys[pygame.K_e] and keys[pygame.K_w] and self.pb_blue_ready and self.gojo.energy >= 60 * self.gojo.cost_mult and self.gojo.blue_cd == 0 and self.gojo.grab_timer <= 0 and not is_actually_burned_out and self.gojo.domain_charge == 0:
                     self.pb_blue_ready = False
                     self.gojo.energy -= 60 * self.gojo.cost_mult
                     self.gojo.blue_cd = 480 
@@ -232,7 +234,7 @@ class Game:
                     self.gojo.grab_timer = 0
                     self.sukuna.grab_timer = 0
                     
-                    if self.gojo.technique_burnout > 0:
+                    if is_actually_burned_out:
                         self.gojo.technique_burnout = 0
                         self.gojo.energy -= 150 * self.gojo.cost_mult 
                         self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 120, "timer": 60, "text": "BRAIN RCT REFRESH!", "color": HEAL_GREEN})
@@ -568,17 +570,17 @@ class Game:
                                     self.sukuna.dodge()
                                     self.sukuna.dodge_cd = 20 
                     
-                    incoming_orbs = [p for p in self.projectiles if p.type in ["blue_orb", "red_orb", "purple_orb"] and abs(p.pos.x - self.sukuna.rect.centerx) < 250]
+                    incoming_orbs = [p for p in self.projectiles if p.type in ["blue_orb", "red_orb", "purple_orb"] and abs(p.pos.x - self.sukuna.rect.centerx) < 400]
                     if incoming_orbs:
                         closest_orb = min(incoming_orbs, key=lambda p: abs(p.pos.x - self.sukuna.rect.centerx))
                         
                         if self.sukuna.on_ground and abs(closest_orb.pos.x - self.sukuna.rect.centerx) < 180:
                             self.sukuna.jump()
                             
-                        if self.sukuna.dodge_cd == 0:
+                        if self.sukuna.dodge_cd <= 0 and self.sukuna.stamina >= 20:
                             if self.sukuna.rect.centerx < 100: self.sukuna.direction = 1
                             elif self.sukuna.rect.centerx > WORLD_WIDTH - 100: self.sukuna.direction = -1
-                            else: self.sukuna.direction = -1 if self.sukuna.rect.x > self.gojo.rect.x else 1
+                            else: self.sukuna.direction = 1 if self.sukuna.rect.centerx > closest_orb.pos.x else -1
                             
                             self.sukuna.dodge()
                             self.sukuna.dodge_cd = 40
@@ -741,7 +743,7 @@ class Game:
                             self.sukuna.rect.x += -speed if self.sukuna.rect.x > self.gojo.rect.x else speed
                             
                         if self.gojo.domain_active and not self.sukuna.domain_active:
-                            if self.sukuna.dodge_cd <= 0 and self.sukuna.stamina >= 20 and not self.sukuna.stamina_exhausted:
+                            if self.sukuna.dodge_cd <= 0 and self.sukuna.stamina >= 20 and not self.sukuna.stamina_exhausted and not incoming_orbs:
                                 self.sukuna.direction = -1 if self.sukuna.rect.x > self.gojo.rect.x else 1
                                 self.sukuna.dodge()
                                 self.sukuna.dodge_cd = 25
