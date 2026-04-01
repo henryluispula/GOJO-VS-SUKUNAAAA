@@ -1,5 +1,5 @@
 # settings.py
-import pygame
+import pygame # type: ignore
 
 # --- Configuration ---
 WIDTH, HEIGHT = 1280, 720
