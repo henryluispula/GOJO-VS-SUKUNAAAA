@@ -9,10 +9,14 @@ def update_sukuna_ai(game, dt):
     time_mult = dt * 60.0
 
     dist = abs(s.rect.centerx - g.rect.centerx)
-    fuga_priority = (s.tech_hits >= s.max_tech_hits and s.fuga_cd == 0
+    
+    purple_flying_early = any(p.type == "purple_orb" for p in game.projectiles)
+    is_purple_threat_early = g.purple_charge > 0 or purple_flying_early or (g.purple_cd <= 0 and g.tech_hits >= g.max_tech_hits)
+    
+    fuga_priority = (s.tech_hits >= s.max_tech_hits and s.fuga_cd <= 0
                      and s.energy >= 195 * s.cost_mult and not g.domain_active
-                     and g.domain_cd > 600) or s.fuga_charge > 0
-    gojo_has_inf = g.infinity > 0 and g.technique_burnout == 0
+                     and g.domain_cd > 600 and not is_purple_threat_early) or s.fuga_charge > 0
+    gojo_has_inf = g.infinity > 0 and g.technique_burnout <= 0
 
     # ── Domain Cast Decision ─────────────────────────────────────────────────
     if (s.energy >= 200 * s.cost_mult and s.domain_cd == 0 and s.technique_burnout == 0
@@ -57,7 +61,7 @@ def update_sukuna_ai(game, dt):
             s.energy -= 200 * s.cost_mult
 
     # ── Simple Domain While Trapped in UV ───────────────────────────────────
-    elif g.domain_active and not s.domain_active:
+    if g.domain_active and not s.domain_active:
         if s.energy > 5 * s.cost_mult and s.sd_broken_timer <= 0:
             if not getattr(s, "sd_was_active", False):
                 s.energy -= 25.0 * s.cost_mult; s.sd_hits = 0
@@ -89,9 +93,6 @@ def update_sukuna_ai(game, dt):
                 if s.energy > vow_cost:
                     s.energy -= vow_cost; s.hp = min(s.max_hp, s.hp + 2.0)
                     s.amp_duration = max(s.amp_duration, 60); is_amp = True
-                    if pygame.time.get_ticks() - getattr(game, "last_purple_vow", 0) > 5000:
-                        game.maho_announcements.append({"text": "SUKUNA VOW: CE BURNED TO TANK PURPLE!", "timer": 120})
-                        game.last_purple_vow = pygame.time.get_ticks()
             else:
                 s.direction = 1 if s.rect.x < g.rect.x else -1
                 if s.world_slash_unlocked and s.world_slash_cd <= 0 and getattr(s, "world_slash_charge", 0) <= 0 and s.energy >= 80 * s.cost_mult:
@@ -159,11 +160,11 @@ def update_sukuna_ai(game, dt):
         if retreating and g.grab_timer <= 0:
             if is_tactical_eval:
                 can_survive_counter = s.hp > (s.max_hp * 0.25)
-                if s.energy >= 200 * s.cost_mult and s.domain_cd == 0 and s.technique_burnout == 0 and not s.domain_active:
+                if s.energy >= 200 * s.cost_mult and s.domain_cd <= 0 and s.technique_burnout <= 0 and not s.domain_active:
                     s.domain_charge = 60; s.energy -= 200 * s.cost_mult
-                elif s.tech_hits >= s.max_tech_hits and s.fuga_cd == 0 and s.energy >= 195 * s.cost_mult and s.technique_burnout == 0 and not g.domain_active and not s.is_paralyzed:
+                elif s.tech_hits >= s.max_tech_hits and s.fuga_cd <= 0 and s.energy >= 195 * s.cost_mult and s.technique_burnout <= 0 and not g.domain_active and not s.is_paralyzed and not is_purple_threat:
                     if s.hp > (s.max_hp * 0.50 + 40): s.fuga_charge = 120
-                elif dist > 250 and s.dismantle_cd <= 0 and s.energy >= 30 * s.cost_mult and s.technique_burnout == 0 and can_survive_counter:
+                elif dist > 250 and s.dismantle_cd <= 0 and s.energy >= 30 * s.cost_mult and s.technique_burnout <= 0 and can_survive_counter:
                     s.slash_count = 3; s.slash_type = "dismantle"
                     s.energy -= 10 * s.cost_mult; s.dismantle_cd = 40
                     s.direction = -1 if s.rect.x > g.rect.x else 1
@@ -221,7 +222,7 @@ def update_sukuna_ai(game, dt):
                 elif s.on_ground and random.random() < 0.02: s.jump()
 
         # Fuga firing decision
-        if s.energy >= 195 * s.cost_mult and s.fuga_cd == 0 and s.fuga_charge == 0 and s.technique_burnout == 0 and not g.domain_active and g.domain_cd > 600:
+        if s.energy >= 195 * s.cost_mult and s.fuga_cd <= 0 and s.fuga_charge <= 0 and s.technique_burnout <= 0 and not g.domain_active and g.domain_cd > 600 and not is_purple_threat:
             if s.tech_hits >= s.max_tech_hits:
                 vow_hp_cost = s.max_hp * 0.50
                 can_survive_vow = s.hp > (vow_hp_cost + 20)
@@ -242,7 +243,8 @@ def update_sukuna_ai(game, dt):
 
         # Fuga charge countdown + fire
         if s.fuga_charge > 0:
-            if s.is_paralyzed or g.domain_active: s.fuga_charge = 0
+            if s.is_paralyzed or g.domain_active or g.purple_charge > 0 or any(p.type == "purple_orb" for p in game.projectiles): 
+                s.fuga_charge = 0
             else:
                 s.fuga_charge -= time_mult
                 if s.fuga_charge <= 0:

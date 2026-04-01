@@ -119,7 +119,7 @@ class Fighter:
             self.on_ground = False
 
     def dodge(self):
-        if self.dodge_timer == 0 and not self.is_paralyzed and self.stamina >= 20 and not self.stamina_exhausted:
+        if self.dodge_timer <= 0 and not self.is_paralyzed and self.stamina >= 20 and not self.stamina_exhausted:
             self.is_dodging = True
             self.dodge_timer = 25 if self.name == "Gojo" else 20
             self.stamina -= 20
@@ -150,17 +150,28 @@ class Fighter:
         if self.name == "Gojo" and self.technique_burnout > 0 and self.domain_uses >= 5:
             self.infinity = 0
 
+        if not hasattr(self, "y_remainder"): self.y_remainder = 0.0
+        if not hasattr(self, "x_remainder"): self.x_remainder = 0.0
+
         if self.is_paralyzed or self.grab_timer > 0:
             self.is_dodging = False
             self.dodge_timer = 0
             self.vel_y = 0
+            self.y_remainder = 0.0
             if self.grab_timer > 0: self.grab_timer -= time_mult
         else:
             self.vel_y += GRAVITY * time_mult
-            self.rect.y += self.vel_y * time_mult
+            
+            # --- JUMP FIX: Accumulate the float fraction so we don't lose height! ---
+            move_y = (self.vel_y * time_mult) + self.y_remainder
+            actual_move_y = int(move_y)
+            self.y_remainder = move_y - actual_move_y
+            self.rect.y += actual_move_y
+            
             if self.rect.bottom >= WORLD_HEIGHT - 100:
                 self.rect.bottom = WORLD_HEIGHT - 100
                 self.vel_y = 0
+                self.y_remainder = 0.0
                 self.on_ground = True
             
             if self.rect.left < 10: self.rect.left = 10
@@ -169,8 +180,15 @@ class Fighter:
             if self.dodge_timer > 0:
                 self.dodge_timer -= time_mult
                 dash_speed = 72 if self.name == "Gojo" else 45
-                self.rect.x += self.direction * dash_speed * time_mult
-            else: self.is_dodging = False
+                
+                # --- DODGE FIX: Accumulate X fraction for smooth dodges! ---
+                move_x = (self.direction * dash_speed * time_mult) + self.x_remainder
+                actual_move_x = int(move_x)
+                self.x_remainder = move_x - actual_move_x
+                self.rect.x += actual_move_x
+            else: 
+                self.is_dodging = False
+                self.dodge_timer = 0 # Ensure it rests exactly at 0!
                     
         # Energy Regen
         base_regen = 25.0 if self.name == "Gojo" else 0.8 if self.name == "Mahoraga" else 1.0 
@@ -229,8 +247,7 @@ class Fighter:
                 
                 if self.is_paralyzed:
                     heal_cost *= 4.0 
-                    self.domain_cd = 900  
-                    self.mahoraga_lockout = 600  
+                    self.mahoraga_lockout = 900  
                     
                     if random.random() < 0.1:
                         self.black_flash_timer = 2 

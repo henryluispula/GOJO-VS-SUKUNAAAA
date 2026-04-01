@@ -146,9 +146,9 @@ def update_physics_and_grabs(game, dt):
                     c = random.randint(180, 240)
                     game.hit_sparks.append([dx, dy, random.uniform(-25, 25), random.uniform(-15, -2), random.randint(20, 50), (c, c, c)])
 
-        if game.sukuna.is_paralyzed and game.sukuna.rct_timer > 0 and getattr(game.sukuna, "mahoraga_lockout", 0) > 598:
+        if game.sukuna.is_paralyzed and game.sukuna.rct_timer > 0 and getattr(game.sukuna, "mahoraga_lockout", 0) > 898:
             if pygame.time.get_ticks() - getattr(game, "last_uv_vow", 0) > 5000:
-                game.maho_announcements.append({"text": "SUKUNA VOW: FORCED RCT IN UV!(MS 15s/MAHO 10s)", "timer": 150})
+                game.maho_announcements.append({"text": "SUKUNA VOW: FORCED RCT IN UV! (MAHO 15s)", "timer": 150})
                 game.last_uv_vow = pygame.time.get_ticks()
 
     return g.technique_burnout == 0 and g.infinity > 0 and g.energy >= 50

@@ -215,15 +215,15 @@ class Game:
                     self.maho_announcements.append({"text": "MAHORAGA PARALYSIS LOCK EXPIRED!", "timer": 180})
                 self.prev_maho_lockout = current_maho_lockout
 
-                if self.sukuna.world_slash_cd == 0 and self.prev_world_slash_cd == 1:
+                if self.sukuna.world_slash_cd <= 0 and self.prev_world_slash_cd > 0:
                     self.maho_announcements.append({"text": "WORLD CUTTING SLASH IS READY!", "timer": 120})
                 self.prev_world_slash_cd = self.sukuna.world_slash_cd
 
-                if not self.gojo.domain_active and self.gojo.technique_burnout > 0 and self.prev_gojo_burnout == 0:
+                if not self.gojo.domain_active and self.gojo.technique_burnout > 0 and self.prev_gojo_burnout <= 0:
                     if self.gojo.domain_uses > 0 and self.gojo.domain_uses % 5 == 0:
                         self.maho_announcements.append({"text": "GOJO'S CURSED TECHNIQUE HAS BURNED OUT!", "timer": 90})
                         
-                if not self.sukuna.domain_active and self.sukuna.technique_burnout > 0 and self.prev_sukuna_burnout == 0:
+                if not self.sukuna.domain_active and self.sukuna.technique_burnout > 0 and self.prev_sukuna_burnout <= 0:
                     if self.sukuna.domain_uses > 0 and self.sukuna.domain_uses % 5 == 0:
                         self.maho_announcements.append({"text": "SUKUNA'S CURSED TECHNIQUE HAS BURNED OUT!", "timer": 90})
                 
@@ -262,11 +262,12 @@ class Game:
                                     elif enemy.name == "Sukuna" and enemy.domain_active:
                                         enemy.is_paralyzed = False 
                                     else:
+                                        time_mult = self.dt * 60.0
                                         enemy.is_paralyzed = True
-                                        uv_dmg = 1.5 * (enemy.adaptation["void"] if enemy.name == "Mahoraga" else 1.0)
+                                        uv_dmg = 1.5 * (enemy.adaptation["void"] if enemy.name == "Mahoraga" else 1.0) * time_mult
                                         enemy.hp -= uv_dmg
                                         
-                                        brain_drain = 4.5 if not getattr(enemy, "simple_domain_active", False) else 1.5
+                                        brain_drain = (4.5 if not getattr(enemy, "simple_domain_active", False) else 1.5) * time_mult
                                         enemy.energy = max(0, enemy.energy - brain_drain)
 
                                 if enemy.name == "Sukuna" and enemy.is_paralyzed:
@@ -295,17 +296,23 @@ class Game:
                     if self.mahoraga: self.mahoraga.is_paralyzed = False
                 
                 if self.sukuna.domain_active and not self.sukuna.is_paralyzed:
-                    self.sukuna.tech_hits = min(self.sukuna.max_tech_hits, self.sukuna.tech_hits + 2)
+                    time_mult = self.dt * 60.0
+                    self.sukuna.tech_hits = min(self.sukuna.max_tech_hits, self.sukuna.tech_hits + 2 * time_mult)
                     
+                    if not hasattr(self.sukuna, "sure_hit_ticker"): self.sukuna.sure_hit_ticker = 0
+                    self.sukuna.sure_hit_ticker += time_mult
+
                     # Sure-hits ONLY fire if Gojo's domain is down! If both domains are up, they cancel out.
-                    if self.sukuna.domain_timer % 8 == 0 and not self.gojo.domain_active:
-                        self.sukuna.tech_hits = min(self.sukuna.max_tech_hits, self.sukuna.tech_hits + 2)
-                        
-                        sx = self.gojo.rect.centerx + random.randint(-40, 40)
-                        sy = self.gojo.rect.centery + random.randint(-60, 60)
-                        stype = "cleave" if abs(self.sukuna.rect.centerx - self.gojo.rect.centerx) < 150 else "dismantle"
-                        
-                        self.projectiles.append(Projectile(sx, sy, self.gojo.rect.centerx, self.gojo.rect.centery, 5, RED, size_mult=3.0, type=stype, is_sure_hit=True))
+                    if self.sukuna.sure_hit_ticker >= 8:
+                        self.sukuna.sure_hit_ticker -= 8
+                        if not self.gojo.domain_active:
+                            self.sukuna.tech_hits = min(self.sukuna.max_tech_hits, self.sukuna.tech_hits + 2)
+                            
+                            sx = self.gojo.rect.centerx + random.randint(-40, 40)
+                            sy = self.gojo.rect.centery + random.randint(-60, 60)
+                            stype = "cleave" if abs(self.sukuna.rect.centerx - self.gojo.rect.centerx) < 150 else "dismantle"
+                            
+                            self.projectiles.append(Projectile(sx, sy, self.gojo.rect.centerx, self.gojo.rect.centery, 5, RED, size_mult=3.0, type=stype, is_sure_hit=True))
 
                 update_projectiles(self, self.dt)
 
@@ -407,13 +414,31 @@ class Game:
                     
                     # CE Drop Logic
                     if fighter.energy < fighter.prev_energy:
-                        change = fighter.energy - fighter.prev_energy
-                        if change < -5.0 and fighter.name in ["Gojo", "Sukuna"]:
-                            x_offset = random.randint(-15, 15)
-                            if fighter.name == "Gojo":
-                                self.ce_hud_popups.append({"x": 165 + x_offset, "y": 75, "val": int(abs(change)), "timer": 45, "color": PURPLE})
-                            elif fighter.name == "Sukuna":
-                                self.ce_hud_popups.append({"x": WIDTH - 205 + x_offset, "y": 75, "val": int(abs(change)), "timer": 45, "color": BLUE})
+                        change = fighter.prev_energy - fighter.energy
+                        hp_lost = fighter.prev_hp - fighter.hp
+                        
+                        is_damage = False
+                        if hp_lost > 0:
+                            is_damage = True
+
+                        elif fighter.name == "Gojo" and fighter.infinity > 0:
+                            block_cost = 0.5 * fighter.cost_mult
+                            if abs(change - block_cost) < 0.01 or change > 1000:
+                                is_damage = True
+                                
+                        if is_damage:
+                            if not hasattr(fighter, "ce_loss_accum"): fighter.ce_loss_accum = 0.0
+                            fighter.ce_loss_accum += change
+                            
+                            if fighter.ce_loss_accum >= 5.0 and fighter.name in ["Gojo", "Sukuna"]:
+                                x_offset = random.randint(-15, 15)
+                                val_to_show = int(fighter.ce_loss_accum)
+                                fighter.ce_loss_accum -= val_to_show 
+                                
+                                if fighter.name == "Gojo":
+                                    self.ce_hud_popups.append({"x": 165 + x_offset, "y": 75, "val": val_to_show, "timer": 45, "color": PURPLE})
+                                elif fighter.name == "Sukuna":
+                                    self.ce_hud_popups.append({"x": WIDTH - 205 + x_offset, "y": 75, "val": val_to_show, "timer": 45, "color": BLUE})
 
                     fighter.prev_hp = fighter.hp
                     fighter.prev_energy = fighter.energy
