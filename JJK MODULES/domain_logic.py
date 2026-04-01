@@ -205,13 +205,23 @@ def update_domain_clash(game, keys, gojo_can_clash, dt):
     if getattr(game, "clash_phase_timer", 0) > 0:
         game.clash_phase_timer -= time_mult
         g.domain_timer = max(g.domain_timer, 200); s.domain_timer = max(s.domain_timer, 200)
-        incoming_threats = [p for p in game.projectiles if p.active and p.type in ["blue_orb", "red_orb", "purple_orb"] and abs(p.pos.x - s.rect.centerx) < 300]
+        
+        # --- NEW PURPLE THREAT LOGIC ---
+        purple_in_air = any(p.type == "purple_orb" for p in game.projectiles)
+        purple_charging = g.purple_charge > 0
+        purple_unlocked_or_close = g.purple_cd <= 0 and g.tech_hits >= (g.max_tech_hits * 0.80) # 800+ hits
+        is_purple_threat = purple_in_air or purple_charging or purple_unlocked_or_close
+
+        # We separate Blue/Red into standard proximity checks
+        incoming_threats = [p for p in game.projectiles if p.active and p.type in ["blue_orb", "red_orb"] and abs(p.pos.x - s.rect.centerx) < 300]
+        
         dist_clash = abs(g.rect.centerx - s.rect.centerx)
         gojo_is_facing = (g.direction == 1 and g.rect.centerx < s.rect.centerx) or (g.direction == -1 and g.rect.centerx > s.rect.centerx)
         actual_punch_threat = g.punch_timer > 0 and dist_clash < 140 and gojo_is_facing
         is_greedy = s.hp > (s.max_hp * 0.65)
-        purple_charging_or_ready = g.purple_charge > 0 or (g.purple_cd == 0 and g.tech_hits >= g.max_tech_hits)
-        if (incoming_threats or purple_charging_or_ready or getattr(g, "grab_timer", 0) > 0 or (actual_punch_threat and not is_greedy)) and s.energy > 5:
+        
+        # If Purple is a threat AT ALL, he keeps DA up permanently!
+        if (is_purple_threat or incoming_threats or getattr(g, "grab_timer", 0) > 0 or (actual_punch_threat and not is_greedy)) and s.energy > 5:
             s.amp_duration = max(s.amp_duration, 20)
         else:
             s.amp_duration = 0
