@@ -371,7 +371,8 @@ class Fighter:
             has_active_infinity = self.infinity > 0 and self.technique_burnout == 0 and not getattr(self, "dev_disable_infinity", False)
             
             is_hit = self.hp < self.prev_hp or self.energy < self.prev_energy or self.grab_timer > 0
-            is_bypassed = (self.hp < self.prev_hp and self.energy >= self.prev_energy)
+            
+            is_bypassed = (self.hp < self.prev_hp)
 
             if self.grab_timer > 0 and getattr(self, "grab_type", "") == "amp_punch":
                 is_bypassed = True
