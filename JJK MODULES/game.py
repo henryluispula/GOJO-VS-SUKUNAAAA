@@ -224,7 +224,12 @@ class Game:
                 
                 time_mult = self.dt * 60.0
                 
-                sim_dt = self.dt * 0.15 if getattr(self, "bf_zoom_timer", 0) > 0 else self.dt
+                # --- BLACK FLASH IMPACT PAUSE ---
+                bf_timer = getattr(self, "bf_zoom_timer", 0)
+                if bf_timer > 25:
+                    sim_dt = 0 
+                else:
+                    sim_dt = self.dt
                 
                 punching = update_gojo_controls(self, keys, mouse_click, target, sim_dt)
                 dist, fuga_priority, gojo_has_inf = update_sukuna_ai(self, sim_dt)
@@ -485,13 +490,13 @@ class Game:
                 target_center_x = (min_x + max_x) / 2
                 target_center_y = (min_y + max_y) / 2
             
-            # --- EPIC BLACK FLASH SLOW-MO ZOOM ---
+            # --- EPIC BLACK FLASH ZOOM ---
             if getattr(self, "bf_zoom_timer", 0) > 0:
                 self.bf_zoom_timer -= time_mult
                 
-                # Cinematic zoom into the point of impact!
-                target_cam_width = WIDTH * 0.85 
-                target_cam_height = HEIGHT * 0.85
+                zoom_factor = 0.93 
+                target_cam_width = WIDTH * zoom_factor
+                target_cam_height = HEIGHT * zoom_factor
                 target_center_x, target_center_y = self.bf_zoom_pos
                 
                 # Snappy camera movement for intense impact
