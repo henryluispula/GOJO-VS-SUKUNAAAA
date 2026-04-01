@@ -5,8 +5,8 @@ def draw_hud(self, render_surf, dt):
     time_mult = dt * 60.0
     
     if getattr(self, "clash_decision_timer", 0) > 0:
-        prompt_text = "WAIT..." if self.clash_decision_timer > 5 else "SHRINK NOW!" 
-        prompt_color = (255, 100, 100) if self.clash_decision_timer > 5 else (0, 255, 255) 
+        prompt_text = "WAIT..." if self.clash_decision_timer > 8 else "SHRINK NOW!" 
+        prompt_color = (255, 100, 100) if self.clash_decision_timer > 8 else (0, 255, 255) 
         
         if getattr(self, "clash_failed", False):
             prompt_text = "MISSED TIMING!"
@@ -16,7 +16,7 @@ def draw_hud(self, render_surf, dt):
         render_surf.blit(shrink_txt, (WIDTH//2 - shrink_txt.get_width()//2, 80))
 
         bar_w, bar_h = 400, 25
-        clash_window = 20 
+        clash_window = 30 
         
         fill_w = int((self.clash_decision_timer / clash_window) * bar_w)
         bx, by = WIDTH//2 - bar_w//2, 120
@@ -24,7 +24,7 @@ def draw_hud(self, render_surf, dt):
         pygame.draw.rect(render_surf, (0, 0, 0), (bx - 4, by - 4, bar_w + 8, bar_h + 8))
         pygame.draw.rect(render_surf, (30, 30, 30), (bx, by, bar_w, bar_h))            
         
-        sweet_spot_w = int((5 / clash_window) * bar_w) 
+        sweet_spot_w = int((8 / clash_window) * bar_w) 
         pygame.draw.rect(render_surf, (0, 150, 150), (bx, by, sweet_spot_w, bar_h))
 
         if fill_w > 0:

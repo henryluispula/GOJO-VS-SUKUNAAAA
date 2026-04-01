@@ -301,8 +301,9 @@ def draw_world(self, punching, dt):
         self.world_surf.blit(txt, (self.sukuna.rect.centerx - txt.get_width()//2, self.sukuna.rect.y - 120))
         self.sukuna.draw_detailed(self.world_surf, effect="summoning")
     else:
-        is_adapting_now = self.sukuna.adapting_to == "void" and self.sukuna.amp_duration <= 0 and self.gojo.domain_active
-        is_summoning = self.sukuna.is_paralyzed and self.gojo.domain_active and (self.mahoraga is None or self.mahoraga.hp <= 0)
+        maho_dead = getattr(self.sukuna, "mahoraga_is_dead", False)
+        is_adapting_now = self.sukuna.adapting_to == "void" and self.sukuna.amp_duration <= 0 and self.gojo.domain_active and not maho_dead
+        is_summoning = self.sukuna.is_paralyzed and self.gojo.domain_active and (self.mahoraga is None or self.mahoraga.hp <= 0) and not maho_dead
         
         eff = "summoning" if (is_summoning or is_adapting_now) else None
         self.sukuna.draw_detailed(self.world_surf, effect=eff, is_amp=(self.sukuna.amp_duration > 0))

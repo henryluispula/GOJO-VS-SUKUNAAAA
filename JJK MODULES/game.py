@@ -179,15 +179,19 @@ class Game:
                 
                 target = self.sukuna 
                 
-                punching = update_gojo_controls(self, keys, mouse_click, target, self.dt)
-                dist, fuga_priority, gojo_has_inf = update_sukuna_ai(self, self.dt)
+                time_mult = self.dt * 60.0
+                
+                sim_dt = self.dt * 0.15 if getattr(self, "bf_zoom_timer", 0) > 0 else self.dt
+                
+                punching = update_gojo_controls(self, keys, mouse_click, target, sim_dt)
+                dist, fuga_priority, gojo_has_inf = update_sukuna_ai(self, sim_dt)
                 update_domain_boundary(self)
                 
-                gojo_can_clash = update_physics_and_grabs(self, self.dt)
-                update_domain_clash(self, keys, gojo_can_clash, self.dt)
+                gojo_can_clash = update_physics_and_grabs(self, sim_dt)
+                update_domain_clash(self, keys, gojo_can_clash, sim_dt)
 
                 if self.mahoraga and self.mahoraga.hp > 0:
-                    update_mahoraga_ai(self, self.dt) 
+                    update_mahoraga_ai(self, sim_dt) 
 
                 tracker_source = self.mahoraga if (self.mahoraga and self.mahoraga.hp > 0) else self.sukuna
                 for key in tracker_source.adaptation:
@@ -246,7 +250,7 @@ class Game:
                                 # The Gambit now ONLY happens strategically during Domain Clashes!
                                 if getattr(enemy, "simple_domain_active", False) and not is_touching_gojo:
                                     enemy.is_paralyzed = False 
-                                    enemy.sd_hits += 1
+                                    enemy.sd_hits += 1 * time_mult
                                     if enemy.sd_hits >= enemy.max_sd_hits: 
                                         enemy.simple_domain_active = False
                                         enemy.sd_was_active = False
@@ -262,7 +266,6 @@ class Game:
                                     elif enemy.name == "Sukuna" and enemy.domain_active:
                                         enemy.is_paralyzed = False 
                                     else:
-                                        time_mult = self.dt * 60.0
                                         enemy.is_paralyzed = True
                                         uv_dmg = 1.5 * (enemy.adaptation["void"] if enemy.name == "Mahoraga" else 1.0) * time_mult
                                         enemy.hp -= uv_dmg
@@ -281,14 +284,18 @@ class Game:
                                     enemy.attack_cooldown = 2
                                     
                                     if self.mahoraga is None or self.mahoraga.hp <= 0:
-                                        enemy.adapting_to = "void"
-                                        enemy.adaptation_points["void"] += 2.0
-                                        turns = enemy.adaptation_points["void"] / 250.0
-                                        enemy.adaptation["void"] = max(0, 1.0 - min(1.0, turns / 10.0)) 
+                                        # Only adapt if Mahoraga hasn't been permanently destroyed!
+                                        if not getattr(enemy, "mahoraga_is_dead", False):
+                                            enemy.adapting_to = "void"
+                                            enemy.adaptation_points["void"] += 2.0 * time_mult
+                                            turns = enemy.adaptation_points["void"] / 250.0
+                                            enemy.adaptation["void"] = max(0, 1.0 - min(1.0, turns / 10.0)) 
+                                        else:
+                                            enemy.adapting_to = None 
 
                                 if enemy.name == "Mahoraga" and self.sukuna.amp_duration <= 0:
                                     enemy.adapting_to = "void"
-                                    enemy.adaptation_points["void"] += 2.0
+                                    enemy.adaptation_points["void"] += 2.0 * time_mult
                                     turns = enemy.adaptation_points["void"] / 250.0
                                     enemy.adaptation["void"] = max(0, 1.0 - min(1.0, turns / 10.0)) 
                 else:
@@ -296,7 +303,6 @@ class Game:
                     if self.mahoraga: self.mahoraga.is_paralyzed = False
                 
                 if self.sukuna.domain_active and not self.sukuna.is_paralyzed:
-                    time_mult = self.dt * 60.0
                     self.sukuna.tech_hits = min(self.sukuna.max_tech_hits, self.sukuna.tech_hits + 2 * time_mult)
                     
                     if not hasattr(self.sukuna, "sure_hit_ticker"): self.sukuna.sure_hit_ticker = 0
@@ -314,7 +320,7 @@ class Game:
                             
                             self.projectiles.append(Projectile(sx, sy, self.gojo.rect.centerx, self.gojo.rect.centery, 5, RED, size_mult=3.0, type=stype, is_sure_hit=True))
 
-                update_projectiles(self, self.dt)
+                update_projectiles(self, sim_dt)
 
                 if self.sukuna.hp <= (self.sukuna.max_hp * 0.24) and self.sukuna.hp > 0:
                     
@@ -327,7 +333,7 @@ class Game:
                             self.maho_announcements.append({"text": "SUKUNA VOW: MASSIVE CE BURNED FOR SURVIVAL!", "timer": 120})
                             self.last_desp_vow = pygame.time.get_ticks()
                     
-                    if self.sukuna.energy >= 200 * self.sukuna.cost_mult and self.sukuna.domain_cd == 0 and self.sukuna.technique_burnout == 0 and self.sukuna.domain_charge == 0 and not self.sukuna.domain_active and self.gojo.grab_timer <= 0 and self.mahoraga_summon_timer <= 0:
+                    if self.sukuna.energy >= 200 * self.sukuna.cost_mult and self.sukuna.domain_cd <= 0 and self.sukuna.technique_burnout <= 0 and self.sukuna.domain_charge <= 0 and not self.sukuna.domain_active and self.gojo.grab_timer <= 0 and self.mahoraga_summon_timer <= 0:
                         self.sukuna.domain_charge = 60
                         self.sukuna.energy -= 200 * self.sukuna.cost_mult
                         self.popups.append({"x": self.sukuna.rect.centerx, "y": self.sukuna.rect.centery - 100, "timer": 60, "text": "DESPERATE DOMAIN!", "color": RED})
@@ -344,10 +350,10 @@ class Game:
                             if self.sukuna.on_ground: self.sukuna.jump()
                         
                         if self.sukuna.energy > 2.0 * self.sukuna.cost_mult and not self.sukuna.ce_exhausted:
-                            self.sukuna.rect.x += 22 * run_dir
-                            self.sukuna.energy -= 2.0 * self.sukuna.cost_mult
+                            self.sukuna.rect.x += 22 * run_dir * time_mult
+                            self.sukuna.energy -= 2.0 * self.sukuna.cost_mult * time_mult
                         else:
-                            self.sukuna.rect.x += 18 * run_dir 
+                            self.sukuna.rect.x += 18 * run_dir * time_mult
                         
                         if self.sukuna.dodge_cd <= 0 and self.sukuna.stamina >= 20:
                             if dist < 300 and random.random() < 0.5:
@@ -366,8 +372,9 @@ class Game:
                 if self.gojo.hp <= 0: self.gojo.is_split, self.game_over = True, True
 
             if self.mahoraga_summon_timer > 0:
-                self.mahoraga_summon_timer -= 1
-                if self.mahoraga_summon_timer == 1:
+                self.mahoraga_summon_timer -= time_mult
+                if self.mahoraga_summon_timer <= 0:
+                    self.mahoraga_summon_timer = 0
                     self.mahoraga = Fighter(self.sukuna.rect.x - 100, WORLD_HEIGHT - 1800, "Mahoraga", MAHO_COLOR)
                     self.sukuna.mahoraga_was_summoned = True
                     self.mahoraga.hp = self.mahoraga.max_hp 
@@ -380,7 +387,7 @@ class Game:
 
             display_offset = (0,0)
             if self.shake_timer > 0:
-                self.shake_timer -= 1
+                self.shake_timer -= time_mult
                 display_offset = (random.randint(-10, 10), random.randint(-10, 10))
 
             if not hasattr(self, "ce_hud_popups"): self.ce_hud_popups = []
@@ -475,30 +482,30 @@ class Game:
             
             # --- EPIC BLACK FLASH SLOW-MO ZOOM ---
             if getattr(self, "bf_zoom_timer", 0) > 0:
-                self.bf_zoom_timer -= 1
+                self.bf_zoom_timer -= time_mult
                 
                 # Cinematic zoom into the point of impact!
-                target_cam_width = WIDTH * 0.70 
-                target_cam_height = HEIGHT * 0.70
+                target_cam_width = WIDTH * 0.85 
+                target_cam_height = HEIGHT * 0.85
                 target_center_x, target_center_y = self.bf_zoom_pos
                 
                 # Snappy camera movement for intense impact
-                self.cam_width += (target_cam_width - self.cam_width) * 0.4 
-                self.cam_height += (target_cam_height - self.cam_height) * 0.4
-                self.cam_x += (target_center_x - getattr(self, "cam_x", target_center_x)) * 0.4
-                self.cam_y += (target_center_y - getattr(self, "cam_y", target_center_y)) * 0.4
+                self.cam_width += (target_cam_width - self.cam_width) * 0.4 * time_mult
+                self.cam_height += (target_cam_height - self.cam_height) * 0.4 * time_mult
+                self.cam_x += (target_center_x - getattr(self, "cam_x", target_center_x)) * 0.4 * time_mult
+                self.cam_y += (target_center_y - getattr(self, "cam_y", target_center_y)) * 0.4 * time_mult
                 
             else:
                 # Smooth, normal camera tracking
-                self.cam_width += (target_cam_width - self.cam_width) * 0.1 
-                self.cam_height += (target_cam_height - self.cam_height) * 0.1
+                self.cam_width += (target_cam_width - self.cam_width) * 0.1 * time_mult
+                self.cam_height += (target_cam_height - self.cam_height) * 0.1 * time_mult
             
             if not hasattr(self, "cam_x"):
                 self.cam_x = target_center_x
                 self.cam_y = target_center_y
                 
-            self.cam_x += (target_center_x - self.cam_x) * 0.1
-            self.cam_y += (target_center_y - self.cam_y) * 0.1
+            self.cam_x += (target_center_x - self.cam_x) * 0.1 * time_mult
+            self.cam_y += (target_center_y - self.cam_y) * 0.1 * time_mult
             
             self.cam_width = max(WIDTH * 0.5, min(WORLD_WIDTH, self.cam_width))
             self.cam_height = max(HEIGHT * 0.5, min(WORLD_HEIGHT, self.cam_height))

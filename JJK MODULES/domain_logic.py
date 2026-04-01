@@ -96,8 +96,14 @@ def update_physics_and_grabs(game, dt):
 
         # ── Gojo grab (Sukuna holds Gojo) ────────────────────────────────────
         if g.grab_timer > 0:
-            g.rect.centerx = s.rect.centerx + (40 * s.direction); g.rect.centery = s.rect.centery
             grab_type = getattr(g, "grab_type", "cleave")
+            
+            # If Sukuna gets burned out, his Cleave grab instantly breaks!
+            if s.technique_burnout > 0 and grab_type == "cleave":
+                g.grab_timer = 0
+                return g.technique_burnout == 0 and g.infinity > 0 and g.energy >= 50
+
+            g.rect.centerx = s.rect.centerx + (40 * s.direction); g.rect.centery = s.rect.centery
 
             def _cleave_tick():
                 cleave_dmg = 0.4 * time_mult
@@ -160,17 +166,17 @@ def update_domain_clash(game, keys, gojo_can_clash, dt):
     time_mult = dt * 60.0
 
     if g.domain_active and s.domain_active and gojo_can_clash:
-        clash_window = 20
-        if getattr(game, "clash_decision_timer", 0) == 0 and not getattr(game, "clash_resolved", False):
+        clash_window = 30 # 0.5 seconds window
+        if getattr(game, "clash_decision_timer", 0) <= 0 and not getattr(game, "clash_resolved", False):
             game.clash_decision_timer = clash_window; game.clash_failed = False
         if getattr(game, "clash_decision_timer", 0) > 0:
             game.clash_decision_timer -= time_mult
-            is_sweet_spot = 1 <= game.clash_decision_timer <= 5
+            is_sweet_spot = 1 <= game.clash_decision_timer <= 8 # Extremely tight sweet spot
             if keys[pygame.K_z] and keys[pygame.K_v] and not getattr(game, "clash_failed", False):
                 if is_sweet_spot and not getattr(g, "domain_shrunk", False):
                     g.domain_shrunk = True; game.shake_timer = 20
                     game.popups.append({"x": g.rect.centerx, "y": g.rect.centery - 100, "timer": 60, "text": "CRITICAL SHRINK!", "color": (0, 255, 255)})
-                elif game.clash_decision_timer > 5:
+                elif game.clash_decision_timer > 8:
                     game.clash_failed = True
                     game.popups.append({"x": g.rect.centerx, "y": g.rect.centery - 50, "timer": 30, "text": "TOO EARLY!", "color": RED})
             if game.clash_decision_timer <= 0:

@@ -259,7 +259,7 @@ def update_sukuna_ai(game, dt):
                     s.fuga_cd = 720; s.tech_hits = 0
 
         # Grab / Cleave initiation
-        if s.technique_burnout == 0 and not fuga_priority and g.grab_timer <= 0:
+        if s.technique_burnout <= 0 and not fuga_priority and g.grab_timer <= 0:
             if s.rect.colliderect(g.rect) and s.grab_cd <= 0:
                 is_burned_out = (g.domain_uses >= 5 and g.technique_burnout > 0)
                 has_infinity = g.infinity > 0 and g.energy > 0 and not is_burned_out
