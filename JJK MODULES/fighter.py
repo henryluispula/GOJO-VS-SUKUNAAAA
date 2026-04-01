@@ -317,7 +317,6 @@ class Fighter:
         self.adaptation_points[phenomenon] += intensity
 
     def draw_detailed(self, surface, is_punching=False, effect=None, is_amp=False):
-        # Particles Impact Feedback
         for p in self.particles:
             alpha = int(p["life"] * 255)
             p_surf = pygame.Surface((6, 6), pygame.SRCALPHA)
@@ -382,7 +381,8 @@ class Fighter:
                 pulse = math.sin(t * 20) * 15 
                 
                 self.inf_surf.fill((0,0,0,0)) 
-                for i in range(2): 
+                
+                for i in reversed(range(2)): 
                     layer_alpha = int(alpha_base / (i + 1))
                     thickness = int(pulse + 10 + (i * 5))
                     

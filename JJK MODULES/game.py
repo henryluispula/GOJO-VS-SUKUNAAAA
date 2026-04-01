@@ -453,9 +453,6 @@ class Game:
                                 elif fighter.name == "Sukuna":
                                     self.ce_hud_popups.append({"x": WIDTH - 205 + x_offset, "y": 75, "val": val_to_show, "timer": 45, "color": BLUE})
 
-                    fighter.prev_hp = fighter.hp
-                    fighter.prev_energy = fighter.energy
-
             # --- WORLD RENDERING & CAMERA LOGIC ---
             draw_world(self, punching, self.dt)
 
@@ -487,13 +484,10 @@ class Game:
                 target_center_x = (min_x + max_x) / 2
                 target_center_y = (min_y + max_y) / 2
             
-            # --- EPIC BLACK FLASH ZOOM ---
+            # --- EPIC BLACK FLASH ---
             if getattr(self, "bf_zoom_timer", 0) > 0:
                 self.bf_zoom_timer -= time_mult
                 
-                zoom_factor = 0.93 
-                target_cam_width = WIDTH * zoom_factor
-                target_cam_height = HEIGHT * zoom_factor
                 target_center_x, target_center_y = self.bf_zoom_pos
                 
                 self.cam_width += (target_cam_width - self.cam_width) * 0.4 * time_mult
@@ -532,6 +526,11 @@ class Game:
             
             self.screen.blit(render_surf, display_offset)
             pygame.display.flip()            
+            
+            for fighter in [self.gojo, self.sukuna, self.mahoraga]:
+                if fighter is not None:
+                    fighter.prev_hp = fighter.hp
+                    fighter.prev_energy = fighter.energy
             
             self.dt = self.clock.tick(FPS) / 1000.0
             
