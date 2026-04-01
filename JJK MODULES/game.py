@@ -517,7 +517,9 @@ class Game:
                     is_amp = self.sukuna.amp_duration > 0
                     
                     purple_flying = any(p.type == "purple_orb" for p in self.projectiles)
-                    is_purple_threat = self.gojo.purple_charge > 0 or purple_flying
+                    # FIX: Sukuna now anticipates Purple if Gojo has it off cooldown with max tech hits!
+                    purple_imminent = self.gojo.purple_cd == 0 and self.gojo.tech_hits >= self.gojo.max_tech_hits
+                    is_purple_threat = self.gojo.purple_charge > 0 or purple_flying or purple_imminent
                     
                     if self.gojo.domain_charge > 0 or is_purple_threat:
                         can_tank_purple = True
@@ -581,7 +583,8 @@ class Game:
                             self.sukuna.dodge()
                             self.sukuna.dodge_cd = 40
                     
-                    if is_amp and dist > 150 and (self.sukuna.dismantle_cd == 0 or self.sukuna.cleave_cd == 0):
+                    # FIX: Do not turn off DA for a slash if Purple is threatening!
+                    if is_amp and dist > 150 and (self.sukuna.dismantle_cd == 0 or self.sukuna.cleave_cd == 0) and not is_purple_threat:
                         self.sukuna.amp_duration = 0
                         is_amp = False
                     
@@ -1339,7 +1342,10 @@ class Game:
                     # He saves DA strictly for Blue, Red, Purple, Grabs, or when he is actually dying.
                     is_greedy = self.sukuna.hp > (self.sukuna.max_hp * 0.65)
                     
-                    if (incoming_threats or getattr(self.gojo, "grab_timer", 0) > 0 or (actual_punch_threat and not is_greedy)) and self.sukuna.energy > 5:
+                    # FIX: Ensure Sukuna respects Hollow Purple even if it's just charging or ready to be fired during a clash!
+                    purple_charging_or_ready = self.gojo.purple_charge > 0 or (self.gojo.purple_cd == 0 and self.gojo.tech_hits >= self.gojo.max_tech_hits)
+                    
+                    if (incoming_threats or purple_charging_or_ready or getattr(self.gojo, "grab_timer", 0) > 0 or (actual_punch_threat and not is_greedy)) and self.sukuna.energy > 5:
                         self.sukuna.amp_duration = max(self.sukuna.amp_duration, 20)
                     else:
                         # Purposely drop Domain Amplification. Let Megumi take the burden!
