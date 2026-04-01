@@ -74,6 +74,11 @@ class Fighter:
         self.grab_timer = 0
         self.grab_cd = 0
 
+        # --- REFACTOR: Combat Realism & Feedback ---
+        self.hit_stop = 0
+        self.particles = []
+        self.active_hitbox = None
+
         # --- DEV OPTIONS ---
         self.dev_immortal = False
         self.dev_inf_ce = False
@@ -124,10 +129,32 @@ class Fighter:
             self.dodge_timer = 25 if self.name == "Gojo" else 20
             self.stamina -= 20
 
+    def create_impact_particles(self, pos, color=WHITE):
+        for _ in range(8):
+            self.particles.append({
+                "pos": list(pos),
+                "vel": [random.uniform(-8, 8), random.uniform(-8, 8)],
+                "life": 1.0,
+                "color": color
+            })
+
     def update_physics(self, dt):
         if self.is_split: return
 
         time_mult = dt * 60.0 
+
+        # --- HIT STOP LOGIC ---
+        if self.hit_stop > 0:
+            self.hit_stop -= time_mult
+            return
+
+        # Particle Update
+        for p in self.particles[:]:
+            p["pos"][0] += p["vel"][0] * time_mult
+            p["pos"][1] += p["vel"][1] * time_mult
+            p["life"] -= 0.05 * time_mult
+            if p["life"] <= 0:
+                self.particles.remove(p)
 
         if self.name == "Gojo":
             if getattr(self, "dev_immortal", False):
@@ -290,6 +317,13 @@ class Fighter:
         self.adaptation_points[phenomenon] += intensity
 
     def draw_detailed(self, surface, is_punching=False, effect=None, is_amp=False):
+        # Particles Impact Feedback
+        for p in self.particles:
+            alpha = int(p["life"] * 255)
+            p_surf = pygame.Surface((6, 6), pygame.SRCALPHA)
+            pygame.draw.circle(p_surf, (*p["color"], alpha), (3, 3), 3)
+            surface.blit(p_surf, (p["pos"][0]-3, p["pos"][1]-3))
+
         for pt in self.trail_points:
             streak_len = int((pt[2] / 10.0) * 80)
             if streak_len > 0:
