@@ -585,7 +585,12 @@ class Game:
                         self.sukuna.amp_duration = 0
                         is_amp = False
                     
-                    if dist <= 150 and self.sukuna.energy > 30 * self.sukuna.cost_mult and not fuga_priority and not self.sukuna.ce_exhausted and self.gojo.grab_timer <= 0:
+                    # FIX: Stop auto-toggling DA if Sukuna wants to be greedy and let Mahoraga adapt during the clash!
+                    in_clash = getattr(self, "clash_phase_timer", 0) > 0
+                    is_greedy = self.sukuna.hp > (self.sukuna.max_hp * 0.65)
+                    prioritize_adaptation = in_clash and is_greedy
+
+                    if dist <= 150 and self.sukuna.energy > 30 * self.sukuna.cost_mult and not fuga_priority and not self.sukuna.ce_exhausted and self.gojo.grab_timer <= 0 and not prioritize_adaptation:
                         if self.gojo.infinity > 0:
                             self.sukuna.amp_duration = max(self.sukuna.amp_duration, 60) 
                             is_amp = True
