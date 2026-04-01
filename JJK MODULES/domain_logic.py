@@ -90,7 +90,11 @@ def update_physics_and_grabs(game, dt):
                     rm = random.uniform(0.15, 0.35); md = beatdown_dmg * (1.0 - rm); beatdown_dmg *= rm
                     s.energy = max(0, s.energy - (md * 2.0) * s.cost_mult)
                 s.hp -= beatdown_dmg; g.tech_hits = min(g.max_tech_hits, g.tech_hits + beatdown_dmg)
-                if int(s.grab_timer) % 6 == 0:
+                
+                if not hasattr(s, "vfx_ticker"): s.vfx_ticker = 0
+                s.vfx_ticker += time_mult
+                if s.vfx_ticker >= 6:
+                    s.vfx_ticker -= 6
                     game.shake_timer = 3; sc = WHITE if random.random() < 0.5 else BLUE
                     for _ in range(6): game.hit_sparks.append([s.rect.centerx + random.randint(-20, 20), s.rect.centery + random.randint(-30, 30), random.uniform(-10, 10), random.uniform(-10, 10), random.randint(15, 30), sc])
 
@@ -104,6 +108,9 @@ def update_physics_and_grabs(game, dt):
                 return g.technique_burnout == 0 and g.infinity > 0 and g.energy >= 50
 
             g.rect.centerx = s.rect.centerx + (40 * s.direction); g.rect.centery = s.rect.centery
+            
+            if not hasattr(g, "vfx_ticker"): g.vfx_ticker = 0
+            g.vfx_ticker += time_mult
 
             def _cleave_tick():
                 cleave_dmg = 0.4 * time_mult
@@ -111,7 +118,8 @@ def update_physics_and_grabs(game, dt):
                     rm = random.uniform(0.15, 0.35); md = cleave_dmg * (1.0 - rm); cleave_dmg *= rm
                     g.energy = max(0, g.energy - (md * 3.5) * g.cost_mult)
                 g.hp -= cleave_dmg; s.tech_hits = min(s.max_tech_hits, s.tech_hits + 0.5 * time_mult)
-                if int(g.grab_timer) % 10 == 0:
+                if g.vfx_ticker >= 10:
+                    g.vfx_ticker -= 10
                     game.shake_timer = 5
                     game.blood_particles.append([g.rect.centerx, g.rect.centery, random.uniform(-5, 5), random.uniform(-5, 0), 30, random.randint(3, 6)])
 
@@ -122,7 +130,8 @@ def update_physics_and_grabs(game, dt):
                     rm = random.uniform(0.15, 0.35); md = bd * (1.0 - rm); bd *= rm
                     g.energy = max(0, g.energy - (md * 3.5) * g.cost_mult)
                 g.hp -= bd; s.tech_hits = min(s.max_tech_hits, s.tech_hits + bd)
-                if int(g.grab_timer) % 8 == 0:
+                if g.vfx_ticker >= 8:
+                    g.vfx_ticker -= 8
                     game.shake_timer = 4; sc = WHITE if random.random() < 0.5 else RED
                     for _ in range(5): game.hit_sparks.append([g.rect.centerx + random.randint(-15, 15), g.rect.centery + random.randint(-20, 20), random.uniform(-8, 8), random.uniform(-8, 8), random.randint(15, 30), sc])
             elif grab_type == "cleave":
@@ -136,21 +145,22 @@ def update_physics_and_grabs(game, dt):
                 _cleave_tick()
 
         # ── Physics tick ─────────────────────────────────────────────────────
-        if getattr(game, "bf_zoom_timer", 0) <= 0 or getattr(game, "bf_zoom_timer", 0) % 3 == 0:
-            g.update_physics(dt)
-            if getattr(game.sukuna, "mahoraga_was_summoned", False):
-                if game.mahoraga is None or game.mahoraga.hp <= 0: game.sukuna.mahoraga_is_dead = True
-            game.sukuna.update_physics(dt)
-            if game.mahoraga and game.mahoraga.hp > 0: game.mahoraga.update_physics(dt)
-            if getattr(game.mahoraga, "is_cinematic_landing", False) and game.mahoraga and game.mahoraga.on_ground:
-                game.mahoraga.is_cinematic_landing = False; game.shake_timer = 50
-                dist_to_gojo = abs(g.rect.centerx - game.mahoraga.rect.centerx)
-                if dist_to_gojo < 600:
-                    kb_dir = 1 if g.rect.centerx > game.mahoraga.rect.centerx else -1; g.rect.x += kb_dir * 150
-                for _ in range(80):
-                    dx = game.mahoraga.rect.centerx + random.randint(-150, 150); dy = game.mahoraga.rect.bottom - random.randint(0, 40)
-                    c = random.randint(180, 240)
-                    game.hit_sparks.append([dx, dy, random.uniform(-25, 25), random.uniform(-15, -2), random.randint(20, 50), (c, c, c)])
+        # dt is already scaled down to sim_dt during a Black Flash in game.py!
+        g.update_physics(dt)
+        if getattr(game.sukuna, "mahoraga_was_summoned", False):
+            if game.mahoraga is None or game.mahoraga.hp <= 0: game.sukuna.mahoraga_is_dead = True
+        game.sukuna.update_physics(dt)
+        if game.mahoraga and game.mahoraga.hp > 0: game.mahoraga.update_physics(dt)
+        
+        if getattr(game.mahoraga, "is_cinematic_landing", False) and game.mahoraga and game.mahoraga.on_ground:
+            game.mahoraga.is_cinematic_landing = False; game.shake_timer = 50
+            dist_to_gojo = abs(g.rect.centerx - game.mahoraga.rect.centerx)
+            if dist_to_gojo < 600:
+                kb_dir = 1 if g.rect.centerx > game.mahoraga.rect.centerx else -1; g.rect.x += kb_dir * 150
+            for _ in range(80):
+                dx = game.mahoraga.rect.centerx + random.randint(-150, 150); dy = game.mahoraga.rect.bottom - random.randint(0, 40)
+                c = random.randint(180, 240)
+                game.hit_sparks.append([dx, dy, random.uniform(-25, 25), random.uniform(-15, -2), random.randint(20, 50), (c, c, c)])
 
         if game.sukuna.is_paralyzed and game.sukuna.rct_timer > 0 and getattr(game.sukuna, "mahoraga_lockout", 0) > 898:
             if pygame.time.get_ticks() - getattr(game, "last_uv_vow", 0) > 5000:

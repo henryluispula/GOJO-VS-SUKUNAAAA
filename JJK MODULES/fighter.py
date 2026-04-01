@@ -249,7 +249,8 @@ class Fighter:
                     heal_cost *= 4.0 
                     self.mahoraga_lockout = 900  
                     
-                    if random.random() < 0.1:
+                    # Scale the probability by time_mult so he doesn't hit it 5x more often at 144fps!
+                    if random.random() < (0.1 * time_mult):
                         self.black_flash_timer = 2 
                 
                 if self.energy >= heal_cost:
@@ -274,6 +275,10 @@ class Fighter:
         self.black_flash_timer = max(0, self.black_flash_timer - time_mult)
         self.potential_timer = max(0, self.potential_timer - time_mult)
         self.punch_timer = max(0, self.punch_timer - time_mult)
+        
+        # --- Move visual timers here so they scale with dt safely! ---
+        self.rct_timer = max(0, self.rct_timer - time_mult)
+        self.adapt_pulse_timer = max(0, getattr(self, "adapt_pulse_timer", 0) - time_mult)
         
         if self.amp_duration > 0:
             self.amp_duration -= time_mult
@@ -516,7 +521,6 @@ class Fighter:
                     pygame.draw.circle(pulse_surf, (255, 255, 200, pulse_alpha), spoke_end, int(6 * pulse_scale))
                 
                 surface.blit(pulse_surf, (int(wheel_center[0]) - center_offset, int(wheel_center[1]) - center_offset))
-                self.adapt_pulse_timer -= 1
 
             if self.adapting_to:
                 pts = self.adaptation_points[self.adapting_to]
@@ -694,8 +698,6 @@ class Fighter:
                     
                     r_color = [(150, 255, 150), (255, 255, 200), (100, 255, 150)][(i+j) % 3]
                     pygame.draw.circle(surface, r_color, (int(sx), int(sy)), 3)
-            
-            self.rct_timer -= 1
 
         if self.name != "Mahoraga":
             h_color = WHITE if self.name == "Gojo" else (20, 20, 25)

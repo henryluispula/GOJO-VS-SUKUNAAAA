@@ -315,16 +315,20 @@ def update_sukuna_ai(game, dt):
 
         # Melee punch
         if dist < 120 and s.attack_cooldown <= 90 and not fuga_priority:
-            if s.attack_cooldown == 0:
+            if s.attack_cooldown <= 0:
                 s.punch_timer = 20; s.punch_count += 1; melee_dmg = 7.5
                 imbue_cost = 2.0 * s.cost_mult
                 if s.energy >= imbue_cost: s.energy -= imbue_cost; melee_dmg *= 1.6
+                
                 bf_chance = random.uniform(0.05, 0.10) if s.potential_timer > 0 else random.uniform(0.0005, 0.001)
-                if random.random() < bf_chance:
+                is_black_flash = random.random() < bf_chance
+                
+                if is_black_flash:
                     if s.potential_timer <= 0: game.bf_zoom_timer = 45; game.bf_zoom_pos = (g.rect.centerx, g.rect.centery)
                     melee_dmg *= math.pow(2.5, 2.5); s.black_flash_timer = 20; s.potential_timer = 600
                     game.shake_timer = 15; s.energy = s.max_energy
                     game.bf_words.append({"x": g.rect.centerx, "y": g.rect.centery - 60, "timer": 45})
+                    
                 if is_amp:
                     if not g.is_dodging:
                         actual_dmg = melee_dmg
@@ -334,11 +338,14 @@ def update_sukuna_ai(game, dt):
                         g.hp -= actual_dmg
                         sc = (255, 0, 0) if s.black_flash_timer > 0 else RED
                         for _ in range(12): game.hit_sparks.append([g.rect.centerx + random.randint(-15, 15), g.rect.centery - random.randint(10, 30), random.uniform(-12, 12), random.uniform(-12, 12), random.randint(15, 30), sc])
-                        g.rect.x += (1 if g.rect.centerx > s.rect.centerx else -1) * 15
+                        
+                        kb_dist = 1200 if is_black_flash else 15
+                        g.rect.x += (1 if g.rect.centerx > s.rect.centerx else -1) * kb_dist
                 else:
-                    if g.infinity > 0 and g.energy > 0 and g.technique_burnout == 0:
+                    if g.infinity > 0 and g.energy > 0 and g.technique_burnout <= 0:
                         g.energy = max(0, g.energy - 0.5 * g.cost_mult)
-                        g.rect.x += (1 if g.rect.centerx > s.rect.centerx else -1) * 5
+                        kb_dist = 1200 if is_black_flash else 5
+                        g.rect.x += (1 if g.rect.centerx > s.rect.centerx else -1) * kb_dist
                     else:
                         if not g.is_dodging:
                             actual_dmg = melee_dmg
@@ -348,7 +355,9 @@ def update_sukuna_ai(game, dt):
                             g.hp -= actual_dmg
                             sc = (255, 0, 0) if s.black_flash_timer > 0 else RED
                             for _ in range(12): game.hit_sparks.append([g.rect.centerx + random.randint(-15, 15), g.rect.centery - random.randint(10, 30), random.uniform(-12, 12), random.uniform(-12, 12), random.randint(15, 30), sc])
-                            g.rect.x += (1 if g.rect.centerx > s.rect.centerx else -1) * 15
+                            
+                            kb_dist = 1200 if is_black_flash else 15
+                            g.rect.x += (1 if g.rect.centerx > s.rect.centerx else -1) * kb_dist
                 s.attack_cooldown = 12
 
         purple_active = any(p.type == "purple_orb" for p in game.projectiles)

@@ -38,7 +38,7 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
 
     # ── Point-Blank Blue (E + W) ─────────────────────────────────────────────
     if (keys[pygame.K_e] and keys[pygame.K_w] and game.pb_blue_ready
-            and g.energy >= 60 * g.cost_mult and g.blue_cd == 0
+            and g.energy >= 60 * g.cost_mult and g.blue_cd <= 0
             and g.grab_timer <= 0 and not is_actually_burned_out and g.domain_charge <= 0):
         game.pb_blue_ready = False
         g.energy -= 60 * g.cost_mult
@@ -67,7 +67,7 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
 
     # ── Point-Blank Red (E + S) ──────────────────────────────────────────────
     elif (keys[pygame.K_e] and keys[pygame.K_s] and game.pb_red_ready
-          and g.energy >= 100 * g.cost_mult and g.red_cd == 0
+          and g.energy >= 100 * g.cost_mult and g.red_cd <= 0
           and (g.grab_timer > 0 or s.grab_timer > 0) and g.domain_charge <= 0):
         game.pb_red_ready = False
         g.grab_timer = 0; s.grab_timer = 0
@@ -112,7 +112,7 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
         if keys[pygame.K_a]: g.rect.x -= 20 * time_mult; g.direction = -1
         if keys[pygame.K_d]: g.rect.x += 20 * time_mult; g.direction = 1
 
-        if mouse_click[0] and g.attack_cooldown == 0:
+        if mouse_click[0] and g.attack_cooldown <= 0:
             punching = True
             g.punch_timer = 20
             g.punch_count += 1
@@ -121,8 +121,11 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
                 imbue_cost = 2.0 * g.cost_mult
                 if g.energy >= imbue_cost:
                     g.energy -= imbue_cost; dmg *= 1.6
+                
                 bf_chance = random.uniform(0.05, 0.10) if g.potential_timer > 0 else random.uniform(0.0005, 0.001)
-                if random.random() < bf_chance:
+                is_black_flash = random.random() < bf_chance
+                
+                if is_black_flash:
                     if g.potential_timer <= 0:
                         game.bf_zoom_timer = 45
                         game.bf_zoom_pos = (target.rect.centerx, target.rect.centery)
@@ -130,6 +133,7 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
                     g.black_flash_timer = 20; g.potential_timer = 600
                     game.shake_timer = 15; g.energy = g.max_energy
                     game.bf_words.append({"x": target.rect.centerx, "y": target.rect.centery - 60, "timer": 45})
+                
                 if not target.is_dodging:
                     if target.name == "Sukuna" and target.energy > 0:
                         reduction_mult = random.uniform(0.15, 0.35)
@@ -138,6 +142,7 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
                         target.energy = max(0, target.energy - (mitigated_dmg * 2.0) * target.cost_mult)
                     elif target.name == "Mahoraga":
                         dmg *= random.uniform(0.6, 0.85)
+                    
                     target.hp -= dmg
                     spark_color = (255, 0, 0) if g.black_flash_timer > 0 else WHITE
                     for _ in range(12):
@@ -145,8 +150,11 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
                                                  target.rect.centery - random.randint(10, 30),
                                                  random.uniform(-12, 12), random.uniform(-12, 12),
                                                  random.randint(15, 30), spark_color])
+                    
                     kb_dir = 1 if target.rect.centerx > g.rect.centerx else -1
-                    target.rect.x += kb_dir * 15
+                    kb_dist = 1200 if is_black_flash else 15
+                    target.rect.x += kb_dir * kb_dist
+                    
                     if target.name == "Mahoraga" and game.sukuna.amp_duration <= 0:
                         target.trigger_adaptation("punch", 15.0)
                         turns = target.adaptation_points["punch"] / 250.0
@@ -162,7 +170,7 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
         is_actually_burned_out = (g.domain_uses >= 5 and g.technique_burnout > 0)
 
         # Lapse Blue (W)
-        if keys[pygame.K_w] and g.blue_cd == 0:
+        if keys[pygame.K_w] and g.blue_cd <= 0:
             if g.energy >= 20 * g.cost_mult:
                 if not is_actually_burned_out:
                     game.projectiles.append(Projectile(g.rect.centerx, g.rect.centery,
@@ -176,7 +184,7 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
                     g.attack_cooldown = 20
 
         # Reversal Red (S)
-        if keys[pygame.K_s] and g.red_cd == 0:
+        if keys[pygame.K_s] and g.red_cd <= 0:
             if g.energy >= 40 * g.cost_mult:
                 if not is_actually_burned_out:
                     game.projectiles.append(Projectile(g.rect.centerx, g.rect.centery,
@@ -192,7 +200,7 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
         is_beatdown_active = s.grab_timer > 0 and getattr(s, "grab_type", "") == "gojo_beatdown"
 
         # Hollow Purple (R)
-        if keys[pygame.K_r] and g.purple_cd == 0 and g.purple_charge <= 0 and not is_beatdown_active:
+        if keys[pygame.K_r] and g.purple_cd <= 0 and g.purple_charge <= 0 and not is_beatdown_active:
             if g.energy >= 195 * g.cost_mult:
                 if not is_actually_burned_out and g.tech_hits >= g.max_tech_hits:
                     g.purple_charge = 120

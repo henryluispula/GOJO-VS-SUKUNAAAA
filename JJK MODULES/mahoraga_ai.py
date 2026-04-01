@@ -28,7 +28,7 @@ def update_mahoraga_ai(self, dt):
             self.mahoraga.rect.x += (-42 if self.mahoraga.rect.centerx > ideal_x else 42) * time_mult
         
         if abs(self.mahoraga.rect.centerx - self.gojo.rect.centerx) > 150:
-            if self.mahoraga.dodge_cd == 0 and random.random() < 0.05:
+            if self.mahoraga.dodge_cd <= 0 and random.random() < 0.05:
                 self.mahoraga.direction = -1 if self.mahoraga.rect.x > self.gojo.rect.x else 1
                 self.mahoraga.dodge()
                 if self.mahoraga.on_ground:
@@ -44,7 +44,7 @@ def update_mahoraga_ai(self, dt):
                 turns = self.mahoraga.adaptation_points["infinity"] / 250.0
                 self.mahoraga.adaptation["infinity"] = min(1.0, turns / 9.0)
 
-        if self.gojo.rect.colliderect(self.mahoraga.rect) and self.mahoraga.attack_cooldown == 0:
+        if self.gojo.rect.colliderect(self.mahoraga.rect) and self.mahoraga.attack_cooldown <= 0:
             self.mahoraga.punch_timer = 20 
             self.mahoraga.punch_count += 1
             base_dmg = 4.5
@@ -59,7 +59,8 @@ def update_mahoraga_ai(self, dt):
             else:
                 bf_chance = 0.0001 
                 
-            if random.random() < bf_chance:
+            is_black_flash = random.random() < bf_chance
+            if is_black_flash:
                 if getattr(self.mahoraga, "potential_timer", 0) <= 0:
                     self.bf_zoom_timer = 45
                     self.bf_zoom_pos = (self.gojo.rect.centerx, self.gojo.rect.centery)
@@ -80,7 +81,7 @@ def update_mahoraga_ai(self, dt):
                 to_inf = base_dmg * (1.0 - inf_adapt_ratio)
                 
                 hit_connected = False
-                if self.gojo.infinity > 0 and self.gojo.energy > 0 and self.gojo.technique_burnout == 0:
+                if self.gojo.infinity > 0 and self.gojo.energy > 0 and self.gojo.technique_burnout <= 0:
                     self.gojo.infinity -= to_inf * 0.5 
                     
                     if self.gojo.energy > 0: 
@@ -104,7 +105,8 @@ def update_mahoraga_ai(self, dt):
                         self.hit_sparks.append([self.gojo.rect.centerx + random.randint(-15, 15), self.gojo.rect.centery - random.randint(10, 30), random.uniform(-12, 12), random.uniform(-12, 12), random.randint(15, 30), spark_color])
                     
                 kb_dir = 1 if self.gojo.rect.centerx > self.mahoraga.rect.centerx else -1
-                self.gojo.rect.x += kb_dir * 40
+                kb_dist = 1200 if is_black_flash else 40
+                self.gojo.rect.x += kb_dir * kb_dist
                 
             self.mahoraga.attack_cooldown = 12
             
