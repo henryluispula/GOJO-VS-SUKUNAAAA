@@ -279,6 +279,7 @@ class Fighter:
         self.adaptation_points = {"blue": 0, "red": 0, "purple": 0, "punch": 0, "infinity": 0, "void": 0}
         self.adapting_to = None 
         self.wheel_rotation = 0
+        self.adapt_pulse_timer = 0 # NEW: Tracks the glowing wheel pulse
         self.last_turn_count = 0
         self.is_split = False
         self.using_blue = False 
@@ -703,10 +704,36 @@ class Fighter:
             pygame.draw.rect(self.amp_surf, (100, 150, 255, 40), temp_rect, border_radius=15)
             surface.blit(self.amp_surf, glow_rect.topleft)
 
-        if self.name == "Mahoraga" or (self.name == "Sukuna" and effect == "summoning"):
+        if self.name == "Mahoraga" or (self.name == "Sukuna" and (effect == "summoning" or getattr(self, "adapt_pulse_timer", 0) > 0)):
             wheel_center = (mid_x, y - 65)
             wheel_color = (190, 170, 50)
             
+            # --- NEW: GLOWING PULSE EFFECT FOR 100% ADAPTATION ---
+            if getattr(self, "adapt_pulse_timer", 0) > 0:
+                # Calculate pulse scale (goes from 1.0 -> 2.5 -> 1.0)
+                pulse_progress = (30 - self.adapt_pulse_timer) / 30.0
+                pulse_scale = 1.0 + (math.sin(pulse_progress * math.pi) * 1.5)
+                pulse_alpha = int(255 * (1.0 - pulse_progress)) # Fades out as it completes
+                
+                # Draw the glowing after-image
+                pulse_surf = pygame.Surface((150, 150), pygame.SRCALPHA)
+                center_offset = 75
+                
+                # Draw main ring and spokes on the temp surface
+                pygame.draw.circle(pulse_surf, (255, 255, 150, pulse_alpha), (center_offset, center_offset), int(45 * pulse_scale), max(1, int(6 * pulse_scale)))
+                pygame.draw.circle(pulse_surf, (255, 255, 200, pulse_alpha), (center_offset, center_offset), int(8 * pulse_scale))
+                
+                angle_offset = math.radians(self.wheel_rotation)
+                for i in range(8):
+                    rad = math.radians(i * 45) + angle_offset
+                    spoke_end = (center_offset + math.cos(rad) * 45 * pulse_scale, center_offset + math.sin(rad) * 45 * pulse_scale)
+                    pygame.draw.line(pulse_surf, (255, 255, 150, pulse_alpha), (center_offset, center_offset), spoke_end, max(1, int(4 * pulse_scale)))
+                    pygame.draw.circle(pulse_surf, (255, 255, 200, pulse_alpha), spoke_end, int(6 * pulse_scale))
+                
+                surface.blit(pulse_surf, (int(wheel_center[0]) - center_offset, int(wheel_center[1]) - center_offset))
+                self.adapt_pulse_timer -= 1
+            # -----------------------------------------------------
+
             if self.adapting_to:
                 pts = self.adaptation_points[self.adapting_to]
                 turn_progress = (pts % 250) / 250.0
@@ -978,6 +1005,7 @@ class Game:
         
         self.prev_adaptations = {"blue": 1.0, "red": 1.0, "purple": 1.0, "punch": 1.0, "infinity": 0.0, "void": 1.0}
         self.maho_announcements = []
+        self.prev_maho_lockout = 0 # NEW: Tracks when the Mahoraga lockout ends
 
     def get_text(self, text, color, font=None):
         if font is None:
@@ -2143,7 +2171,7 @@ class Game:
 
                     if self.sukuna.is_paralyzed and self.sukuna.rct_timer > 0 and getattr(self.sukuna, "mahoraga_lockout", 0) > 598:
                         if pygame.time.get_ticks() - getattr(self, "last_uv_vow", 0) > 5000:
-                            self.maho_announcements.append({"text": "SUKUNA VOW: FORCED RCT IN UV!(MS 15s/MAHO 10s LOCKED)", "timer": 150})
+                            self.maho_announcements.append({"text": "SUKUNA VOW: FORCED RCT IN UV!(MS 15s/MAHO 10s)", "timer": 150})
                             self.last_uv_vow = pygame.time.get_ticks()
                     
                     gojo_can_clash = self.gojo.technique_burnout == 0 and self.gojo.infinity > 0 and self.gojo.energy >= 50
@@ -2400,6 +2428,9 @@ class Game:
                     was_adapted = prev <= 0.0 if key != "infinity" else prev >= 1.0
 
                     if is_adapted and not was_adapted:
+                        # NEW: Trigger the glowing wheel pulse on the fighter who adapted!
+                        tracker_source.adapt_pulse_timer = 30
+                        
                         if key == "void" and (self.mahoraga is None or self.mahoraga.hp <= 0):
                             self.maho_announcements.append({"text": "MEGUMI'S SOUL ADAPTED TO UNLIMITED VOID!", "timer": 180})
                         else:
@@ -2410,6 +2441,13 @@ class Game:
                             self.maho_announcements.append({"text": "SUKUNA HAS ACQUIRED THE WORLD CUTTING SLASH!", "timer": 240})
                             
                     self.prev_adaptations[key] = val
+
+                # --- NEW: MAHORAGA LOCKOUT EXPIRATION ANNOUNCEMENT ---
+                current_maho_lockout = getattr(self.sukuna, "mahoraga_lockout", 0)
+                if getattr(self, "prev_maho_lockout", 0) > 0 and current_maho_lockout == 0:
+                    self.maho_announcements.append({"text": "MAHORAGA PARALYSIS LOCK EXPIRED!", "timer": 180})
+                self.prev_maho_lockout = current_maho_lockout
+                # -----------------------------------------------------
 
                 if self.sukuna.world_slash_cd == 0 and self.prev_world_slash_cd == 1:
                     self.maho_announcements.append({"text": "WORLD CUTTING SLASH IS READY!", "timer": 120})
