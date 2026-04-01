@@ -364,16 +364,19 @@ def update_sukuna_ai(game, dt):
         if (purple_active or g.purple_charge > 0) and s.on_ground:
             if random.random() < 0.15: s.jump()
 
-        # Mahoraga summon triggers
+        # Mahoraga summon triggers (65% adaptation + availability check)
         uv_adapt_percent = 1.0 - s.adaptation["void"]
-        can_summon_lore = uv_adapt_percent >= 0.65
-        is_fully_adapted = s.adaptation["void"] <= 0.0
-        if g.domain_active and game.mahoraga is None and is_fully_adapted and getattr(s, "mahoraga_lockout", 0) <= 0 and game.mahoraga_summon_timer <= 0:
+        maho_available = (game.mahoraga is None and 
+                          getattr(s, "mahoraga_lockout", 0) <= 0 and 
+                          game.mahoraga_summon_timer <= 0)
+
+        # Trigger summon and log status when conditions are met
+        if uv_adapt_percent >= 0.65 and maho_available:
+            print(f"\n[!] SUMMONING TRIGGERED")
+            print(f"ADAPTATION STATUS: {uv_adapt_percent * 100:.1f}%")
+            print(f"MAHORAGA STATUS: Available")
+            print(f"SUKUNA HP: {s.hp:.1f}")
             game.mahoraga_summon_timer = 300
-        elif can_summon_lore and s.hp < s.max_hp * 0.5 and game.mahoraga is None and not s.world_slash_unlocked and g.domain_cd > 0 and getattr(game, "clash_decision_timer", 0) == 0 and g.domain_charge == 0 and s.domain_charge == 0 and not g.domain_active:
-            if getattr(s, "mahoraga_lockout", 0) <= 0: game.mahoraga_summon_timer = 300
-        elif game.mahoraga is None and is_fully_adapted and game.mahoraga_summon_timer <= 0 and not g.domain_active:
-            if getattr(s, "mahoraga_lockout", 0) <= 0: game.mahoraga_summon_timer = 300
 
     # ── Domain Charge Countdown ──────────────────────────────────────────────
     if s.domain_charge > 0:
