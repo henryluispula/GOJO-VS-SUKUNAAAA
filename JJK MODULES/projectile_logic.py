@@ -2,7 +2,8 @@ import random
 import pygame # type: ignore
 from settings import *
 
-def update_projectiles(self):
+def update_projectiles(self, dt):
+    time_mult = dt * 60.0
     # Determine enemies for targeting
     enemies = [self.sukuna]
     if self.mahoraga and self.mahoraga.hp > 0:
@@ -20,7 +21,7 @@ def update_projectiles(self):
         if getattr(p, "is_sure_hit", False) and not self.sukuna.domain_active:
             p.active = False
                 
-        p.update()
+        p.update(dt)
         if not p.active:
             continue
             
@@ -30,7 +31,7 @@ def update_projectiles(self):
         if p.type == "blue_orb":
             if dist_to_orb < 600:
                 if p_target.name == "Mahoraga" and self.sukuna.amp_duration <= 0:
-                    p_target.trigger_adaptation("blue", 1.0)
+                    p_target.trigger_adaptation("blue", 1.0 * time_mult)
                     turns = p_target.adaptation_points["blue"] / 250.0
                     p_target.adaptation["blue"] = max(0, 1.0 - min(1.0, turns / 8.0))
 
@@ -41,15 +42,15 @@ def update_projectiles(self):
                         pull_factor = 0.85 * (p_target.adaptation["blue"] if p_target.name == "Mahoraga" else 1.0)
                     
                     if pull_factor > 0:
-                        p_target.rect.x += (p.pos.x - p_target.rect.centerx) * pull_factor
+                        p_target.rect.x += (p.pos.x - p_target.rect.centerx) * pull_factor * time_mult
             
             if dist_to_orb < 250:
                 if p_target.name == "Mahoraga" and self.sukuna.amp_duration <= 0:
-                    p_target.trigger_adaptation("blue", 2.0)
+                    p_target.trigger_adaptation("blue", 2.0 * time_mult)
                     turns = p_target.adaptation_points["blue"] / 250.0
                     p_target.adaptation["blue"] = max(0, 1.0 - min(1.0, turns / 8.0))
                     
-                orb_dmg = 1 * (p_target.adaptation["blue"] if p_target.name == "Mahoraga" else 1.0)
+                orb_dmg = 1 * (p_target.adaptation["blue"] if p_target.name == "Mahoraga" else 1.0) * time_mult
                 
                 if p_target.name == "Sukuna":
                     if p_target.amp_duration > 0: orb_dmg *= 0.2 
@@ -65,7 +66,7 @@ def update_projectiles(self):
                     
                 if not p_target.is_dodging:
                     p_target.hp -= orb_dmg
-                    if p_target.name in ["Sukuna", "Mahoraga"]: self.gojo.tech_hits = min(self.gojo.max_tech_hits, self.gojo.tech_hits + 1)
+                    if p_target.name in ["Sukuna", "Mahoraga"]: self.gojo.tech_hits = min(self.gojo.max_tech_hits, self.gojo.tech_hits + 1 * time_mult)
             
             for slash in self.projectiles:
                 if slash.type in ["dismantle", "cleave"]:
@@ -75,7 +76,7 @@ def update_projectiles(self):
                         current_speed = slash.vel.length()
                         
                         pull_force = current_speed * 0.65 
-                        slash.vel += pull_dir * pull_force
+                        slash.vel += pull_dir * pull_force * time_mult
                         
                         if slash.vel.length() > 0:
                             slash.vel.scale_to_length(current_speed)
@@ -83,7 +84,7 @@ def update_projectiles(self):
         elif p.type == "red_orb":
             if dist_to_orb < 600:
                 if p_target.name == "Mahoraga" and self.sukuna.amp_duration <= 0:
-                    p_target.trigger_adaptation("red", 1.0)
+                    p_target.trigger_adaptation("red", 1.0 * time_mult)
                     turns = p_target.adaptation_points["red"] / 250.0
                     p_target.adaptation["red"] = max(0, 1.0 - min(1.0, turns / 8.0))
 
@@ -94,15 +95,15 @@ def update_projectiles(self):
                         push_factor = 1.60 * (p_target.adaptation["red"] if p_target.name == "Mahoraga" else 1.0)
                     
                     if push_factor > 0:
-                        p_target.rect.x -= (p.pos.x - p_target.rect.centerx) * push_factor
+                        p_target.rect.x -= (p.pos.x - p_target.rect.centerx) * push_factor * time_mult
             
             if dist_to_orb < 250:
                 if p_target.name == "Mahoraga" and self.sukuna.amp_duration <= 0:
-                    p_target.trigger_adaptation("red", 2.0)
+                    p_target.trigger_adaptation("red", 2.0 * time_mult)
                     turns = p_target.adaptation_points["red"] / 250.0
                     p_target.adaptation["red"] = max(0, 1.0 - min(1.0, turns / 8.0))
 
-                orb_dmg = 1.5 * (p_target.adaptation["red"] if p_target.name == "Mahoraga" else 1.0)
+                orb_dmg = 1.5 * (p_target.adaptation["red"] if p_target.name == "Mahoraga" else 1.0) * time_mult
                 
                 if p_target.name == "Sukuna":
                     if p_target.amp_duration > 0: orb_dmg *= 0.3 
@@ -118,7 +119,7 @@ def update_projectiles(self):
                     
                 if not p_target.is_dodging:
                     p_target.hp -= orb_dmg
-                    if p_target.name in ["Sukuna", "Mahoraga"]: self.gojo.tech_hits = min(self.gojo.max_tech_hits, self.gojo.tech_hits + 1)
+                    if p_target.name in ["Sukuna", "Mahoraga"]: self.gojo.tech_hits = min(self.gojo.max_tech_hits, self.gojo.tech_hits + 1 * time_mult)
             
             for slash in self.projectiles:
                 if slash.type in ["dismantle", "cleave"]:
@@ -128,7 +129,7 @@ def update_projectiles(self):
                         current_speed = slash.vel.length()
                         
                         push_force = current_speed * 0.85 
-                        slash.vel += push_dir * push_force
+                        slash.vel += push_dir * push_force * time_mult
                         
                         if slash.vel.length() > 0:
                             slash.vel.scale_to_length(current_speed)

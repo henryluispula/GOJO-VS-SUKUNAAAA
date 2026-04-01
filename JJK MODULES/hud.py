@@ -1,7 +1,9 @@
 import pygame # type: ignore
 from settings import *
 
-def draw_hud(self, render_surf):
+def draw_hud(self, render_surf, dt):
+    time_mult = dt * 60.0
+    
     if getattr(self, "clash_decision_timer", 0) > 0:
         prompt_text = "WAIT..." if self.clash_decision_timer > 5 else "SHRINK NOW!" 
         prompt_color = (255, 100, 100) if self.clash_decision_timer > 5 else (0, 255, 255) 
@@ -54,7 +56,7 @@ def draw_hud(self, render_surf):
             render_surf.blit(scaled_txt, (txt_x, txt_y))
 
     if self.clash_msg_timer > 0:
-        self.clash_msg_timer -= 1
+        self.clash_msg_timer -= time_mult
         clash_txt = self.get_text(self.clash_winner, WHITE)
         bg_w, bg_h = clash_txt.get_width() + 40, clash_txt.get_height() + 20
         
@@ -87,16 +89,16 @@ def draw_hud(self, render_surf):
     self.draw_bar_on(render_surf, 190, 95, self.gojo.infinity, self.gojo.max_infinity, INF_COLOR, 145, 8, "INFINITY")          
     self.draw_bar_on(render_surf, 25, 125, self.gojo.tech_hits, self.gojo.max_tech_hits, (180, 0, 255), 310, 2, "")
 
-    sd_label_g = f"SIMPLE DOMAIN (CD: {self.gojo.sd_broken_timer//60 + 1}s)" if self.gojo.sd_broken_timer > 0 else "SIMPLE DOMAIN"
-    sd_color_g = (0, 255, 255) if self.gojo.sd_broken_timer == 0 else (100, 100, 100)
+    sd_label_g = f"SIMPLE DOMAIN (CD: {int(self.gojo.sd_broken_timer)//60 + 1}s)" if self.gojo.sd_broken_timer > 0 else "SIMPLE DOMAIN"
+    sd_color_g = (0, 255, 255) if self.gojo.sd_broken_timer <= 0 else (100, 100, 100)
     self.draw_bar_on(render_surf, 25, 145, max(0, self.gojo.max_sd_hits - self.gojo.sd_hits), self.gojo.max_sd_hits, sd_color_g, 310, 6, sd_label_g)
 
     is_burned_out = self.gojo.technique_burnout > 0 and self.gojo.domain_uses >= 5
     
-    b_cd = f"BLUE: {'BURN' if is_burned_out else 'RDY' if self.gojo.blue_cd==0 else str(self.gojo.blue_cd//60)+'s'}"
-    r_cd = f"RED: {'BURN' if is_burned_out else 'RDY' if self.gojo.red_cd==0 else str(self.gojo.red_cd//60)+'s'}"
+    b_cd = f"BLUE: {'BURN' if is_burned_out else 'RDY' if self.gojo.blue_cd<=0 else str(int(self.gojo.blue_cd)//60)+'s'}"
+    r_cd = f"RED: {'BURN' if is_burned_out else 'RDY' if self.gojo.red_cd<=0 else str(int(self.gojo.red_cd)//60)+'s'}"
     
-    p_status = "BURN" if is_burned_out else ("RDY" if self.gojo.purple_cd == 0 else f"{self.gojo.purple_cd//60}s")
+    p_status = "BURN" if is_burned_out else ("RDY" if self.gojo.purple_cd <= 0 else f"{int(self.gojo.purple_cd)//60}s")
     if self.gojo.tech_hits < self.gojo.max_tech_hits:
         p_label = f"PRPLE: LOCKED ({int(self.gojo.tech_hits)}/{self.gojo.max_tech_hits})"
         p_color = (150, 150, 150) 
@@ -105,7 +107,7 @@ def draw_hud(self, render_surf):
         p_color = RED if is_burned_out else (200, 100, 255) 
 
     actual_domain_cooldown = max(self.gojo.domain_cd, self.gojo.technique_burnout)
-    d_cd = f"VOID: {'BURN' if is_burned_out else 'ACT' if self.gojo.domain_active else 'RDY' if actual_domain_cooldown==0 else str(actual_domain_cooldown//60)+'s'}"
+    d_cd = f"VOID: {'BURN' if is_burned_out else 'ACT' if self.gojo.domain_active else 'RDY' if actual_domain_cooldown<=0 else str(int(actual_domain_cooldown)//60)+'s'}"
     use_txt = f"USES: {self.gojo.domain_uses}/5"
 
     render_surf.blit(self.get_text(f"{b_cd} | {r_cd} | ", (200, 220, 255), font=self.mini_font), (25, 170))
@@ -126,8 +128,8 @@ def draw_hud(self, render_surf):
     self.draw_bar_on(render_surf, WIDTH - 335, 95, self.sukuna.energy, self.sukuna.max_energy, BLUE, 310, 8, "CURSE ENERGY")
     self.draw_bar_on(render_surf, WIDTH - 335, 125, self.sukuna.tech_hits, self.sukuna.max_tech_hits, (255, 100, 0), 310, 2, "")
 
-    sd_label_s = f"SIMPLE DOMAIN (CD: {self.sukuna.sd_broken_timer//60 + 1}s)" if self.sukuna.sd_broken_timer > 0 else "SIMPLE DOMAIN"
-    sd_color_s = (0, 255, 255) if self.sukuna.sd_broken_timer == 0 else (100, 100, 100)
+    sd_label_s = f"SIMPLE DOMAIN (CD: {int(self.sukuna.sd_broken_timer)//60 + 1}s)" if self.sukuna.sd_broken_timer > 0 else "SIMPLE DOMAIN"
+    sd_color_s = (0, 255, 255) if self.sukuna.sd_broken_timer <= 0 else (100, 100, 100)
     self.draw_bar_on(render_surf, WIDTH - 335, 145, max(0, self.sukuna.max_sd_hits - self.sukuna.sd_hits), self.sukuna.max_sd_hits, sd_color_s, 310, 6, sd_label_s)
 
     sukuna_is_burned_out = self.sukuna.technique_burnout > 0 and self.sukuna.domain_uses >= 5
@@ -136,15 +138,15 @@ def draw_hud(self, render_surf):
     if self.sukuna.amp_duration > 0:
         da_status = "ACT"
     elif is_da_locked_out:
-        da_status = f"{self.sukuna.amp_cd // 60}s"
+        da_status = f"{int(self.sukuna.amp_cd) // 60}s"
     else:
         da_status = "RDY"
     da_cd = f"DOMAIN AMP: {da_status}"
     
-    di_cd = f"DISMANTLE: {'BRN' if sukuna_is_burned_out else 'RDY' if self.sukuna.dismantle_cd == 0 else str(self.sukuna.dismantle_cd//60)+'s'}"
-    cl_cd = f"CLEAVE: {'BRN' if sukuna_is_burned_out else 'RDY' if self.sukuna.cleave_cd == 0 else str(self.sukuna.cleave_cd//60)+'s'}"
+    di_cd = f"DISMANTLE: {'BRN' if sukuna_is_burned_out else 'RDY' if self.sukuna.dismantle_cd <= 0 else str(int(self.sukuna.dismantle_cd)//60)+'s'}"
+    cl_cd = f"CLEAVE: {'BRN' if sukuna_is_burned_out else 'RDY' if self.sukuna.cleave_cd <= 0 else str(int(self.sukuna.cleave_cd)//60)+'s'}"
     
-    fu_status = "BURN" if sukuna_is_burned_out else ("RDY" if self.sukuna.fuga_cd == 0 else f"{self.sukuna.fuga_cd//60}s")
+    fu_status = "BURN" if sukuna_is_burned_out else ("RDY" if self.sukuna.fuga_cd <= 0 else f"{int(self.sukuna.fuga_cd)//60}s")
     if self.sukuna.tech_hits < self.sukuna.max_tech_hits:
         fu_label = f"FUGA: LOCKED ({int(self.sukuna.tech_hits)}/{self.sukuna.max_tech_hits})"
         fu_color = (150, 150, 150) 
@@ -153,7 +155,7 @@ def draw_hud(self, render_surf):
         fu_color = RED if sukuna_is_burned_out else (255, 150, 50)
         
     sukuna_actual_domain_cooldown = max(self.sukuna.domain_cd, self.sukuna.technique_burnout)
-    sd_cd = f"SHRINE: {'BURN' if sukuna_is_burned_out else 'ACT' if self.sukuna.domain_active else 'RDY' if sukuna_actual_domain_cooldown==0 else str(sukuna_actual_domain_cooldown//60)+'s'}"
+    sd_cd = f"SHRINE: {'BURN' if sukuna_is_burned_out else 'ACT' if self.sukuna.domain_active else 'RDY' if sukuna_actual_domain_cooldown<=0 else str(int(sukuna_actual_domain_cooldown)//60)+'s'}"
 
     da_txt = self.get_text(da_cd, (150, 220, 255), font=self.mini_font)
     render_surf.blit(da_txt, (WIDTH - 335, 170))
@@ -195,8 +197,8 @@ def draw_hud(self, render_surf):
     if hasattr(self, "ce_hud_popups"):
         active_ce_popups = []
         for cp in self.ce_hud_popups:
-            cp["y"] -= 1.0 
-            alpha = min(255, cp["timer"] * 8)
+            cp["y"] -= 1.0 * time_mult
+            alpha = min(255, max(0, int(cp["timer"] * 8)))
             
             txt_surf = self.get_text(f"-{cp['val']} CE", cp["color"], font=self.mini_font)
             shadow = self.get_text(f"-{cp['val']} CE", BLACK, font=self.mini_font)
@@ -212,7 +214,7 @@ def draw_hud(self, render_surf):
             render_surf.blit(shadow_surf, (cp["x"] - shadow.get_width()//2 + 1, int(cp["y"]) + 1))
             render_surf.blit(fade_surf, (cp["x"] - txt_surf.get_width()//2, int(cp["y"])))
             
-            cp["timer"] -= 1
+            cp["timer"] -= time_mult
             if cp["timer"] > 0:
                 active_ce_popups.append(cp)
         self.ce_hud_popups = active_ce_popups
@@ -248,18 +250,18 @@ def draw_hud(self, render_surf):
         
         pygame.draw.rect(ann_surf, (5, 5, 10, 220), (0, 0, banner_w, banner_h), border_radius=8)
         
-        line_thickness = max(1, min(3, ann["timer"] // 10))
+        line_thickness = max(1, min(3, int(ann["timer"]) // 10))
         pygame.draw.rect(ann_surf, base_color + (180,), (0, 0, banner_w, banner_h), line_thickness, border_radius=8)
         
         ann_surf.blit(shadow, (banner_w//2 - shadow.get_width()//2 + 2, 8 + 2))
         ann_surf.blit(txt, (banner_w//2 - txt.get_width()//2, 8))
         
         if ann["timer"] <= 20:
-            ann_surf.set_alpha(int((ann["timer"] / 20.0) * 255))
+            ann_surf.set_alpha(int((max(0, ann["timer"]) / 20.0) * 255))
             
         render_surf.blit(ann_surf, (WIDTH//2 - banner_w//2, y_offset))
         
-        ann["timer"] -= 1
+        ann["timer"] -= time_mult
         y_offset += banner_h + 8 
         
         if ann["timer"] > 0:

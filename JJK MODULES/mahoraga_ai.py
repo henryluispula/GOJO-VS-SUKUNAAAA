@@ -3,8 +3,9 @@ import math
 import pygame # type: ignore
 from settings import *
 
-def update_mahoraga_ai(self):
-    self.mahoraga.update_physics()
+def update_mahoraga_ai(self, dt):
+    time_mult = dt * 60.0
+    self.mahoraga.update_physics(dt)
     if not self.mahoraga.is_paralyzed:
         ideal_x = self.gojo.rect.centerx 
         
@@ -24,7 +25,7 @@ def update_mahoraga_ai(self):
                 ideal_x = self.sukuna.rect.centerx + 120
 
         if abs(self.mahoraga.rect.centerx - ideal_x) > 42:
-            self.mahoraga.rect.x += -42 if self.mahoraga.rect.centerx > ideal_x else 42
+            self.mahoraga.rect.x += (-42 if self.mahoraga.rect.centerx > ideal_x else 42) * time_mult
         
         if abs(self.mahoraga.rect.centerx - self.gojo.rect.centerx) > 150:
             if self.mahoraga.dodge_cd == 0 and random.random() < 0.05:
@@ -39,7 +40,7 @@ def update_mahoraga_ai(self):
         m_dist = abs(self.mahoraga.rect.centerx - self.gojo.rect.centerx)
         if m_dist < 150:
             if self.sukuna.amp_duration <= 0:
-                self.mahoraga.trigger_adaptation("infinity", 1.5)
+                self.mahoraga.trigger_adaptation("infinity", 1.5 * time_mult)
                 turns = self.mahoraga.adaptation_points["infinity"] / 250.0
                 self.mahoraga.adaptation["infinity"] = min(1.0, turns / 9.0)
 
@@ -108,6 +109,6 @@ def update_mahoraga_ai(self):
             self.mahoraga.attack_cooldown = 12
             
         if self.mahoraga.hp < (self.mahoraga.max_hp * 0.625) and self.mahoraga.energy > 5 * self.mahoraga.cost_mult and not self.mahoraga.ce_exhausted:
-            self.mahoraga.hp = min(self.mahoraga.max_hp, self.mahoraga.hp + 1.8) 
-            self.mahoraga.energy -= 1.0 * self.mahoraga.cost_mult
+            self.mahoraga.hp = min(self.mahoraga.max_hp, self.mahoraga.hp + 1.8 * time_mult) 
+            self.mahoraga.energy -= 1.0 * self.mahoraga.cost_mult * time_mult
             self.mahoraga.rct_timer = 5

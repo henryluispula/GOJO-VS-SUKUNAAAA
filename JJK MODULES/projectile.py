@@ -21,10 +21,11 @@ class Projectile:
         self.lifetime = 180 if type not in ["blue_orb", "red_orb", "purple_orb", "fuga_arrow", "world_slash"] else 1000
         if type in ["purple_orb", "fuga_arrow"]: self.lifetime = 300
 
-    def update(self):
-        self.pos += self.vel
+    def update(self, dt):
+        time_mult = dt * 60.0
+        self.pos += self.vel * time_mult
         if self.type not in ["normal", "dismantle", "cleave", "world_slash"]:
-            self.lifetime -= 1
+            self.lifetime -= time_mult
             if self.lifetime <= 0: self.active = False
             
         if self.pos.x < -200 or self.pos.x > WORLD_WIDTH + 200 or self.pos.y < 0 or self.pos.y > WORLD_HEIGHT:

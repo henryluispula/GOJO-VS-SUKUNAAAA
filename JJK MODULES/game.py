@@ -179,15 +179,15 @@ class Game:
                 
                 target = self.sukuna 
                 
-                punching = update_gojo_controls(self, keys, mouse_click, target)
-                dist, fuga_priority, gojo_has_inf = update_sukuna_ai(self)
+                punching = update_gojo_controls(self, keys, mouse_click, target, self.dt)
+                dist, fuga_priority, gojo_has_inf = update_sukuna_ai(self, self.dt)
                 update_domain_boundary(self)
                 
-                gojo_can_clash = update_physics_and_grabs(self)
-                update_domain_clash(self, keys, gojo_can_clash)
+                gojo_can_clash = update_physics_and_grabs(self, self.dt)
+                update_domain_clash(self, keys, gojo_can_clash, self.dt)
 
                 if self.mahoraga and self.mahoraga.hp > 0:
-                    update_mahoraga_ai(self) 
+                    update_mahoraga_ai(self, self.dt) 
 
                 tracker_source = self.mahoraga if (self.mahoraga and self.mahoraga.hp > 0) else self.sukuna
                 for key in tracker_source.adaptation:
@@ -307,7 +307,7 @@ class Game:
                         
                         self.projectiles.append(Projectile(sx, sy, self.gojo.rect.centerx, self.gojo.rect.centery, 5, RED, size_mult=3.0, type=stype, is_sure_hit=True))
 
-                update_projectiles(self)
+                update_projectiles(self, self.dt)
 
                 if self.sukuna.hp <= (self.sukuna.max_hp * 0.24) and self.sukuna.hp > 0:
                     
@@ -418,7 +418,7 @@ class Game:
                     fighter.prev_hp = fighter.hp
                     fighter.prev_energy = fighter.energy
 
-            draw_world(self, punching)
+            draw_world(self, punching, self.dt)
 
             active_f = [self.gojo, self.sukuna]
             if self.mahoraga and self.mahoraga.hp > 0: active_f.append(self.mahoraga)
@@ -491,7 +491,7 @@ class Game:
             
             render_surf = self.render_surf 
             render_surf.blit(scaled_visible, (0, 0)) 
-            draw_hud(self, render_surf)
+            draw_hud(self, render_surf, self.dt)
             
             self.screen.blit(render_surf, display_offset)
             pygame.display.flip()            

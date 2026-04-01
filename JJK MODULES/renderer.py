@@ -3,7 +3,8 @@ import random
 import math
 from settings import *
 
-def draw_world(self, punching):
+def draw_world(self, punching, dt):
+    time_mult = dt * 60.0
     is_shrunk = getattr(self.gojo, "domain_shrunk", False)
 
     if not hasattr(self, "cached_shinjuku_bg"):
@@ -262,7 +263,7 @@ def draw_world(self, punching):
         self.world_surf.blit(s_out, (bw["x"] - s_out.get_width()//2 + 2, bw["y"] - s_out.get_height()//2 - 2))
         
         self.world_surf.blit(s_txt, (bw["x"] - s_txt.get_width()//2, bw["y"] - s_txt.get_height()//2))
-        bw["timer"] -= 1
+        bw["timer"] -= time_mult
         if bw["timer"] > 0:
             active_bf_words.append(bw)
     self.bf_words = active_bf_words
@@ -282,7 +283,7 @@ def draw_world(self, punching):
         self.world_surf.blit(s_out, (p_up["x"] - s_out.get_width()//2 + 2, p_up["y"] - s_out.get_height()//2 - 2))
         
         self.world_surf.blit(s_txt, (p_up["x"] - s_txt.get_width()//2, p_up["y"] - s_txt.get_height()//2))
-        p_up["timer"] -= 1
+        p_up["timer"] -= time_mult
         if p_up["timer"] > 0:
             active_popups.append(p_up)
     self.popups = active_popups
@@ -293,7 +294,7 @@ def draw_world(self, punching):
         self.world_surf.blit(self.shared_world_overlay, (0,0))
         chants = ["With this treasure I summon...", "Eight-Handled Sword...", "Divergent Sila...", "Divine General Mahoraga!"]
         
-        idx = 3 - (self.mahoraga_summon_timer // 76) 
+        idx = 3 - (int(self.mahoraga_summon_timer) // 76) 
         idx = max(0, min(3, idx)) 
         
         txt = self.get_text(chants[idx], MAHO_COLOR)
@@ -315,10 +316,10 @@ def draw_world(self, punching):
     if len(self.blood_particles) > 150:
         self.blood_particles = self.blood_particles[-150:]
     for bp in self.blood_particles:
-        bp[0] += bp[2] 
-        bp[1] += bp[3] 
-        bp[3] += GRAVITY 
-        bp[4] -= 1 
+        bp[0] += bp[2] * time_mult
+        bp[1] += bp[3] * time_mult
+        bp[3] += GRAVITY * time_mult
+        bp[4] -= time_mult
         pygame.draw.circle(self.world_surf, BLOOD, (int(bp[0]), int(bp[1])), bp[5])
         if bp[4] > 0:
             active_blood.append(bp)
@@ -328,9 +329,9 @@ def draw_world(self, punching):
     if len(self.hit_sparks) > 150:
         self.hit_sparks = self.hit_sparks[-150:]
     for spark in self.hit_sparks:
-        spark[0] += spark[2] 
-        spark[1] += spark[3] 
-        spark[4] -= 1 
+        spark[0] += spark[2] * time_mult
+        spark[1] += spark[3] * time_mult
+        spark[4] -= time_mult
         pygame.draw.circle(self.world_surf, spark[5], (int(spark[0]), int(spark[1])), max(1, int(spark[4] * 0.25)))
         if spark[4] > 0:
             active_sparks.append(spark)

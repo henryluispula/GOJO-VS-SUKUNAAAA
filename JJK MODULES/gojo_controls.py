@@ -3,10 +3,11 @@ from settings import *
 from projectile import Projectile
 
 
-def update_gojo_controls(game, keys, mouse_click, target):
+def update_gojo_controls(game, keys, mouse_click, target, dt):
     """All Gojo player controls. Returns: punching (bool)."""
     g = game.gojo
     s = game.sukuna
+    time_mult = dt * 60.0
 
     # ── Simple Domain (Right-Click Hold) ────────────────────────────────────
     if mouse_click[2] and g.energy > 5 * g.cost_mult and not g.domain_active and g.sd_broken_timer <= 0:
@@ -15,15 +16,15 @@ def update_gojo_controls(game, keys, mouse_click, target):
             g.sd_hits = 0
         g.simple_domain_active = True
         g.sd_was_active = True
-        if g.domain_charge == 0:
-            g.energy -= 1.5 * g.cost_mult
+        if g.domain_charge <= 0:
+            g.energy -= 1.5 * g.cost_mult * time_mult
     else:
         g.simple_domain_active = False
         g.sd_was_active = False
 
     # ── Domain Expansion (V) ─────────────────────────────────────────────────
     if keys[pygame.K_v] and g.domain_cd == 0 and g.technique_burnout == 0 \
-            and g.domain_charge == 0 and not g.domain_active and g.grab_timer <= 0:
+            and g.domain_charge <= 0 and not g.domain_active and g.grab_timer <= 0:
         if g.energy >= 190 * g.cost_mult:
             g.domain_charge = 60
             g.energy -= 190 * g.cost_mult
@@ -38,7 +39,7 @@ def update_gojo_controls(game, keys, mouse_click, target):
     # ── Point-Blank Blue (E + W) ─────────────────────────────────────────────
     if (keys[pygame.K_e] and keys[pygame.K_w] and game.pb_blue_ready
             and g.energy >= 60 * g.cost_mult and g.blue_cd == 0
-            and g.grab_timer <= 0 and not is_actually_burned_out and g.domain_charge == 0):
+            and g.grab_timer <= 0 and not is_actually_burned_out and g.domain_charge <= 0):
         game.pb_blue_ready = False
         g.energy -= 60 * g.cost_mult
         g.blue_cd = 480
@@ -67,7 +68,7 @@ def update_gojo_controls(game, keys, mouse_click, target):
     # ── Point-Blank Red (E + S) ──────────────────────────────────────────────
     elif (keys[pygame.K_e] and keys[pygame.K_s] and game.pb_red_ready
           and g.energy >= 100 * g.cost_mult and g.red_cd == 0
-          and (g.grab_timer > 0 or s.grab_timer > 0) and g.domain_charge == 0):
+          and (g.grab_timer > 0 or s.grab_timer > 0) and g.domain_charge <= 0):
         game.pb_red_ready = False
         g.grab_timer = 0; s.grab_timer = 0
         if is_actually_burned_out:
@@ -107,9 +108,9 @@ def update_gojo_controls(game, keys, mouse_click, target):
 
     # ── Movement + Standard Combat ───────────────────────────────────────────
     punching = False
-    if not g.is_paralyzed and g.grab_timer <= 0 and g.domain_charge == 0:
-        if keys[pygame.K_a]: g.rect.x -= 20; g.direction = -1
-        if keys[pygame.K_d]: g.rect.x += 20; g.direction = 1
+    if not g.is_paralyzed and g.grab_timer <= 0 and g.domain_charge <= 0:
+        if keys[pygame.K_a]: g.rect.x -= 20 * time_mult; g.direction = -1
+        if keys[pygame.K_d]: g.rect.x += 20 * time_mult; g.direction = 1
 
         if mouse_click[0] and g.attack_cooldown == 0:
             punching = True
@@ -154,8 +155,8 @@ def update_gojo_controls(game, keys, mouse_click, target):
 
         # RCT Heal (Q)
         if keys[pygame.K_q] and g.energy > 5 * g.cost_mult:
-            g.hp = min(g.max_hp, g.hp + 1.5)
-            g.energy -= 2 * g.cost_mult
+            g.hp = min(g.max_hp, g.hp + 1.5 * time_mult)
+            g.energy -= 2 * g.cost_mult * time_mult
             g.rct_timer = 5
 
         is_actually_burned_out = (g.domain_uses >= 5 and g.technique_burnout > 0)
@@ -191,7 +192,7 @@ def update_gojo_controls(game, keys, mouse_click, target):
         is_beatdown_active = s.grab_timer > 0 and getattr(s, "grab_type", "") == "gojo_beatdown"
 
         # Hollow Purple (R)
-        if keys[pygame.K_r] and g.purple_cd == 0 and g.purple_charge == 0 and not is_beatdown_active:
+        if keys[pygame.K_r] and g.purple_cd == 0 and g.purple_charge <= 0 and not is_beatdown_active:
             if g.energy >= 195 * g.cost_mult:
                 if not is_actually_burned_out and g.tech_hits >= g.max_tech_hits:
                     g.purple_charge = 120
@@ -201,19 +202,21 @@ def update_gojo_controls(game, keys, mouse_click, target):
                                         "timer": 30, "text": "NOT ENOUGH CE!", "color": RED})
                     g.attack_cooldown = 20
 
-        if g.purple_charge > 0:
-            g.purple_charge -= 1
-            if g.purple_charge == 1:
-                game.projectiles.append(Projectile(g.rect.centerx, g.rect.centery,
-                                                    target.rect.centerx, target.rect.centery,
-                                                    20, PURPLE, size_mult=3.5, type="purple_orb"))
-                g.energy = max(0, g.energy - (195 * g.cost_mult))
-                g.purple_cd = 720; g.tech_hits = 0
+    if g.purple_charge > 0:
+        g.purple_charge -= time_mult
+        if g.purple_charge <= 0:
+            g.purple_charge = 0
+            game.projectiles.append(Projectile(g.rect.centerx, g.rect.centery,
+                                                target.rect.centerx, target.rect.centery,
+                                                20, PURPLE, size_mult=3.5, type="purple_orb"))
+            g.energy = max(0, g.energy - (195 * g.cost_mult))
+            g.purple_cd = 720; g.tech_hits = 0
 
     # ── Domain Charge Countdown ──────────────────────────────────────────────
     if g.domain_charge > 0:
-        g.domain_charge -= 1
-        if g.domain_charge == 1:
+        g.domain_charge -= time_mult
+        if g.domain_charge <= 0:
+            g.domain_charge = 0
             g.domain_active = True; g.domain_timer = 400
             g.domain_cd = 3000; g.infinity = g.max_infinity
             game.shake_timer = 30

@@ -2,11 +2,11 @@ import pygame, random, math # type: ignore
 from settings import *
 from projectile import Projectile
 
-
-def update_sukuna_ai(game):
+def update_sukuna_ai(game, dt):
     """Full Sukuna AI. Returns: (dist, fuga_priority, gojo_has_inf)."""
     g = game.gojo
     s = game.sukuna
+    time_mult = dt * 60.0
 
     dist = abs(s.rect.centerx - g.rect.centerx)
     fuga_priority = (s.tech_hits >= s.max_tech_hits and s.fuga_cd == 0
@@ -62,7 +62,7 @@ def update_sukuna_ai(game):
             if not getattr(s, "sd_was_active", False):
                 s.energy -= 25.0 * s.cost_mult; s.sd_hits = 0
             s.simple_domain_active = True; s.sd_was_active = True
-            s.energy -= 1.0 * s.cost_mult
+            s.energy -= 1.0 * s.cost_mult * time_mult
         else:
             s.simple_domain_active = False; s.sd_was_active = False
     else:
@@ -83,7 +83,7 @@ def update_sukuna_ai(game):
                 if (s.rect.left < 150 and run_dir == -1) or (s.rect.right > WORLD_WIDTH - 150 and run_dir == 1):
                     run_dir *= -1
                     if s.on_ground: s.jump()
-                s.direction = run_dir; s.rect.x += 28 * run_dir
+                s.direction = run_dir; s.rect.x += 28 * run_dir * time_mult
                 if s.dodge_cd <= 0 and s.stamina >= 20: s.dodge(); s.dodge_cd = 15
                 vow_cost = 2.4 * s.cost_mult
                 if s.energy > vow_cost:
@@ -97,7 +97,7 @@ def update_sukuna_ai(game):
                 if s.world_slash_unlocked and s.world_slash_cd <= 0 and getattr(s, "world_slash_charge", 0) <= 0 and s.energy >= 80 * s.cost_mult:
                     s.world_slash_charge = 120
                 elif dist > 100:
-                    s.rect.x += 28 * s.direction
+                    s.rect.x += 28 * s.direction * time_mult
                     if s.dodge_cd <= 0 and s.stamina >= 20: s.dodge(); s.dodge_cd = 20
 
         # Dodge incoming orbs
@@ -125,11 +125,11 @@ def update_sukuna_ai(game):
                 if s.grab_cd > 0 or g.domain_active:
                     s.amp_duration = 600; is_amp = True
 
-        if is_amp: s.energy -= 0.25 * s.cost_mult
+        if is_amp: s.energy -= 0.25 * s.cost_mult * time_mult
 
         rush_distance = 40 if g.domain_active else 110
         is_draining_ce = s.energy < (s.max_energy * 0.65)
-        if getattr(s, "tactical_eval_timer", 0) > 0: s.tactical_eval_timer -= 1
+        if getattr(s, "tactical_eval_timer", 0) > 0: s.tactical_eval_timer -= time_mult
         is_tactical_eval = getattr(s, "tactical_eval_timer", 0) > 0
 
         # CE Vow / Flesh vow
@@ -169,7 +169,7 @@ def update_sukuna_ai(game):
                     s.direction = -1 if s.rect.x > g.rect.x else 1
 
             if needs_healing and s.energy > 1000 * s.cost_mult:
-                s.energy -= 4.0 * s.cost_mult; s.hp = min(s.max_hp, s.hp + 5.0); s.rct_timer = 5
+                s.energy -= 4.0 * s.cost_mult * time_mult; s.hp = min(s.max_hp, s.hp + 5.0 * time_mult); s.rct_timer = 5
 
             if not needs_energy and not is_tactical_eval and s.energy >= 200 * s.cost_mult and s.domain_cd == 0 and s.technique_burnout == 0 and s.domain_charge == 0 and not s.domain_active and s.attack_cooldown <= 0:
                 if (5 - g.domain_uses) <= (5 - s.domain_uses):
@@ -181,7 +181,7 @@ def update_sukuna_ai(game):
             else:
                 if getattr(s, "dash_dance_timer", 0) <= 0:
                     s.dash_dance_dir = random.choice([-1, 1]); s.dash_dance_timer = random.randint(15, 35)
-                else: s.dash_dance_timer -= 1
+                else: s.dash_dance_timer -= time_mult
                 run_dir = getattr(s, "dash_dance_dir", 1)
 
             if (s.rect.left < 150 and run_dir == -1) or (s.rect.right > WORLD_WIDTH - 150 and run_dir == 1):
@@ -191,7 +191,7 @@ def update_sukuna_ai(game):
                 jump_chance = 0.08 if needs_energy else 0.04
                 if s.on_ground and random.random() < jump_chance: s.jump()
 
-            s.rect.x += speed * run_dir
+            s.rect.x += speed * run_dir * time_mult
             if s.dodge_cd <= 0 and s.stamina >= 20 and not s.stamina_exhausted:
                 s.direction = (-1 if s.rect.x > g.rect.x else 1) if (dist < 350 and random.random() < 0.3) else run_dir
                 s.dodge(); s.dodge_cd = 20 if needs_energy or is_tactical_eval else 25
@@ -206,10 +206,10 @@ def update_sukuna_ai(game):
         elif dist > rush_distance or g.grab_timer > 0:
             speed = 35 if (s.ce_exhausted or g.domain_active) else (28 if (s.cleave_cd <= 0 and dist < 600 and g.grab_timer <= 0) else 9)
             if g.grab_timer > 0:
-                s.rect.x += speed * s.direction
+                s.rect.x += speed * s.direction * time_mult
                 if random.random() < 0.02: s.direction *= -1
             else:
-                s.rect.x += -speed if s.rect.x > g.rect.x else speed
+                s.rect.x += (-speed if s.rect.x > g.rect.x else speed) * time_mult
             if g.domain_active and not s.domain_active:
                 if s.dodge_cd <= 0 and s.stamina >= 20 and not s.stamina_exhausted and not incoming_orbs:
                     s.direction = -1 if s.rect.x > g.rect.x else 1; s.dodge(); s.dodge_cd = 25
@@ -234,8 +234,9 @@ def update_sukuna_ai(game):
 
         # World Slash charge countdown
         if getattr(s, "world_slash_charge", 0) > 0:
-            s.world_slash_charge -= 1
-            if s.world_slash_charge == 1:
+            s.world_slash_charge -= time_mult
+            if s.world_slash_charge <= 0:
+                s.world_slash_charge = 0
                 game.projectiles.append(Projectile(s.rect.centerx, s.rect.centery, g.rect.centerx, g.rect.centery, 55, BLACK, size_mult=12.0, type="world_slash"))
                 s.energy = max(0, s.energy - 80 * s.cost_mult); s.world_slash_cd = 1800; game.shake_timer = 40
 
@@ -243,8 +244,9 @@ def update_sukuna_ai(game):
         if s.fuga_charge > 0:
             if s.is_paralyzed or g.domain_active: s.fuga_charge = 0
             else:
-                s.fuga_charge -= 1
-                if s.fuga_charge == 1:
+                s.fuga_charge -= time_mult
+                if s.fuga_charge <= 0:
+                    s.fuga_charge = 0
                     game.projectiles.append(Projectile(s.rect.centerx, s.rect.centery, g.rect.centerx, g.rect.centery, 28, (255, 100, 0), size_mult=5.8, type="fuga_arrow"))
                     s.energy = max(0, s.energy - 195 * s.cost_mult)
                     s.hp -= s.max_hp * 0.50; game.shake_timer = 35
@@ -307,7 +309,7 @@ def update_sukuna_ai(game):
                     size = 2.5 if s.slash_type == "dismantle" else 4.2
                     game.projectiles.append(Projectile(s.rect.centerx, s.rect.centery + offset_y, g.rect.centerx, g.rect.centery, 110, RED, size_mult=size, type=s.slash_type))
                     s.slash_count -= 1; s.slash_delay = 2
-            else: s.slash_delay -= 1
+            else: s.slash_delay -= time_mult
 
         # Melee punch
         if dist < 120 and s.attack_cooldown <= 90 and not fuga_priority:
@@ -364,8 +366,9 @@ def update_sukuna_ai(game):
 
     # ── Domain Charge Countdown ──────────────────────────────────────────────
     if s.domain_charge > 0:
-        s.domain_charge -= 1
-        if s.domain_charge == 1:
+        s.domain_charge -= time_mult
+        if s.domain_charge <= 0:
+            s.domain_charge = 0
             s.domain_active = True; s.domain_timer = 400
             s.domain_cd = 3000; game.shake_timer = 30
 
