@@ -107,6 +107,49 @@ class Game:
             lbl = self.get_text(label, WHITE, self.mini_font)
             surf.blit(lbl, (x, y - 18))
 
+    def check_announcements(self):
+        """Evaluates game state changes and triggers HUD announcements."""
+        tracker_source = self.mahoraga if (self.mahoraga and self.mahoraga.hp > 0) else self.sukuna
+        for key in tracker_source.adaptation:
+            val = tracker_source.adaptation[key]
+            prev = self.prev_adaptations[key]
+            is_adapted = val <= 0.0 if key != "infinity" else val >= 1.0
+            was_adapted = prev <= 0.0 if key != "infinity" else prev >= 1.0
+
+            if is_adapted and not was_adapted:
+                tracker_source.adapt_pulse_timer = 30
+                
+                if key == "void" and (self.mahoraga is None or self.mahoraga.hp <= 0):
+                    self.maho_announcements.append({"text": "MEGUMI'S SOUL ADAPTED TO UNLIMITED VOID!", "timer": 180})
+                else:
+                    self.maho_announcements.append({"text": f"MAHORAGA HAS FULLY ADAPTED TO {key.upper()}!", "timer": 180})
+                
+                if key == "infinity" and not self.sukuna.world_slash_unlocked:
+                    self.sukuna.world_slash_unlocked = True
+                    self.maho_announcements.append({"text": "SUKUNA HAS ACQUIRED THE WORLD CUTTING SLASH!", "timer": 240})
+                    
+            self.prev_adaptations[key] = val
+
+        current_maho_lockout = getattr(self.sukuna, "mahoraga_lockout", 0)
+        if getattr(self, "prev_maho_lockout", 0) > 0 and current_maho_lockout == 0:
+            self.maho_announcements.append({"text": "MAHORAGA PARALYSIS LOCK EXPIRED!", "timer": 180})
+        self.prev_maho_lockout = current_maho_lockout
+
+        if self.sukuna.world_slash_cd <= 0 and self.prev_world_slash_cd > 0:
+            self.maho_announcements.append({"text": "WORLD CUTTING SLASH IS READY!", "timer": 120})
+        self.prev_world_slash_cd = self.sukuna.world_slash_cd
+
+        if not self.gojo.domain_active and self.gojo.technique_burnout > 0 and self.prev_gojo_burnout <= 0:
+            if self.gojo.domain_uses > 0 and self.gojo.domain_uses % 5 == 0:
+                self.maho_announcements.append({"text": "GOJO'S CURSED TECHNIQUE HAS BURNED OUT!", "timer": 90})
+                
+        if not self.sukuna.domain_active and self.sukuna.technique_burnout > 0 and self.prev_sukuna_burnout <= 0:
+            if self.sukuna.domain_uses > 0 and self.sukuna.domain_uses % 5 == 0:
+                self.maho_announcements.append({"text": "SUKUNA'S CURSED TECHNIQUE HAS BURNED OUT!", "timer": 90})
+        
+        self.prev_gojo_burnout = self.gojo.technique_burnout
+        self.prev_sukuna_burnout = self.sukuna.technique_burnout
+
     def run(self):
         # Initialize delta time (dt) for the very first frame
         self.dt = 0.016 
@@ -193,46 +236,8 @@ class Game:
                 if self.mahoraga and self.mahoraga.hp > 0:
                     update_mahoraga_ai(self, sim_dt) 
 
-                tracker_source = self.mahoraga if (self.mahoraga and self.mahoraga.hp > 0) else self.sukuna
-                for key in tracker_source.adaptation:
-                    val = tracker_source.adaptation[key]
-                    prev = self.prev_adaptations[key]
-                    is_adapted = val <= 0.0 if key != "infinity" else val >= 1.0
-                    was_adapted = prev <= 0.0 if key != "infinity" else prev >= 1.0
-
-                    if is_adapted and not was_adapted:
-                        tracker_source.adapt_pulse_timer = 30
-                        
-                        if key == "void" and (self.mahoraga is None or self.mahoraga.hp <= 0):
-                            self.maho_announcements.append({"text": "MEGUMI'S SOUL ADAPTED TO UNLIMITED VOID!", "timer": 180})
-                        else:
-                            self.maho_announcements.append({"text": f"MAHORAGA HAS FULLY ADAPTED TO {key.upper()}!", "timer": 180})
-                        
-                        if key == "infinity" and not self.sukuna.world_slash_unlocked:
-                            self.sukuna.world_slash_unlocked = True
-                            self.maho_announcements.append({"text": "SUKUNA HAS ACQUIRED THE WORLD CUTTING SLASH!", "timer": 240})
-                            
-                    self.prev_adaptations[key] = val
-
-                current_maho_lockout = getattr(self.sukuna, "mahoraga_lockout", 0)
-                if getattr(self, "prev_maho_lockout", 0) > 0 and current_maho_lockout == 0:
-                    self.maho_announcements.append({"text": "MAHORAGA PARALYSIS LOCK EXPIRED!", "timer": 180})
-                self.prev_maho_lockout = current_maho_lockout
-
-                if self.sukuna.world_slash_cd <= 0 and self.prev_world_slash_cd > 0:
-                    self.maho_announcements.append({"text": "WORLD CUTTING SLASH IS READY!", "timer": 120})
-                self.prev_world_slash_cd = self.sukuna.world_slash_cd
-
-                if not self.gojo.domain_active and self.gojo.technique_burnout > 0 and self.prev_gojo_burnout <= 0:
-                    if self.gojo.domain_uses > 0 and self.gojo.domain_uses % 5 == 0:
-                        self.maho_announcements.append({"text": "GOJO'S CURSED TECHNIQUE HAS BURNED OUT!", "timer": 90})
-                        
-                if not self.sukuna.domain_active and self.sukuna.technique_burnout > 0 and self.prev_sukuna_burnout <= 0:
-                    if self.sukuna.domain_uses > 0 and self.sukuna.domain_uses % 5 == 0:
-                        self.maho_announcements.append({"text": "SUKUNA'S CURSED TECHNIQUE HAS BURNED OUT!", "timer": 90})
-                
-                self.prev_gojo_burnout = self.gojo.technique_burnout
-                self.prev_sukuna_burnout = self.sukuna.technique_burnout        
+                # Evaluate game state and handle UI announcements
+                self.check_announcements()        
 
                 if self.gojo.domain_active:
                     if self.mahoraga and self.mahoraga.hp > 0 and self.mahoraga.adaptation["void"] <= 0:
