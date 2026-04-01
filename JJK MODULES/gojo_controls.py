@@ -135,13 +135,14 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
                     game.bf_words.append({"x": target.rect.centerx, "y": target.rect.centery - 60, "timer": 45})
                 
                 if not target.is_dodging:
-                    if target.name == "Sukuna" and target.energy > 0:
-                        reduction_mult = random.uniform(0.15, 0.35)
-                        mitigated_dmg = dmg * (1.0 - reduction_mult)
-                        dmg *= reduction_mult
-                        target.energy = max(0, target.energy - (mitigated_dmg * 2.0) * target.cost_mult)
-                    elif target.name == "Mahoraga":
-                        dmg *= random.uniform(0.6, 0.85)
+                    if not is_black_flash:
+                        if target.name == "Sukuna" and target.energy > 0:
+                            reduction_mult = random.uniform(0.15, 0.35)
+                            mitigated_dmg = dmg * (1.0 - reduction_mult)
+                            dmg *= reduction_mult
+                            target.energy = max(0, target.energy - (mitigated_dmg * 2.0) * target.cost_mult)
+                        elif target.name == "Mahoraga":
+                            dmg *= random.uniform(0.6, 0.85)
                     
                     target.hp -= dmg
                     spark_color = (255, 0, 0) if g.black_flash_timer > 0 else WHITE

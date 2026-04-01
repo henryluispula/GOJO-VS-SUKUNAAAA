@@ -84,7 +84,7 @@ def update_mahoraga_ai(self, dt):
                 if self.gojo.infinity > 0 and self.gojo.energy > 0 and self.gojo.technique_burnout <= 0:
                     self.gojo.infinity -= to_inf * 0.5 
                     
-                    if self.gojo.energy > 0: 
+                    if self.gojo.energy > 0 and not is_black_flash: 
                         to_hp *= random.uniform(0.15, 0.35)
                         self.gojo.energy -= (base_dmg * inf_adapt_ratio * 0.75) * 3.5 
                     
@@ -92,7 +92,7 @@ def update_mahoraga_ai(self, dt):
                     if to_hp > 0: hit_connected = True
                 else:
                     actual_dmg = base_dmg
-                    if self.gojo.energy > 0: 
+                    if self.gojo.energy > 0 and not is_black_flash: 
                         actual_dmg *= random.uniform(0.15, 0.35)
                         self.gojo.energy -= (base_dmg * 0.75) * 3.5 
                         

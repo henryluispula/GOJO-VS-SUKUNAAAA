@@ -348,7 +348,7 @@ def update_sukuna_ai(game, dt):
                 if is_amp:
                     if not g.is_dodging:
                         actual_dmg = melee_dmg
-                        if g.energy > 0:
+                        if g.energy > 0 and not is_black_flash:
                             rm = random.uniform(0.15, 0.35); md = actual_dmg * (1.0 - rm); actual_dmg *= rm
                             g.energy = max(0, g.energy - (md * 3.5) * g.cost_mult)
                         g.hp -= actual_dmg
@@ -365,7 +365,7 @@ def update_sukuna_ai(game, dt):
                     else:
                         if not g.is_dodging:
                             actual_dmg = melee_dmg
-                            if g.energy > 0:
+                            if g.energy > 0 and not is_black_flash:
                                 rm = random.uniform(0.15, 0.35); md = actual_dmg * (1.0 - rm); actual_dmg *= rm
                                 g.energy = max(0, g.energy - (md * 3.5) * g.cost_mult)
                             g.hp -= actual_dmg
