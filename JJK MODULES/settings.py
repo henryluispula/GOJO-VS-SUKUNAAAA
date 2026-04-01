@@ -1,12 +1,11 @@
-# settings.py
 import pygame # type: ignore
 
 # --- Configuration ---
 WIDTH, HEIGHT = 1280, 720
-WORLD_WIDTH = 4480  # 30% smaller than 6400
-WORLD_HEIGHT = 2520 # 30% smaller than 3600
+WORLD_WIDTH = 4480 
+WORLD_HEIGHT = 2520 
 FPS = 60
-GRAVITY = 2.8 # Increased for heavy, realistic gravity
+GRAVITY = 2.8 
 
 # Colors
 WHITE, BLACK = (255, 255, 255), (10, 10, 15)

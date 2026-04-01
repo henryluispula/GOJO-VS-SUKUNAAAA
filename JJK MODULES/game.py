@@ -88,7 +88,7 @@ class Game:
         
         self.prev_adaptations = {"blue": 1.0, "red": 1.0, "purple": 1.0, "punch": 1.0, "infinity": 0.0, "void": 1.0}
         self.maho_announcements = []
-        self.prev_maho_lockout = 0 # NEW: Tracks when the Mahoraga lockout ends
+        self.prev_maho_lockout = 0
 
     def get_text(self, text, color, font=None):
         if font is None:
@@ -108,6 +108,8 @@ class Game:
             surf.blit(lbl, (x, y - 18))
 
     def run(self):
+        # Initialize delta time (dt) for the very first frame
+        self.dt = 0.016 
         running = True
         while running:
             self.screen.fill(BLACK)
@@ -175,14 +177,12 @@ class Game:
 
             if not self.game_over and not self.paused and self.mahoraga_summon_timer <= 0:
                 
-                # FIX: Define our target before we use it!
                 target = self.sukuna 
                 
                 punching = update_gojo_controls(self, keys, mouse_click, target)
                 dist, fuga_priority, gojo_has_inf = update_sukuna_ai(self)
                 update_domain_boundary(self)
                 
-                # FIX: Shifted these 4 spaces to the right so they stay inside the if-statement
                 gojo_can_clash = update_physics_and_grabs(self)
                 update_domain_clash(self, keys, gojo_can_clash)
 
@@ -197,7 +197,6 @@ class Game:
                     was_adapted = prev <= 0.0 if key != "infinity" else prev >= 1.0
 
                     if is_adapted and not was_adapted:
-                        # NEW: Trigger the glowing wheel pulse on the fighter who adapted!
                         tracker_source.adapt_pulse_timer = 30
                         
                         if key == "void" and (self.mahoraga is None or self.mahoraga.hp <= 0):
@@ -211,12 +210,10 @@ class Game:
                             
                     self.prev_adaptations[key] = val
 
-                # --- NEW: MAHORAGA LOCKOUT EXPIRATION ANNOUNCEMENT ---
                 current_maho_lockout = getattr(self.sukuna, "mahoraga_lockout", 0)
                 if getattr(self, "prev_maho_lockout", 0) > 0 and current_maho_lockout == 0:
                     self.maho_announcements.append({"text": "MAHORAGA PARALYSIS LOCK EXPIRED!", "timer": 180})
                 self.prev_maho_lockout = current_maho_lockout
-                # -----------------------------------------------------
 
                 if self.sukuna.world_slash_cd == 0 and self.prev_world_slash_cd == 1:
                     self.maho_announcements.append({"text": "WORLD CUTTING SLASH IS READY!", "timer": 120})
@@ -247,7 +244,6 @@ class Game:
                                 is_touching_gojo = enemy.rect.colliderect(self.gojo.rect)
                                 
                                 # The Gambit now ONLY happens strategically during Domain Clashes!
-                                # Trapped normally in UV, Sukuna maintains his defenses to survive until he can cast MS.
                                 if getattr(enemy, "simple_domain_active", False) and not is_touching_gojo:
                                     enemy.is_paralyzed = False 
                                     enemy.sd_hits += 1
@@ -412,14 +408,11 @@ class Game:
                     # CE Drop Logic
                     if fighter.energy < fighter.prev_energy:
                         change = fighter.energy - fighter.prev_energy
-                        # Filter out passive drain, only pop up for chunks
                         if change < -5.0 and fighter.name in ["Gojo", "Sukuna"]:
                             x_offset = random.randint(-15, 15)
                             if fighter.name == "Gojo":
-                                # Spawns perfectly to the right of the "CURSE ENERGY" text!
                                 self.ce_hud_popups.append({"x": 165 + x_offset, "y": 75, "val": int(abs(change)), "timer": 45, "color": PURPLE})
                             elif fighter.name == "Sukuna":
-                                # Spawns perfectly to the right of the "CURSE ENERGY" text!
                                 self.ce_hud_popups.append({"x": WIDTH - 205 + x_offset, "y": 75, "val": int(abs(change)), "timer": 45, "color": BLUE})
 
                     fighter.prev_hp = fighter.hp
@@ -470,7 +463,6 @@ class Game:
                 self.cam_x += (target_center_x - getattr(self, "cam_x", target_center_x)) * 0.4
                 self.cam_y += (target_center_y - getattr(self, "cam_y", target_center_y)) * 0.4
                 
-                # True slow-mo is now handled beautifully by the clock at the end of the loop!
             else:
                 # Smooth, normal camera tracking
                 self.cam_width += (target_cam_width - self.cam_width) * 0.1 
@@ -502,10 +494,11 @@ class Game:
             draw_hud(self, render_surf)
             
             self.screen.blit(render_surf, display_offset)
-            pygame.display.flip()
+            pygame.display.flip()            
             
-            # The fighters are now individually slowed down via the 1/3 physics skip!
-            # Keeping the engine at 60 FPS ensures the camera zoom and UI remain buttery smooth.
-            self.clock.tick(FPS) 
+            self.dt = self.clock.tick(FPS) / 1000.0
+            
+            if self.dt > 0.1:
+                self.dt = 0.1
                 
         pygame.quit()

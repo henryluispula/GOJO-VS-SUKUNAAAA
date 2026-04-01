@@ -13,8 +13,7 @@ class Fighter:
         self.name = name
         self.max_hp = 500 if name == "Sukuna" else (480 if name == "Mahoraga" else 200)
         self.hp = self.max_hp
-        self.prev_hp = self.hp # Track for blood effects
-        # Start the fight with appropriate max cursed energy levels
+        self.prev_hp = self.hp
         self.max_energy = 3000 if name == "Sukuna" else (2100 if name == "Gojo" else 2800)
         self.energy = self.max_energy
         self.max_infinity = 1000 if name == "Gojo" else 0 
@@ -54,7 +53,7 @@ class Fighter:
         self.adaptation_points = {"blue": 0, "red": 0, "purple": 0, "punch": 0, "infinity": 0, "void": 0}
         self.adapting_to = None 
         self.wheel_rotation = 0
-        self.adapt_pulse_timer = 0 # NEW: Tracks the glowing wheel pulse
+        self.adapt_pulse_timer = 0 
         self.last_turn_count = 0
         self.is_split = False
         self.using_blue = False 
@@ -95,7 +94,6 @@ class Fighter:
 
     @property
     def cost_mult(self):
-        # 80% discount to all CE costs if they hit a black flash!
         return 0.2 if self.potential_timer > 0 else 1.0
 
     def end_domain(self):
@@ -106,9 +104,8 @@ class Fighter:
         self.domain_timer = 0
         self.domain_uses += 1
         
-        # INCREASED COOLDOWN: 5 uses limit, followed by 8 second cooldowns (480 frames)
         if self.domain_uses <= 5:
-            self.domain_cd = 480 # 8 seconds at 60 FPS
+            self.domain_cd = 480 
             self.technique_burnout = 0
         else:
             self.domain_cd = 3000
@@ -172,8 +169,7 @@ class Fighter:
                 dash_speed = 72 if self.name == "Gojo" else 45
                 self.rect.x += self.direction * dash_speed
             else: self.is_dodging = False
-            
-        
+                    
         # Energy Regen
         base_regen = 25.0 if self.name == "Gojo" else 0.8 if self.name == "Mahoraga" else 1.0 
         regen_mult = 1.2 if self.potential_timer > 0 else 1.0
@@ -224,9 +220,8 @@ class Fighter:
                 self.energy -= cost
 
         if self.name == "Sukuna" and self.hp > 0 and self.hp < self.max_hp and not self.ce_exhausted:
-            # If paralyzed in UV and Mahoraga is DEAD, the brain is completely fried. NO HEALING!
             if self.is_paralyzed and getattr(self, "mahoraga_is_dead", False):
-                pass # Equivalent exchange is broken. Sukuna cannot heal here.
+                pass 
             else:
                 heal_cost = 0.3 * self.cost_mult
                 
@@ -483,18 +478,14 @@ class Fighter:
             wheel_center = (mid_x, y - 65)
             wheel_color = (190, 170, 50)
             
-            # --- NEW: GLOWING PULSE EFFECT FOR 100% ADAPTATION ---
             if getattr(self, "adapt_pulse_timer", 0) > 0:
-                # Calculate pulse scale (goes from 1.0 -> 2.5 -> 1.0)
                 pulse_progress = (30 - self.adapt_pulse_timer) / 30.0
                 pulse_scale = 1.0 + (math.sin(pulse_progress * math.pi) * 1.5)
-                pulse_alpha = int(255 * (1.0 - pulse_progress)) # Fades out as it completes
+                pulse_alpha = int(255 * (1.0 - pulse_progress))
                 
-                # Draw the glowing after-image
                 pulse_surf = pygame.Surface((150, 150), pygame.SRCALPHA)
                 center_offset = 75
                 
-                # Draw main ring and spokes on the temp surface
                 pygame.draw.circle(pulse_surf, (255, 255, 150, pulse_alpha), (center_offset, center_offset), int(45 * pulse_scale), max(1, int(6 * pulse_scale)))
                 pygame.draw.circle(pulse_surf, (255, 255, 200, pulse_alpha), (center_offset, center_offset), int(8 * pulse_scale))
                 
@@ -507,7 +498,6 @@ class Fighter:
                 
                 surface.blit(pulse_surf, (int(wheel_center[0]) - center_offset, int(wheel_center[1]) - center_offset))
                 self.adapt_pulse_timer -= 1
-            # -----------------------------------------------------
 
             if self.adapting_to:
                 pts = self.adaptation_points[self.adapting_to]
@@ -556,7 +546,6 @@ class Fighter:
         pygame.draw.line(surface, self.color if self.name != "Mahoraga" else (180, 180, 160), (mid_x + int(10*scale), y + int(90*scale)), (mid_x + int(15*scale) + leg_off, y + int(160*scale)), int(thickness))
         
         if self.name == "Mahoraga": 
-            # Make the top points less sharp by tapering the polygon
             body_rect = [
                 (x + int(5*scale), y),                        
                 (x + w - int(5*scale), y),                    
@@ -571,7 +560,6 @@ class Fighter:
         pygame.draw.polygon(surface, self.color, body_rect)
         
         if self.name == "Mahoraga":
-            # Neck shadow overlay (not too dark)
             pygame.draw.ellipse(surface, (190, 190, 175), (mid_x - int(15*scale), y - int(5*scale), int(30*scale), int(25*scale)))
 
         if self.name == "Mahoraga":
@@ -629,7 +617,6 @@ class Fighter:
                 ny = px * math.sin(rot) + py * math.cos(rot)
                 return (int(wrist_x + nx), int(wrist_y + ny))
 
-            # Scaled down blade size
             blade_poly = [
                 rot_pt(-5 * scale, -4 * scale),
                 rot_pt(5 * scale, -4 * scale),
