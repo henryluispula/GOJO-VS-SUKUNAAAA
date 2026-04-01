@@ -343,11 +343,13 @@ class Game:
                         self.popups.append({"x": self.sukuna.rect.centerx, "y": self.sukuna.rect.centery - 100, "timer": 60, "text": "DESPERATE DOMAIN!", "color": RED})
                         
                     if self.gojo.grab_timer <= 0 and not self.gojo.domain_active and not self.sukuna.domain_active and self.mahoraga_summon_timer <= 0:
-                        
-                        if dist > 450:
+
+                        if dist > 480:
                             run_dir = -1 if self.sukuna.rect.x > self.gojo.rect.x else 1
-                        else:
+                        elif dist < 420:
                             run_dir = 1 if self.sukuna.rect.x > self.gojo.rect.x else -1
+                        else:
+                            run_dir = self.sukuna.direction 
                         
                         if (self.sukuna.rect.left < 150 and run_dir == -1) or (self.sukuna.rect.right > WORLD_WIDTH - 150 and run_dir == 1):
                             run_dir *= -1

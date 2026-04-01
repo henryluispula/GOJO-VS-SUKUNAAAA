@@ -142,25 +142,21 @@ def update_projectiles(self, dt):
                     p_target.adaptation["purple"] = max(0, 1.0 - min(1.0, turns / 9.0))
 
             if dist_x < 80: 
-                dmg_perc = 1.0
-            else: 
-                dmg_perc = 1.0
+                purple_dmg = (p_target.max_hp * 1.0)
                 
-            purple_dmg = (p_target.max_hp * dmg_perc)
-            
-            if p_target.name == "Mahoraga":
-                purple_dmg *= p_target.adaptation["purple"] 
-            elif p_target.name == "Sukuna" and p_target.amp_duration > 0:
-                purple_dmg *= 0.6 
-            
-            if p_target.energy > 0:
-                reduction_mult = random.uniform(0.5, 0.8)
-                mitigated_dmg = purple_dmg * (1.0 - reduction_mult) 
-                purple_dmg *= reduction_mult 
-                p_target.energy = max(0, p_target.energy - (mitigated_dmg * 8.5) * p_target.cost_mult)
-            
-            p_target.hp -= purple_dmg
-            p.active = False 
+                if p_target.name == "Mahoraga":
+                    purple_dmg *= p_target.adaptation["purple"] 
+                elif p_target.name == "Sukuna" and p_target.amp_duration > 0:
+                    purple_dmg *= 0.6 
+                
+                if p_target.energy > 0:
+                    reduction_mult = random.uniform(0.5, 0.8)
+                    mitigated_dmg = purple_dmg * (1.0 - reduction_mult) 
+                    purple_dmg *= reduction_mult 
+                    p_target.energy = max(0, p_target.energy - (mitigated_dmg * 8.5) * p_target.cost_mult)
+                
+                p_target.hp -= purple_dmg
+                p.active = False 
     
         elif p.type == "fuga_arrow":
             dist_x = abs(self.gojo.rect.centerx - p.pos.x)

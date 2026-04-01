@@ -83,9 +83,16 @@ def update_sukuna_ai(game, dt):
         if g.domain_charge > 0 or is_purple_threat:
             can_tank_purple = not (is_purple_threat and (s.hp <= 150 or s.energy <= 300 * s.cost_mult))
             if is_purple_threat and not can_tank_purple:
-                run_dir = -1 if s.rect.x < g.rect.x else 1
+                if getattr(s, "panic_wall_timer", 0) > 0:
+                    s.panic_wall_timer -= time_mult
+                    run_dir = getattr(s, "panic_dir", 1)
+                else:
+                    run_dir = -1 if s.rect.x < g.rect.x else 1
+                    
                 if (s.rect.left < 150 and run_dir == -1) or (s.rect.right > WORLD_WIDTH - 150 and run_dir == 1):
                     run_dir *= -1
+                    s.panic_dir = run_dir
+                    s.panic_wall_timer = 30
                     if s.on_ground: s.jump()
                 s.direction = run_dir; s.rect.x += 28 * run_dir * time_mult
                 if s.dodge_cd <= 0 and s.stamina >= 20: s.dodge(); s.dodge_cd = 15
@@ -177,8 +184,15 @@ def update_sukuna_ai(game, dt):
                     s.domain_charge = 60; s.energy -= 200 * s.cost_mult
 
             speed = 18 if not is_tactical_eval else 24
-            if dist < 250: run_dir = 1 if s.rect.x > g.rect.x else -1
-            elif dist > 550: run_dir = -1 if s.rect.x > g.rect.x else 1
+
+            if dist < 250: 
+                run_dir = 1 if s.rect.x > g.rect.x else -1
+                s.dash_dance_dir = run_dir 
+                s.dash_dance_timer = 10
+            elif dist > 550: 
+                run_dir = -1 if s.rect.x > g.rect.x else 1
+                s.dash_dance_dir = run_dir
+                s.dash_dance_timer = 10 
             else:
                 if getattr(s, "dash_dance_timer", 0) <= 0:
                     s.dash_dance_dir = random.choice([-1, 1]); s.dash_dance_timer = random.randint(15, 35)
@@ -187,6 +201,8 @@ def update_sukuna_ai(game, dt):
 
             if (s.rect.left < 150 and run_dir == -1) or (s.rect.right > WORLD_WIDTH - 150 and run_dir == 1):
                 run_dir *= -1
+                s.dash_dance_dir = run_dir 
+                s.dash_dance_timer = 20 
                 if s.on_ground: s.jump()
             else:
                 jump_chance = 0.08 if needs_energy else 0.04
