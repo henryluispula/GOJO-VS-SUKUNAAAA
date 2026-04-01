@@ -4,7 +4,6 @@ from settings import *
 
 def update_projectiles(self, dt):
     time_mult = dt * 60.0
-    # Determine enemies for targeting
     enemies = [self.sukuna]
     if self.mahoraga and self.mahoraga.hp > 0:
         enemies.append(self.mahoraga)

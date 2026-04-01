@@ -162,7 +162,6 @@ class Fighter:
         else:
             self.vel_y += GRAVITY * time_mult
             
-            # --- JUMP FIX: Accumulate the float fraction so we don't lose height! ---
             move_y = (self.vel_y * time_mult) + self.y_remainder
             actual_move_y = int(move_y)
             self.y_remainder = move_y - actual_move_y
@@ -179,16 +178,14 @@ class Fighter:
 
             if self.dodge_timer > 0:
                 self.dodge_timer -= time_mult
-                dash_speed = 72 if self.name == "Gojo" else 45
-                
-                # --- DODGE FIX: Accumulate X fraction for smooth dodges! ---
+                dash_speed = 72 if self.name == "Gojo" else 45                
                 move_x = (self.direction * dash_speed * time_mult) + self.x_remainder
                 actual_move_x = int(move_x)
                 self.x_remainder = move_x - actual_move_x
                 self.rect.x += actual_move_x
             else: 
                 self.is_dodging = False
-                self.dodge_timer = 0 # Ensure it rests exactly at 0!
+                self.dodge_timer = 0 
                     
         # Energy Regen
         base_regen = 25.0 if self.name == "Gojo" else 0.8 if self.name == "Mahoraga" else 1.0 
@@ -249,7 +246,6 @@ class Fighter:
                     heal_cost *= 4.0 
                     self.mahoraga_lockout = 900  
                     
-                    # Scale the probability by time_mult so he doesn't hit it 5x more often at 144fps!
                     if random.random() < (0.1 * time_mult):
                         self.black_flash_timer = 2 
                 
@@ -274,9 +270,7 @@ class Fighter:
         self.dodge_cd = max(0, self.dodge_cd - time_mult)
         self.black_flash_timer = max(0, self.black_flash_timer - time_mult)
         self.potential_timer = max(0, self.potential_timer - time_mult)
-        self.punch_timer = max(0, self.punch_timer - time_mult)
-        
-        # --- Move visual timers here so they scale with dt safely! ---
+        self.punch_timer = max(0, self.punch_timer - time_mult)        
         self.rct_timer = max(0, self.rct_timer - time_mult)
         self.adapt_pulse_timer = max(0, getattr(self, "adapt_pulse_timer", 0) - time_mult)
         
@@ -663,28 +657,16 @@ class Fighter:
             pygame.draw.circle(surface, BLACK, (mid_x, y + 18), 3) 
             
         if self.name == "Mahoraga":
-            # Left Eye
             pygame.draw.polygon(surface, MAHO_COLOR, [(mid_x - int(12*scale), y - int(8*scale)), (mid_x - int(48*scale), y - int(36*scale)), (mid_x - int(4*scale), y - int(14*scale))])
             pygame.draw.polygon(surface, MAHO_COLOR, [(mid_x - int(16*scale), y - int(2*scale)), (mid_x - int(58*scale), y - int(12*scale)), (mid_x - int(10*scale), y + int(4*scale))])
-            
-            # Right Eye
             pygame.draw.polygon(surface, MAHO_COLOR, [(mid_x + int(12*scale), y - int(8*scale)), (mid_x + int(48*scale), y - int(36*scale)), (mid_x + int(4*scale), y - int(14*scale))])
             pygame.draw.polygon(surface, MAHO_COLOR, [(mid_x + int(16*scale), y - int(2*scale)), (mid_x + int(58*scale), y - int(12*scale)), (mid_x + int(10*scale), y + int(4*scale))])
-            
-            # Smaller grinning mouth, properly fitted
             mouth_w = int(14*scale)
             mouth_h = int(7*scale)
             mouth_rect = pygame.Rect(mid_x - mouth_w//2, y + int(8*scale), mouth_w, mouth_h)
-            
-            # Teeth background (light teal/grey tint)
             pygame.draw.ellipse(surface, (160, 190, 190), mouth_rect)
-            # Dark Mouth Outline
             pygame.draw.ellipse(surface, (30, 35, 40), mouth_rect, max(1, int(1.5*scale)))
-            
-            # Grin line splitting top and bottom teeth
             pygame.draw.line(surface, (30, 35, 40), (mid_x - mouth_w//2, y + int(8*scale) + mouth_h//2), (mid_x + mouth_w//2, y + int(8*scale) + mouth_h//2), max(1, int(1*scale)))
-            
-            # Vertical teeth lines
             for t_i in range(1, 5):
                 t_x = (mid_x - mouth_w//2) + (t_i * (mouth_w // 5))
                 pygame.draw.line(surface, (30, 35, 40), (t_x, y + int(8*scale)), (t_x, y + int(8*scale) + mouth_h), max(1, int(1*scale)))

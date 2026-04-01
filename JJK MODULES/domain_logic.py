@@ -102,7 +102,6 @@ def update_physics_and_grabs(game, dt):
         if g.grab_timer > 0:
             grab_type = getattr(g, "grab_type", "cleave")
             
-            # If Sukuna gets burned out, his Cleave grab instantly breaks!
             if s.technique_burnout > 0 and grab_type == "cleave":
                 g.grab_timer = 0
                 return g.technique_burnout == 0 and g.infinity > 0 and g.energy >= 50
@@ -145,7 +144,6 @@ def update_physics_and_grabs(game, dt):
                 _cleave_tick()
 
         # ── Physics tick ─────────────────────────────────────────────────────
-        # dt is already scaled down to sim_dt during a Black Flash in game.py!
         g.update_physics(dt)
         if getattr(game.sukuna, "mahoraga_was_summoned", False):
             if game.mahoraga is None or game.mahoraga.hp <= 0: game.sukuna.mahoraga_is_dead = True
@@ -176,12 +174,12 @@ def update_domain_clash(game, keys, gojo_can_clash, dt):
     time_mult = dt * 60.0
 
     if g.domain_active and s.domain_active and gojo_can_clash:
-        clash_window = 30 # 0.5 seconds window
+        clash_window = 30 
         if getattr(game, "clash_decision_timer", 0) <= 0 and not getattr(game, "clash_resolved", False):
             game.clash_decision_timer = clash_window; game.clash_failed = False
         if getattr(game, "clash_decision_timer", 0) > 0:
             game.clash_decision_timer -= time_mult
-            is_sweet_spot = 1 <= game.clash_decision_timer <= 8 # Extremely tight sweet spot
+            is_sweet_spot = 1 <= game.clash_decision_timer <= 8 
             if keys[pygame.K_z] and keys[pygame.K_v] and not getattr(game, "clash_failed", False):
                 if is_sweet_spot and not getattr(g, "domain_shrunk", False):
                     g.domain_shrunk = True; game.shake_timer = 20
@@ -206,10 +204,9 @@ def update_domain_clash(game, keys, gojo_can_clash, dt):
         game.clash_phase_timer -= time_mult
         g.domain_timer = max(g.domain_timer, 200); s.domain_timer = max(s.domain_timer, 200)
         
-        # --- NEW PURPLE THREAT LOGIC ---
         purple_in_air = any(p.type == "purple_orb" for p in game.projectiles)
         purple_charging = g.purple_charge > 0
-        purple_unlocked_or_close = g.purple_cd <= 0 and g.tech_hits >= (g.max_tech_hits * 0.80) # 800+ hits
+        purple_unlocked_or_close = g.purple_cd <= 0 and g.tech_hits >= (g.max_tech_hits * 0.80)
         is_purple_threat = purple_in_air or purple_charging or purple_unlocked_or_close
 
         # We separate Blue/Red into standard proximity checks

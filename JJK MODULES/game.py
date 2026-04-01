@@ -15,6 +15,7 @@ from renderer import draw_world
 from hud import draw_hud
 
 class Game:
+    # --- MAJOR FUNCTION: INITIALIZATION ---
     def __init__(self):
         pygame.init()
         flags = pygame.DOUBLEBUF | pygame.HWSURFACE
@@ -26,15 +27,12 @@ class Game:
         self.prev_gojo_burnout = 0
         self.prev_sukuna_burnout = 0
         self.prev_world_slash_cd = 0
-        self.gojo = Fighter(200, WORLD_HEIGHT - 300, "Gojo")
-        
+        self.gojo = Fighter(200, WORLD_HEIGHT - 300, "Gojo")        
         self.font = pygame.font.SysFont("Impact", 26)
         self.mini_font = pygame.font.SysFont("Impact", 16)
-        self.text_cache = {}
-        
+        self.text_cache = {}        
         self.prev_adaptations = {"blue": 1.0, "red": 1.0, "purple": 1.0, "punch": 1.0, "infinity": 0.0, "void": 1.0}
         self.maho_announcements = []        
-        
         self.uv_stars = [(random.randint(0, WORLD_WIDTH), random.randint(0, WORLD_HEIGHT), random.randint(1, 4)) for _ in range(400)]
         self.star_layers = []
         for _ in range(3):
@@ -47,30 +45,23 @@ class Game:
         self.cached_ms_shrunk = False
         self.cached_uv_bg = None
         self.cached_uv_bg_shrunk = None
-        self.cached_uv_shrunk = False
-        
+        self.cached_uv_shrunk = False        
         self.shared_flash_surf = pygame.Surface((WORLD_WIDTH, WORLD_HEIGHT), pygame.SRCALPHA)
         self.shared_world_overlay = pygame.Surface((WORLD_WIDTH, WORLD_HEIGHT), pygame.SRCALPHA)
         self.shared_ui_overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-        self.shared_ui_overlay.fill((0, 0, 0, 200))
-        
+        self.shared_ui_overlay.fill((0, 0, 0, 200))        
         self.micro_font = pygame.font.SysFont("Impact", 13)
-        self.render_surf = pygame.Surface((WIDTH, HEIGHT)).convert()
-        
+        self.render_surf = pygame.Surface((WIDTH, HEIGHT)).convert()        
         self.gojo_hud_bg = pygame.Surface((340, 210), pygame.SRCALPHA)
         self.gojo_hud_bg.fill((0, 0, 15, 180))
-        pygame.draw.rect(self.gojo_hud_bg, (100, 150, 255), (0, 0, 340, 210), 2)
-        
+        pygame.draw.rect(self.gojo_hud_bg, (100, 150, 255), (0, 0, 340, 210), 2)        
         self.sukuna_hud_bg_normal = pygame.Surface((340, 210), pygame.SRCALPHA)
         self.sukuna_hud_bg_normal.fill((20, 0, 0, 180))
-        pygame.draw.rect(self.sukuna_hud_bg_normal, (255, 100, 100), (0, 0, 340, 210), 2)
-        
+        pygame.draw.rect(self.sukuna_hud_bg_normal, (255, 100, 100), (0, 0, 340, 210), 2)        
         self.sukuna_hud_bg_maho = pygame.Surface((340, 290), pygame.SRCALPHA)
         self.sukuna_hud_bg_maho.fill((20, 0, 0, 180))
-        pygame.draw.rect(self.sukuna_hud_bg_maho, (255, 100, 100), (0, 0, 340, 290), 2)
-        
-        self.clash_msg_bg = pygame.Surface((800, 100), pygame.SRCALPHA)
-        
+        pygame.draw.rect(self.sukuna_hud_bg_maho, (255, 100, 100), (0, 0, 340, 290), 2)        
+        self.clash_msg_bg = pygame.Surface((800, 100), pygame.SRCALPHA)        
         self.sukuna = Fighter(1000, WORLD_HEIGHT - 300, "Sukuna", color=WHITE)
         self.mahoraga = None
         self.projectiles = []
@@ -84,12 +75,12 @@ class Game:
         self.mahoraga_summon_timer = 0 
         self.shake_timer = 0
         self.clash_msg_timer = 0
-        self.clash_winner = ""
-        
+        self.clash_winner = ""        
         self.prev_adaptations = {"blue": 1.0, "red": 1.0, "purple": 1.0, "punch": 1.0, "infinity": 0.0, "void": 1.0}
         self.maho_announcements = []
         self.prev_maho_lockout = 0
 
+    # --- MAJOR FUNCTION: TEXT CACHING & RENDERING ---
     def get_text(self, text, color, font=None):
         if font is None:
             font = self.font
@@ -98,6 +89,7 @@ class Game:
             self.text_cache[key] = font.render(text, True, color)
         return self.text_cache[key]
 
+    # --- MAJOR FUNCTION: UI BAR DRAWING ---
     def draw_bar_on(self, surf, x, y, val, max_val, color, width, height, label):
         pygame.draw.rect(surf, (40, 40, 50), (x, y, width, height)) 
         fill_w = int((max(0, val) / max_val) * width)
@@ -107,6 +99,7 @@ class Game:
             lbl = self.get_text(label, WHITE, self.mini_font)
             surf.blit(lbl, (x, y - 18))
 
+    # --- MAJOR FUNCTION: GAME ANNOUNCEMENTS ---
     def check_announcements(self):
         """Evaluates game state changes and triggers HUD announcements."""
         tracker_source = self.mahoraga if (self.mahoraga and self.mahoraga.hp > 0) else self.sukuna
@@ -150,8 +143,8 @@ class Game:
         self.prev_gojo_burnout = self.gojo.technique_burnout
         self.prev_sukuna_burnout = self.sukuna.technique_burnout
 
+    # --- MAJOR FUNCTION: MAIN GAME LOOP ---
     def run(self):
-        # Initialize delta time (dt) for the very first frame
         self.dt = 0.016 
         running = True
         while running:
@@ -168,6 +161,7 @@ class Game:
             if not (keys[pygame.K_e] and keys[pygame.K_w]): self.pb_blue_ready = True
             if not (keys[pygame.K_e] and keys[pygame.K_s]): self.pb_red_ready = True
             
+            # --- EVENT HANDLING & DEV OVERRIDES ---
             for event in pygame.event.get():
                 if event.type == pygame.QUIT: running = False
                 if event.type == pygame.KEYDOWN:
@@ -218,6 +212,7 @@ class Game:
                         if WIDTH//2 - 100 < event.pos[0] < WIDTH//2 + 100 and HEIGHT//2 + 50 < event.pos[1] < HEIGHT//2 + 110:
                             running = False
 
+            # --- COMBAT SIMULATION & AI UPDATES ---
             if not self.game_over and not self.paused and self.mahoraga_summon_timer <= 0:
                 
                 target = self.sukuna 
@@ -241,9 +236,9 @@ class Game:
                 if self.mahoraga and self.mahoraga.hp > 0:
                     update_mahoraga_ai(self, sim_dt) 
 
-                # Evaluate game state and handle UI announcements
                 self.check_announcements()        
 
+                # --- UNLIMITED VOID & ADAPTATION LOGIC ---
                 if self.gojo.domain_active:
                     if self.mahoraga and self.mahoraga.hp > 0 and self.mahoraga.adaptation["void"] <= 0:
                         self.gojo.end_domain()
@@ -257,7 +252,6 @@ class Game:
                             if enemy and enemy.hp > 0:
                                 is_touching_gojo = enemy.rect.colliderect(self.gojo.rect)
                                 
-                                # The Gambit now ONLY happens strategically during Domain Clashes!
                                 if getattr(enemy, "simple_domain_active", False) and not is_touching_gojo:
                                     enemy.is_paralyzed = False 
                                     enemy.sd_hits += 1 * time_mult
@@ -294,7 +288,6 @@ class Game:
                                     enemy.attack_cooldown = 2
                                     
                                     if self.mahoraga is None or self.mahoraga.hp <= 0:
-                                        # Only adapt if Mahoraga hasn't been permanently destroyed!
                                         if not getattr(enemy, "mahoraga_is_dead", False):
                                             enemy.adapting_to = "void"
                                             enemy.adaptation_points["void"] += 2.0 * time_mult
@@ -312,13 +305,13 @@ class Game:
                     self.sukuna.is_paralyzed = False
                     if self.mahoraga: self.mahoraga.is_paralyzed = False
                 
+                # --- SUKUNA DOMAIN SURE-HIT ---
                 if self.sukuna.domain_active and not self.sukuna.is_paralyzed:
                     self.sukuna.tech_hits = min(self.sukuna.max_tech_hits, self.sukuna.tech_hits + 2 * time_mult)
                     
                     if not hasattr(self.sukuna, "sure_hit_ticker"): self.sukuna.sure_hit_ticker = 0
                     self.sukuna.sure_hit_ticker += time_mult
 
-                    # Sure-hits ONLY fire if Gojo's domain is down! If both domains are up, they cancel out.
                     if self.sukuna.sure_hit_ticker >= 8:
                         self.sukuna.sure_hit_ticker -= 8
                         if not self.gojo.domain_active:
@@ -332,6 +325,7 @@ class Game:
 
                 update_projectiles(self, sim_dt)
 
+                # --- SUKUNA SURVIVAL VOWS & ESCAPE ---
                 if self.sukuna.hp <= (self.sukuna.max_hp * 0.24) and self.sukuna.hp > 0:
                     
                     if self.sukuna.energy > 40 * self.sukuna.cost_mult and not self.sukuna.ce_exhausted:
@@ -381,6 +375,7 @@ class Game:
                     self.game_over = True
                 if self.gojo.hp <= 0: self.gojo.is_split, self.game_over = True, True
 
+            # --- MAHORAGA SPAWNING EXECUTION ---
             if self.mahoraga_summon_timer > 0:
                 self.mahoraga_summon_timer -= time_mult
                 if self.mahoraga_summon_timer <= 0:
@@ -402,9 +397,9 @@ class Game:
 
             if not hasattr(self, "ce_hud_popups"): self.ce_hud_popups = []
 
+            # --- DAMAGE & CURSED ENERGY TRACKING ---
             for fighter in [self.gojo, self.sukuna, self.mahoraga]:
                 if fighter is not None:
-                    # HP Drop Logic
                     if fighter.hp < fighter.prev_hp:
                         damage = fighter.prev_hp - fighter.hp
                         
@@ -429,7 +424,6 @@ class Game:
                             vy = random.uniform(-10, -2)
                             self.blood_particles.append([bx, by, vx, vy, random.randint(20, 45), random.randint(2, 6)])
                     
-                    # CE Drop Logic
                     if fighter.energy < fighter.prev_energy:
                         change = fighter.prev_energy - fighter.energy
                         hp_lost = fighter.prev_hp - fighter.hp
@@ -460,6 +454,7 @@ class Game:
                     fighter.prev_hp = fighter.hp
                     fighter.prev_energy = fighter.energy
 
+            # --- WORLD RENDERING & CAMERA LOGIC ---
             draw_world(self, punching, self.dt)
 
             active_f = [self.gojo, self.sukuna]
@@ -499,14 +494,12 @@ class Game:
                 target_cam_height = HEIGHT * zoom_factor
                 target_center_x, target_center_y = self.bf_zoom_pos
                 
-                # Snappy camera movement for intense impact
                 self.cam_width += (target_cam_width - self.cam_width) * 0.4 * time_mult
                 self.cam_height += (target_cam_height - self.cam_height) * 0.4 * time_mult
                 self.cam_x += (target_center_x - getattr(self, "cam_x", target_center_x)) * 0.4 * time_mult
                 self.cam_y += (target_center_y - getattr(self, "cam_y", target_center_y)) * 0.4 * time_mult
                 
             else:
-                # Smooth, normal camera tracking
                 self.cam_width += (target_cam_width - self.cam_width) * 0.1 * time_mult
                 self.cam_height += (target_cam_height - self.cam_height) * 0.1 * time_mult
             
