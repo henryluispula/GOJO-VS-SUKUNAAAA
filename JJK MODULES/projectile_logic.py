@@ -38,12 +38,12 @@ def update_projectiles(self, dt):
                     if p_target.name == "Mahoraga" and p_target.adaptation["blue"] <= 0:
                         pull_factor = 0.0 
                     else:
-                        pull_factor = 3.0 * (p_target.adaptation["blue"] if p_target.name == "Mahoraga" else 1.0)
+                        pull_factor = .9 * (p_target.adaptation["blue"] if p_target.name == "Mahoraga" else 1.0)
                     
                     if pull_factor > 0:
                         pull_step = (p.pos.x - p_target.rect.centerx) * pull_factor * time_mult                        
                         p_target.rect.x += pull_step
-                        
+
                         if abs(p.pos.x - p_target.rect.centerx) < 10:
                             p_target.rect.centerx = p.pos.x
             
