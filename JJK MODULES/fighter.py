@@ -418,7 +418,7 @@ class Fighter:
             is_bypassed = (self.hp < self.prev_hp) and not (self.inf_hit_timer > 0)
 
             if has_active_infinity and (self.inf_hit_timer > 0 or (is_hit and not is_bypassed)):
-                alpha_base = 120 
+                alpha_base = 150 
                 pulse = math.sin(t * 20) * 8  
                 
                 self.inf_surf.fill((0,0,0,0)) 

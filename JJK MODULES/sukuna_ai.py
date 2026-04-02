@@ -111,7 +111,7 @@ def update_sukuna_ai(game, dt):
                 
                 s.direction = run_dir
                 s.rect.x += 28 * run_dir * time_mult
-                if s.dodge_cd <= 0 and s.stamina >= 20: s.dodge(); s.dodge_cd = 15
+                if s.dodge_cd <= 0 and s.stamina >= 20: s.dodge(); s.dodge_cd = 40
                 vow_cost = 2.4 * s.cost_mult
                 if s.energy > vow_cost:
                     s.energy -= vow_cost; s.hp = min(s.max_hp, s.hp + 2.0)
@@ -123,7 +123,7 @@ def update_sukuna_ai(game, dt):
                     s.world_slash_charge = 120
                 elif dist > 100:
                     s.rect.x += 28 * s.direction * time_mult
-                    if s.dodge_cd <= 0 and s.stamina >= 20: s.dodge(); s.dodge_cd = 20
+                    if s.dodge_cd <= 0 and s.stamina >= 20: s.dodge(); s.dodge_cd = 40
 
         if is_amp and dist > 150 and (s.dismantle_cd == 0 or s.cleave_cd == 0) and not is_purple_threat:
             s.amp_duration = 0; is_amp = False
