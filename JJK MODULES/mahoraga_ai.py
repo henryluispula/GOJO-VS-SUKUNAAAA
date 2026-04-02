@@ -61,9 +61,8 @@ def update_mahoraga_ai(self, dt):
                 
             is_black_flash = random.random() < bf_chance
             if is_black_flash:
-                if getattr(self.mahoraga, "potential_timer", 0) <= 0:
-                    self.bf_zoom_timer = 45
-                    self.bf_zoom_pos = (self.gojo.rect.centerx, self.gojo.rect.centery)
+                self.bf_zoom_timer = 45
+                self.bf_zoom_pos = (self.gojo.rect.centerx, self.gojo.rect.centery)
                     
                 base_dmg *= math.pow(2.5, 2.5)
                 self.mahoraga.black_flash_timer = 20

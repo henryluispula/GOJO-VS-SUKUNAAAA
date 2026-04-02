@@ -126,9 +126,9 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
                 is_black_flash = random.random() < bf_chance
                 
                 if is_black_flash:
-                    if g.potential_timer <= 0:
-                        game.bf_zoom_timer = 45
-                        game.bf_zoom_pos = (target.rect.centerx, target.rect.centery)
+                    game.bf_zoom_timer = 45
+                    game.bf_zoom_pos = (target.rect.centerx, target.rect.centery)
+                    
                     dmg *= math.pow(2.5, 2.5)
                     g.black_flash_timer = 20; g.potential_timer = 600
                     game.shake_timer = 15; g.energy = g.max_energy

@@ -343,7 +343,8 @@ def update_sukuna_ai(game, dt):
                 is_black_flash = random.random() < bf_chance
                 
                 if is_black_flash:
-                    if s.potential_timer <= 0: game.bf_zoom_timer = 45; game.bf_zoom_pos = (g.rect.centerx, g.rect.centery)
+                    game.bf_zoom_timer = 45; game.bf_zoom_pos = (g.rect.centerx, g.rect.centery)
+                    
                     melee_dmg *= math.pow(2.5, 2.5); s.black_flash_timer = 20; s.potential_timer = 600
                     game.shake_timer = 15; s.energy = s.max_energy
                     game.bf_words.append({"x": g.rect.centerx, "y": g.rect.centery - 60, "timer": 45})
