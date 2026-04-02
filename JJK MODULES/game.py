@@ -462,23 +462,35 @@ class Game:
                 target_center_x = self.gojo.domain_center_x
                 target_center_y = self.gojo.domain_center_y
             else:
-                min_x = min(f.rect.centerx for f in active_f)
-                max_x = max(f.rect.centerx for f in active_f)
-                min_y = min(f.rect.centery for f in active_f)
-                max_y = max(f.rect.centery for f in active_f)
-                
-                dist_x = max_x - min_x + 600
-                dist_y = max_y - min_y + 400
+                # --- CENTERED EXPANSION CAMERA ---
+                f_min_x = min(f.rect.centerx for f in active_f)
+                f_max_x = max(f.rect.centerx for f in active_f)
+                f_min_y = min(f.rect.centery for f in active_f)
+                f_max_y = max(f.rect.centery for f in active_f)
+
+                target_center_x = (f_min_x + f_max_x) / 2
+                target_center_y = (f_min_y + f_max_y) / 2
+
+                max_offset_x = (f_max_x - f_min_x) / 2
+                max_offset_y = (f_max_y - f_min_y) / 2
+
+                for p in self.projectiles:
+                    if p.type == "blue_orb" and p.active:
+                        dist_to_orb_x = abs(p.pos.x - target_center_x)
+                        dist_to_orb_y = abs(p.pos.y - target_center_y)
+                        max_offset_x = max(max_offset_x, dist_to_orb_x)
+                        max_offset_y = max(max_offset_y, dist_to_orb_y)
+
+                dist_x = (max_offset_x * 2) + 600
+                dist_y = (max_offset_y * 2) + 400
 
                 if dist_x / WIDTH > dist_y / HEIGHT:
                     target_cam_width = max(WIDTH, dist_x)
-                    target_cam_height = target_cam_width * (HEIGHT / WIDTH)
                 else:
-                    target_cam_height = max(HEIGHT, dist_y)
-                    target_cam_width = target_cam_height * (WIDTH / HEIGHT)
-                    
-                target_center_x = (min_x + max_x) / 2
-                target_center_y = (min_y + max_y) / 2
+                    target_cam_width = max(HEIGHT, dist_y) * (WIDTH / HEIGHT)
+                
+                target_cam_width = min(2400, target_cam_width) 
+                target_cam_height = target_cam_width * (HEIGHT / WIDTH)
             
             # --- EPIC BLACK FLASH ---
             if getattr(self, "bf_zoom_timer", 0) > 0:

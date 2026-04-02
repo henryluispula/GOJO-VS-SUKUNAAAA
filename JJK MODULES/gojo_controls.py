@@ -91,11 +91,9 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
         s.attack_cooldown = 45
 
         if s.rect.centerx > g.rect.centerx:
-            s.rect.right = WORLD_WIDTH  
-            g.rect.left = 0            
+            s.rect.right = WORLD_WIDTH              
         else:
-            s.rect.left = 0             
-            g.rect.right = WORLD_WIDTH  
+            s.rect.left = 0   
 
         game.popups.append({"x": g.rect.centerx, "y": g.rect.centery - 80,
                             "timer": 45, "text": "REPELLED!", "color": RED})
