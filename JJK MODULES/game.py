@@ -436,10 +436,11 @@ class Game:
                                 is_damage = True
                                 
                         if is_damage:
-                            if not hasattr(fighter, "ce_loss_accum"): fighter.ce_loss_accum = 0.0
                             fighter.ce_loss_accum += change
                             
                             if fighter.ce_loss_accum >= 5.0 and fighter.name in ["Gojo", "Sukuna"]:
+                                fighter.aura_hit_timer = 45 
+                                
                                 x_offset = random.randint(-15, 15)
                                 val_to_show = int(fighter.ce_loss_accum)
                                 fighter.ce_loss_accum -= val_to_show 
