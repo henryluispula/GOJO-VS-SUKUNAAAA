@@ -431,9 +431,9 @@ class Game:
                             is_damage = True
 
                         elif fighter.name == "Gojo" and fighter.infinity > 0:
-                            block_cost = 0.5 * fighter.cost_mult
-                            if abs(change - block_cost) < 0.01 or change > 1000:
+                            if change > (0.15 * fighter.cost_mult) or change > 1000:
                                 is_damage = True
+                                fighter.inf_hit_timer = 25
                                 
                         if is_damage:
                             fighter.ce_loss_accum += change

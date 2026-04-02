@@ -114,6 +114,7 @@ def update_physics_and_grabs(game, dt):
             def _cleave_tick():
                 if g.infinity > 0 and g.energy > 0 and g.technique_burnout == 0:
                     g.energy = max(0, g.energy - 3.0 * g.cost_mult * time_mult)
+                    g.inf_hit_timer = 15 
                     s.tech_hits = min(s.max_tech_hits, s.tech_hits + 0.5 * time_mult)
                     if random.random() < 0.3:
                         game.hit_sparks.append([g.rect.centerx + random.randint(-20, 20), g.rect.centery + random.randint(-30, 30), random.uniform(-5, 5), random.uniform(-5, 5), random.randint(15, 25), INF_COLOR])

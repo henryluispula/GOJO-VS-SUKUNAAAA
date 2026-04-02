@@ -381,30 +381,31 @@ class Fighter:
             aura_color = PURPLE if self.name == "Gojo" else BLUE if self.name == "Sukuna" else MAHO_COLOR
             self.aura_surf.fill((0,0,0,0))
             
-            aura_w, aura_h = (180, 300) if self.name == "Mahoraga" else (110, 180)
+            aura_w, aura_h = (165, 400) if self.name == "Mahoraga" else (85, 280)
             center_x, center_y = 110, 160
             
             points = []
-            num_segments = 16 
+            num_segments = 20 
             for i in range(num_segments):
                 angle = (i / num_segments) * math.pi * 2
                 px = math.cos(angle) * (aura_w / 2)
                 py = math.sin(angle) * (aura_h / 2)
                 
-                flicker = abs(math.sin(t * 8 + i * 1.5)) * 14
-                wave = math.sin(t * 3 + i * 0.8) * 8
+                flicker = abs(math.sin(t * 8 + i * 1.5)) * 5
+                wave = math.sin(t * 3 + i * 0.8) * 3
                 
                 px += (px / (aura_w/2)) * flicker + wave
                 py += (py / (aura_h/2)) * flicker
                 
-                if py > (aura_h / 2) - 5: py = (aura_h / 2) - 5
+                if py > self.rect.height // 2: 
+                    py = self.rect.height // 2
                 points.append((center_x + px, center_y + py))
 
             pygame.draw.polygon(self.aura_surf, (*aura_color, 35), points)
 
             for layer in range(3):
-                alpha = [200, 130, 80][layer]
-                thick = [2, 5, 9][layer]
+                alpha = [220, 150, 90][layer] 
+                thick = [1, 2, 4][layer]
                 pygame.draw.polygon(self.aura_surf, (*aura_color, alpha), points, thick)
                 
             surface.blit(self.aura_surf, (mid_x - 110, y + (self.rect.height // 2) - 160))
@@ -414,12 +415,9 @@ class Fighter:
             
             is_hit = self.hp < self.prev_hp or self.energy < self.prev_energy or self.grab_timer > 0 or self.inf_hit_timer > 0
             
-            is_bypassed = (self.hp < self.prev_hp)
+            is_bypassed = (self.hp < self.prev_hp) and not (self.inf_hit_timer > 0)
 
-            if self.grab_timer > 0 and getattr(self, "grab_type", "") == "amp_punch":
-                is_bypassed = True
-
-            if has_active_infinity and is_hit and not is_bypassed:
+            if has_active_infinity and (self.inf_hit_timer > 0 or (is_hit and not is_bypassed)):
                 alpha_base = 120 
                 pulse = math.sin(t * 20) * 8  
                 
