@@ -39,7 +39,8 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
     # ── Point-Blank Blue (E + W) ─────────────────────────────────────────────
     if (keys[pygame.K_e] and keys[pygame.K_w] and game.pb_blue_ready
             and g.energy >= 60 * g.cost_mult and g.blue_cd <= 0
-            and g.grab_timer <= 0 and not is_actually_burned_out and g.domain_charge <= 0):
+            and g.grab_timer <= 0 and not is_actually_burned_out 
+            and g.domain_charge <= 0 and g.purple_charge <= 0):
         game.pb_blue_ready = False
         g.energy -= 60 * g.cost_mult
         g.blue_cd = 480
@@ -68,7 +69,8 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
     # ── Point-Blank Red (E + S) ──────────────────────────────────────────────
     elif (keys[pygame.K_e] and keys[pygame.K_s] and game.pb_red_ready
           and g.energy >= 100 * g.cost_mult and g.red_cd <= 0
-          and (g.grab_timer > 0 or s.grab_timer > 0) and g.domain_charge <= 0):
+          and (g.grab_timer > 0 or s.grab_timer > 0) 
+          and g.domain_charge <= 0 and g.purple_charge <= 0):
         game.pb_red_ready = False
         g.grab_timer = 0; s.grab_timer = 0
         if is_actually_burned_out:
@@ -172,7 +174,7 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
         is_actually_burned_out = (g.domain_uses >= 5 and g.technique_burnout > 0)
 
         # Lapse Blue (W)
-        if keys[pygame.K_w] and g.blue_cd <= 0:
+        if keys[pygame.K_w] and g.blue_cd <= 0 and g.purple_charge <= 0:
             if g.energy >= 20 * g.cost_mult:
                 if not is_actually_burned_out:
                     game.projectiles.append(Projectile(g.rect.centerx, g.rect.centery,
@@ -186,7 +188,7 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
                     g.attack_cooldown = 20
 
         # Reversal Red (S)
-        if keys[pygame.K_s] and g.red_cd <= 0:
+        if keys[pygame.K_s] and g.red_cd <= 0 and g.purple_charge <= 0:
             if g.energy >= 40 * g.cost_mult:
                 if not is_actually_burned_out:
                     game.projectiles.append(Projectile(g.rect.centerx, g.rect.centery,
