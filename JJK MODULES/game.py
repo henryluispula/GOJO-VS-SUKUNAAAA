@@ -13,6 +13,7 @@ from mahoraga_ai import update_mahoraga_ai
 from projectile_logic import update_projectiles
 from renderer import draw_world
 from hud import draw_hud
+from dev_controls import handle_dev_controls
 
 class Game:
     # --- MAJOR FUNCTION: INITIALIZATION ---
@@ -166,39 +167,12 @@ class Game:
                 if event.type == pygame.QUIT: running = False
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_p: self.paused = not self.paused
+                    handle_dev_controls(self, event) 
+
                 if not self.game_over:
                     if event.type == pygame.KEYDOWN:
                         if event.key == pygame.K_SPACE: self.gojo.jump()
-                        if event.key == pygame.K_LSHIFT or event.key == pygame.K_RSHIFT: self.gojo.dodge()
-                        
-                        # # # --- NEW: GOJO DEV CONTROLS ---
-                        # if event.key == pygame.K_1: 
-                        #     self.gojo.dev_immortal = not self.gojo.dev_immortal
-                        #     self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 120, "timer": 60, "text": f"IMMORTAL: {self.gojo.dev_immortal}", "color": HEAL_GREEN})
-                        
-                        # if event.key == pygame.K_2:
-                        #     self.gojo.dev_inf_ce = not self.gojo.dev_inf_ce
-                        #     self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 120, "timer": 60, "text": f"INF CE: {self.gojo.dev_inf_ce}", "color": BLUE})
-                        
-                        # if event.key == pygame.K_3:
-                        #     # Toggles the state between True and False
-                        #     self.gojo.dev_disable_infinity = not getattr(self.gojo, "dev_disable_infinity", False)
-                            
-                        #     # Give a clear popup so you know if it's OFF or NORMAL
-                        #     state_text = "OFF" if self.gojo.dev_disable_infinity else "NORMAL"
-                        #     self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 120, "timer": 60, "text": f"INFINITY: {state_text}", "color": INF_COLOR})
-                        
-                        # if event.key == pygame.K_4:
-                        #     self.gojo.blue_cd = 0
-                        #     self.gojo.red_cd = 0
-                        #     self.gojo.purple_cd = 0
-                        #     self.gojo.domain_cd = 0
-                        #     self.gojo.technique_burnout = 0
-                        #     self.gojo.sd_broken_timer = 0
-                        #     self.gojo.attack_cooldown = 0
-                        #     self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 120, "timer": 60, "text": "COOLDOWNS RESET!", "color": WHITE})
-                        # # ------------------------------
-                       
+                        if event.key == pygame.K_LSHIFT or event.key == pygame.K_RSHIFT: self.gojo.dodge()                       
                         if event.key == pygame.K_w: self.gojo_combo_buffer.append("W")
                         if event.key == pygame.K_s: self.gojo_combo_buffer.append("S")
                     
