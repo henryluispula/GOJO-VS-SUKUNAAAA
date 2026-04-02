@@ -427,7 +427,7 @@ class Fighter:
                     layer_alpha = int(alpha_base / (i + 1))
                     thickness = int(pulse + 4 + (i * 3)) 
                     
-                    poly = [(60, 70), (140, 70), (135, 225), (65, 225)]
+                    poly = [(70, 70), (150, 70), (145, 225), (75, 225)]
                     
                     pygame.draw.polygon(self.inf_surf, (140, 155, 175, layer_alpha), poly, thickness)
                     pygame.draw.circle(self.inf_surf, (170, 185, 205, layer_alpha), (110, 45), 35 + (thickness//2), thickness)
