@@ -44,6 +44,8 @@ def update_projectiles(self, dt):
                         p_target.rect.x += (p.pos.x - p_target.rect.centerx) * pull_factor * time_mult
             
             if dist_to_orb < 250:
+                if p.type == "blue_orb" and p.vel.length() > p.original_speed:
+                    p.vel = p.vel.normalize() * p.original_speed
                 if p_target.name == "Mahoraga" and self.sukuna.amp_duration <= 0:
                     p_target.trigger_adaptation("blue", 2.0 * time_mult)
                     turns = p_target.adaptation_points["blue"] / 250.0
@@ -97,6 +99,8 @@ def update_projectiles(self, dt):
                         p_target.rect.x -= (p.pos.x - p_target.rect.centerx) * push_factor * time_mult
             
             if dist_to_orb < 250:
+                if p.type == "red_orb" and p.vel.length() > p.original_speed:
+                    p.vel = p.vel.normalize() * p.original_speed
                 if p_target.name == "Mahoraga" and self.sukuna.amp_duration <= 0:
                     p_target.trigger_adaptation("red", 2.0 * time_mult)
                     turns = p_target.adaptation_points["red"] / 250.0

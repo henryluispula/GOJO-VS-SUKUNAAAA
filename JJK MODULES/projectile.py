@@ -7,11 +7,20 @@ from settings import *
 class Projectile:
     def __init__(self, x, y, target_x, target_y, speed, color, size_mult=1.0, type="normal", is_sure_hit=False):
         self.pos = pygame.Vector2(x, y)
+        self.original_speed = speed
+        if speed == 0:
+            current_speed = 0
+        else:
+            current_speed = 110 if type in ["red_orb", "blue_orb"] else speed
+        
         if target_x is not None:
             diff = pygame.Vector2(target_x - x, target_y - y)
-            self.vel = diff.normalize() * speed if diff.length() != 0 else pygame.Vector2(-1, 0) * speed
+            if diff.length() != 0:
+                self.vel = diff.normalize() * current_speed
+            else:
+                self.vel = pygame.Vector2(0, 0)
         else:
-            self.vel = pygame.Vector2(speed, 0)
+            self.vel = pygame.Vector2(current_speed, 0)
             
         self.color = color
         self.active = True
@@ -150,6 +159,10 @@ class Projectile:
                     pygame.draw.circle(screen, (150, 220, 255), (px, py), max(1, int(4 * self.size_mult)))
 
             elif self.type == "red_orb":
+                if self.lifetime < 100: 
+                    expansion = (1.0 - (self.lifetime / 15.0)) * 0.25
+                    radius = int(radius * (1.0 + expansion))
+
                 pygame.draw.circle(screen, (150, 0, 0), (cx, cy), radius + int(10 * self.size_mult))
                 pygame.draw.circle(screen, RED, (cx, cy), radius)
                 pygame.draw.circle(screen, (255, 240, 240), (cx, cy), int(radius * 0.4)) 
