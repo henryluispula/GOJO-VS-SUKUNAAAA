@@ -74,6 +74,9 @@ def update_sukuna_ai(game, dt):
 
     # ── Main AI: Movement & Combat ───────────────────────────────────────────
     if not s.is_paralyzed and s.grab_timer <= 0 and s.domain_charge == 0:
+        if getattr(s, "tactical_eval_timer", 0) > 0: s.tactical_eval_timer -= time_mult
+        is_tactical_eval = getattr(s, "tactical_eval_timer", 0) > 0
+        
         is_amp = s.amp_duration > 0
         purple_flying = any(p.type == "purple_orb" for p in game.projectiles)
         purple_imminent = g.purple_cd == 0 and g.tech_hits >= g.max_tech_hits
@@ -112,7 +115,8 @@ def update_sukuna_ai(game, dt):
                 vow_cost = 2.4 * s.cost_mult
                 if s.energy > vow_cost:
                     s.energy -= vow_cost; s.hp = min(s.max_hp, s.hp + 2.0)
-                    s.amp_duration = max(s.amp_duration, 60); is_amp = True
+                    if not is_tactical_eval and s.amp_cd <= 0:
+                        s.amp_duration = max(s.amp_duration, 60); is_amp = True
             else:
                 s.direction = 1 if s.rect.x < g.rect.x else -1
                 if s.world_slash_unlocked and s.world_slash_cd <= 0 and getattr(s, "world_slash_charge", 0) <= 0 and s.energy >= 80 * s.cost_mult:
@@ -129,18 +133,17 @@ def update_sukuna_ai(game, dt):
         prioritize_adaptation = in_clash and is_greedy
 
         if dist <= 150 and s.energy > 30 * s.cost_mult and not fuga_priority and not s.ce_exhausted and g.grab_timer <= 0 and not prioritize_adaptation:
-            if g.infinity > 0:
-                s.amp_duration = max(s.amp_duration, 60); is_amp = True
-            elif s.amp_cd == 0 and s.amp_duration == 0:
-                if s.grab_cd > 0 or g.domain_active:
-                    s.amp_duration = 600; is_amp = True
+            if not is_tactical_eval and s.amp_cd <= 0:
+                if g.infinity > 0:
+                    s.amp_duration = max(s.amp_duration, 60); is_amp = True
+                elif s.amp_duration == 0:
+                    if s.grab_cd > 0 or g.domain_active:
+                        s.amp_duration = 600; is_amp = True
 
         if is_amp: s.energy -= 0.25 * s.cost_mult * time_mult
 
         rush_distance = 40 if g.domain_active else 110
         is_draining_ce = s.energy < (s.max_energy * 0.65)
-        if getattr(s, "tactical_eval_timer", 0) > 0: s.tactical_eval_timer -= time_mult
-        is_tactical_eval = getattr(s, "tactical_eval_timer", 0) > 0
 
         # CE Vow / Flesh vow
         if is_draining_ce and not s.ce_exhausted and g.grab_timer <= 0:

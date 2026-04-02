@@ -332,10 +332,6 @@ class Game:
                         self.sukuna.energy -= 12.0 * self.sukuna.cost_mult 
                         self.sukuna.hp = min((self.sukuna.max_hp * 0.5), self.sukuna.hp + 3.5) 
                         self.sukuna.rct_timer = 5
-                        
-                        if pygame.time.get_ticks() - getattr(self, "last_desp_vow", 0) > 4000:
-                            self.maho_announcements.append({"text": "SUKUNA VOW: MASSIVE CE BURNED FOR SURVIVAL!", "timer": 120})
-                            self.last_desp_vow = pygame.time.get_ticks()
                     
                     if self.sukuna.energy >= 200 * self.sukuna.cost_mult and self.sukuna.domain_cd <= 0 and self.sukuna.technique_burnout <= 0 and self.sukuna.domain_charge <= 0 and not self.sukuna.domain_active and self.gojo.grab_timer <= 0 and self.mahoraga_summon_timer <= 0:
                         self.sukuna.domain_charge = 60
