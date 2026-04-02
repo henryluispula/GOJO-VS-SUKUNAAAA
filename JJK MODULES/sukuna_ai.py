@@ -79,8 +79,19 @@ def update_sukuna_ai(game, dt):
         purple_imminent = g.purple_cd == 0 and g.tech_hits >= g.max_tech_hits
         is_purple_threat = g.purple_charge > 0 or purple_flying or purple_imminent
 
-        # Purple / Domain charge threat response
-        if g.domain_charge > 0 or is_purple_threat:
+        # --- RE-PRIORITIZED EVASION LOGIC ---
+        incoming_orbs = [p for p in game.projectiles if p.type in ["blue_orb", "red_orb", "purple_orb"] and abs(p.pos.x - s.rect.centerx) < 400]        
+        if incoming_orbs:
+            closest_orb = min(incoming_orbs, key=lambda p: abs(p.pos.x - s.rect.centerx))
+            if s.on_ground and abs(closest_orb.pos.x - s.rect.centerx) < 180: s.jump()
+
+            if s.dodge_cd <= 0 and s.stamina >= 20:
+                if s.rect.centerx < 150: s.direction = 1
+                elif s.rect.centerx > WORLD_WIDTH - 150: s.direction = -1
+                else: s.direction = 1 if s.rect.centerx > closest_orb.pos.x else -1
+                s.dodge(); s.dodge_cd = 40
+
+        elif g.domain_charge > 0 or is_purple_threat:
             can_tank_purple = not (is_purple_threat and (s.hp <= 150 or s.energy <= 300 * s.cost_mult))
             if is_purple_threat and not can_tank_purple:
                 if getattr(s, "panic_wall_timer", 0) > 0:
@@ -94,7 +105,9 @@ def update_sukuna_ai(game, dt):
                     s.panic_dir = run_dir
                     s.panic_wall_timer = 30
                     if s.on_ground: s.jump()
-                s.direction = run_dir; s.rect.x += 28 * run_dir * time_mult
+                
+                s.direction = run_dir
+                s.rect.x += 28 * run_dir * time_mult
                 if s.dodge_cd <= 0 and s.stamina >= 20: s.dodge(); s.dodge_cd = 15
                 vow_cost = 2.4 * s.cost_mult
                 if s.energy > vow_cost:
@@ -107,17 +120,6 @@ def update_sukuna_ai(game, dt):
                 elif dist > 100:
                     s.rect.x += 28 * s.direction * time_mult
                     if s.dodge_cd <= 0 and s.stamina >= 20: s.dodge(); s.dodge_cd = 20
-
-        # Dodge incoming orbs
-        incoming_orbs = [p for p in game.projectiles if p.type in ["blue_orb", "red_orb", "purple_orb"] and abs(p.pos.x - s.rect.centerx) < 400]
-        if incoming_orbs:
-            closest_orb = min(incoming_orbs, key=lambda p: abs(p.pos.x - s.rect.centerx))
-            if s.on_ground and abs(closest_orb.pos.x - s.rect.centerx) < 180: s.jump()
-            if s.dodge_cd <= 0 and s.stamina >= 20:
-                if s.rect.centerx < 100: s.direction = 1
-                elif s.rect.centerx > WORLD_WIDTH - 100: s.direction = -1
-                else: s.direction = 1 if s.rect.centerx > closest_orb.pos.x else -1
-                s.dodge(); s.dodge_cd = 40
 
         if is_amp and dist > 150 and (s.dismantle_cd == 0 or s.cleave_cd == 0) and not is_purple_threat:
             s.amp_duration = 0; is_amp = False
