@@ -23,8 +23,10 @@ class Fighter:
         
         # --- OPTIMIZATION: Surface Caching ---
         self.inf_surf = pygame.Surface((220, 320), pygame.SRCALPHA)
+        self.aura_surf = pygame.Surface((220, 320), pygame.SRCALPHA) # New Aura Surface
         self.sd_surf = pygame.Surface((180, 180), pygame.SRCALPHA)
         self.amp_surf = pygame.Surface((150, 250), pygame.SRCALPHA)
+        self.aura_hit_timer = 0 # Timer for reinforcement reaction
         
         # --- DODGE METER LOGIC ---
         self.max_stamina = 100.0
@@ -304,6 +306,7 @@ class Fighter:
         self.rct_timer = max(0, self.rct_timer - time_mult)
         self.adapt_pulse_timer = max(0, getattr(self, "adapt_pulse_timer", 0) - time_mult)
         self.inf_hit_timer = max(0, self.inf_hit_timer - time_mult)
+        self.aura_hit_timer = max(0, self.aura_hit_timer - time_mult)
         
         if self.amp_duration > 0:
             self.amp_duration -= time_mult
@@ -372,6 +375,45 @@ class Fighter:
             pygame.draw.circle(self.sd_surf, (200, 200, 255, int(100 * pulse)), (90, 90), 85, 1)
             surface.blit(self.sd_surf, (mid_x - 90, y + 80 - 90))
 
+        # --- CE REINFORCEMENT AURA (SLOW & BRIGHT) ---
+        if self.hp < self.prev_hp or self.energy < self.prev_energy or self.aura_hit_timer > 0:
+            if self.hp < self.prev_hp or self.energy < self.prev_energy:
+                self.aura_hit_timer = 15 
+            
+            aura_color = PURPLE if self.name == "Gojo" else BLUE if self.name == "Sukuna" else MAHO_COLOR
+            self.aura_surf.fill((0,0,0,0))
+            
+            aura_w, aura_h = (180, 300) if self.name == "Mahoraga" else (110, 180)
+            center_x, center_y = 110, 160
+            
+            points = []
+            num_segments = 16 
+            for i in range(num_segments):
+                angle = (i / num_segments) * math.pi * 2
+                px = math.cos(angle) * (aura_w / 2)
+                py = math.sin(angle) * (aura_h / 2)
+                
+                # SLOWED DOWN: Changed t*30 to t*12 and t*15 to t*7
+                flicker = abs(math.sin(t * 12 + i * 1.5)) * 14
+                wave = math.sin(t * 7 + i * 0.8) * 8
+                
+                px += (px / (aura_w/2)) * flicker + wave
+                py += (py / (aura_h/2)) * flicker
+                
+                if py > (aura_h / 2) - 5: py = (aura_h / 2) - 5
+                points.append((center_x + px, center_y + py))
+
+            # BRIGHTER FILL: Alpha increased to 35
+            pygame.draw.polygon(self.aura_surf, (*aura_color, 35), points)
+
+            # BRIGHTER LAYERS: Alpha values boosted
+            for layer in range(3):
+                alpha = [200, 130, 80][layer]
+                thick = [2, 5, 9][layer]
+                pygame.draw.polygon(self.aura_surf, (*aura_color, alpha), points, thick)
+                
+            surface.blit(self.aura_surf, (mid_x - 110, y + (self.rect.height // 2) - 160))
+
         if self.name == "Gojo":
             has_active_infinity = self.infinity > 0 and self.technique_burnout == 0 and not getattr(self, "dev_disable_infinity", False)
             
@@ -392,7 +434,9 @@ class Fighter:
                     layer_alpha = int(alpha_base / (i + 1))
                     thickness = int(pulse + 4 + (i * 3)) 
                     
-                    poly = [(60, 70), (140, 70), (135, 240), (65, 240)]
+                    # --- INFINITY FLOOR CONSTRAINT ---
+                    # Clamped the bottom Y to 225 to stay at the feet level
+                    poly = [(60, 70), (140, 70), (135, 225), (65, 225)]
                     
                     pygame.draw.polygon(self.inf_surf, (140, 155, 175, layer_alpha), poly, thickness)
                     pygame.draw.circle(self.inf_surf, (170, 185, 205, layer_alpha), (110, 45), 35 + (thickness//2), thickness)
