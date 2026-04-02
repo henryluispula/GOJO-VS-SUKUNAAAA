@@ -89,11 +89,14 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
             s.energy = max(0, s.energy - (mitigated_dmg * 2.0) * s.cost_mult)
         s.hp -= pb_red_dmg
         s.attack_cooldown = 45
-        push_force = 250
+
         if s.rect.centerx > g.rect.centerx:
-            s.rect.x += push_force; g.rect.x -= push_force
+            s.rect.right = WORLD_WIDTH  
+            g.rect.left = 0            
         else:
-            s.rect.x -= push_force; g.rect.x += push_force
+            s.rect.left = 0             
+            g.rect.right = WORLD_WIDTH  
+
         game.popups.append({"x": g.rect.centerx, "y": g.rect.centery - 80,
                             "timer": 45, "text": "REPELLED!", "color": RED})
         mid_x = (g.rect.centerx + s.rect.centerx) // 2
@@ -176,7 +179,7 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
                 if not is_actually_burned_out:
                     game.projectiles.append(Projectile(g.rect.centerx, g.rect.centery,
                                                         target.rect.centerx, target.rect.centery,
-                                                        18, BLUE, size_mult=1.5, type="blue_orb"))
+                                                        18, BLUE, size_mult=2.5, type="blue_orb"))
                     g.energy -= 20 * g.cost_mult; g.blue_cd = 60
             else:
                 if g.attack_cooldown == 0:

@@ -28,7 +28,7 @@ def update_projectiles(self, dt):
         dist_to_orb = pygame.Vector2(p_target.rect.center).distance_to(p.pos)
 
         if p.type == "blue_orb":
-            if dist_to_orb < 600:
+            if dist_to_orb < 1000:
                 if p_target.name == "Mahoraga" and self.sukuna.amp_duration <= 0:
                     p_target.trigger_adaptation("blue", 1.0 * time_mult)
                     turns = p_target.adaptation_points["blue"] / 250.0
@@ -43,7 +43,7 @@ def update_projectiles(self, dt):
                     if pull_factor > 0:
                         p_target.rect.x += (p.pos.x - p_target.rect.centerx) * pull_factor * time_mult
             
-            if dist_to_orb < 250:
+            if dist_to_orb < 450:
                 if p.type == "blue_orb" and p.vel.length() > p.original_speed:
                     p.vel = p.vel.normalize() * p.original_speed
                 if p_target.name == "Mahoraga" and self.sukuna.amp_duration <= 0:
@@ -99,30 +99,36 @@ def update_projectiles(self, dt):
                         p_target.rect.x -= (p.pos.x - p_target.rect.centerx) * push_factor * time_mult
             
             if dist_to_orb < 250:
-                if p.type == "red_orb" and p.vel.length() > p.original_speed:
-                    p.vel = p.vel.normalize() * p.original_speed
+                repel_dir = 1 if p_target.rect.centerx > p.pos.x else -1
+                p_target.rect.x += repel_dir * (WORLD_WIDTH / 2)
+                
+                if p_target.rect.left < 0: p_target.rect.left = 0
+                if p_target.rect.right > WORLD_WIDTH: p_target.rect.right = WORLD_WIDTH
+
                 if p_target.name == "Mahoraga" and self.sukuna.amp_duration <= 0:
                     p_target.trigger_adaptation("red", 2.0 * time_mult)
                     turns = p_target.adaptation_points["red"] / 250.0
                     p_target.adaptation["red"] = max(0, 1.0 - min(1.0, turns / 8.0))
 
-                orb_dmg = 1.5 * (p_target.adaptation["red"] if p_target.name == "Mahoraga" else 1.0) * time_mult
+                orb_dmg = 45.0 * (p_target.adaptation["red"] if p_target.name == "Mahoraga" else 1.0) 
                 
                 if p_target.name == "Sukuna":
                     if p_target.amp_duration > 0: orb_dmg *= 0.3 
-                    
                     if p_target.energy > 0:
                         reduction_mult = random.uniform(0.15, 0.35) 
                         mitigated_dmg = orb_dmg * (1.0 - reduction_mult) 
                         orb_dmg *= reduction_mult 
                         p_target.energy = max(0, p_target.energy - (mitigated_dmg * 2.0) * p_target.cost_mult)
-                        
                 elif p_target.name == "Mahoraga":
                     orb_dmg *= 0.75
                     
                 if not p_target.is_dodging:
                     p_target.hp -= orb_dmg
-                    if p_target.name in ["Sukuna", "Mahoraga"]: self.gojo.tech_hits = min(self.gojo.max_tech_hits, self.gojo.tech_hits + 1 * time_mult)
+                    if p_target.name in ["Sukuna", "Mahoraga"]: 
+                        self.gojo.tech_hits = min(self.gojo.max_tech_hits, self.gojo.tech_hits + 10)
+                
+                p.active = False
+                self.shake_timer = 15
             
             for slash in self.projectiles:
                 if slash.type in ["dismantle", "cleave"]:
