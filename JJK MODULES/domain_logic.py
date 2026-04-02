@@ -112,6 +112,13 @@ def update_physics_and_grabs(game, dt):
             g.vfx_ticker += time_mult
 
             def _cleave_tick():
+                if g.infinity > 0 and g.energy > 0 and g.technique_burnout == 0:
+                    g.energy = max(0, g.energy - 3.0 * g.cost_mult * time_mult)
+                    s.tech_hits = min(s.max_tech_hits, s.tech_hits + 0.5 * time_mult)
+                    if random.random() < 0.3:
+                        game.hit_sparks.append([g.rect.centerx + random.randint(-20, 20), g.rect.centery + random.randint(-30, 30), random.uniform(-5, 5), random.uniform(-5, 5), random.randint(15, 25), INF_COLOR])
+                    return
+
                 cleave_dmg = 0.4 * time_mult
                 if g.energy > 0:
                     rm = random.uniform(0.15, 0.35); md = cleave_dmg * (1.0 - rm); cleave_dmg *= rm
@@ -134,13 +141,6 @@ def update_physics_and_grabs(game, dt):
                     game.shake_timer = 4; sc = WHITE if random.random() < 0.5 else RED
                     for _ in range(5): game.hit_sparks.append([g.rect.centerx + random.randint(-15, 15), g.rect.centery + random.randint(-20, 20), random.uniform(-8, 8), random.uniform(-8, 8), random.randint(15, 30), sc])
             elif grab_type == "cleave":
-                _cleave_tick()
-
-            if g.infinity > 0 and g.energy > 0 and g.technique_burnout == 0:
-                g.energy = max(0, g.energy - 1.5 * g.cost_mult * time_mult); s.tech_hits = min(s.max_tech_hits, s.tech_hits + 0.5 * time_mult)
-                if random.random() < 0.3:
-                    game.hit_sparks.append([g.rect.centerx + random.randint(-20, 20), g.rect.centery + random.randint(-30, 30), random.uniform(-5, 5), random.uniform(-5, 5), random.randint(15, 25), INF_COLOR])
-            else:
                 _cleave_tick()
 
         # ── Physics tick ─────────────────────────────────────────────────────
