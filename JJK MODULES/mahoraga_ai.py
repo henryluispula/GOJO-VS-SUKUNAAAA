@@ -82,6 +82,7 @@ def update_mahoraga_ai(self, dt):
                 
                 hit_connected = False
                 if self.gojo.infinity > 0 and self.gojo.energy > 0 and self.gojo.technique_burnout <= 0:
+                    self.gojo.inf_hit_timer = 20  
                     self.gojo.infinity -= to_inf * 0.5 
                     
                     if self.gojo.energy > 0 and not is_black_flash: 

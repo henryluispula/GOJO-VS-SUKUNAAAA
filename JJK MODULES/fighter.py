@@ -96,6 +96,8 @@ class Fighter:
         self.sd_broken_timer = 0 
         self.prev_energy = self.energy
         self.ce_exhausted = False 
+        self.anim_tick = 0   
+        self.inf_hit_timer = 0    
 
     @property
     def cost_mult(self):
@@ -142,6 +144,7 @@ class Fighter:
         if self.is_split: return
 
         time_mult = dt * 60.0 
+        self.anim_tick += 1  
 
         # --- HIT STOP LOGIC ---
         if self.hit_stop > 0:
@@ -300,6 +303,7 @@ class Fighter:
         self.punch_timer = max(0, self.punch_timer - time_mult)        
         self.rct_timer = max(0, self.rct_timer - time_mult)
         self.adapt_pulse_timer = max(0, getattr(self, "adapt_pulse_timer", 0) - time_mult)
+        self.inf_hit_timer = max(0, self.inf_hit_timer - time_mult)
         
         if self.amp_duration > 0:
             self.amp_duration -= time_mult
@@ -343,7 +347,8 @@ class Fighter:
             self.draw_death(surface)
             return
 
-        t = time.time()
+        t = self.anim_tick * 0.016 
+        t_real = time.time()
         
         if self.black_flash_timer > 0:
             for _ in range(15):
@@ -363,14 +368,14 @@ class Fighter:
             self.sd_surf.fill((0,0,0,0)) 
             pygame.draw.circle(self.sd_surf, (200, 200, 255, 40), (90, 90), 90)
             pygame.draw.circle(self.sd_surf, (255, 255, 255, 120), (90, 90), 90, 3)
-            pulse = (math.sin(t * 10) + 1) * 0.5
+            pulse = (math.sin(t_real * 10) + 1) * 0.5 
             pygame.draw.circle(self.sd_surf, (200, 200, 255, int(100 * pulse)), (90, 90), 85, 1)
             surface.blit(self.sd_surf, (mid_x - 90, y + 80 - 90))
 
         if self.name == "Gojo":
             has_active_infinity = self.infinity > 0 and self.technique_burnout == 0 and not getattr(self, "dev_disable_infinity", False)
             
-            is_hit = self.hp < self.prev_hp or self.energy < self.prev_energy or self.grab_timer > 0
+            is_hit = self.hp < self.prev_hp or self.energy < self.prev_energy or self.grab_timer > 0 or self.inf_hit_timer > 0
             
             is_bypassed = (self.hp < self.prev_hp)
 
@@ -378,19 +383,19 @@ class Fighter:
                 is_bypassed = True
 
             if has_active_infinity and is_hit and not is_bypassed:
-                alpha_base = 180 
-                pulse = math.sin(t * 20) * 15 
+                alpha_base = 120 
+                pulse = math.sin(t * 20) * 8  
                 
                 self.inf_surf.fill((0,0,0,0)) 
                 
                 for i in reversed(range(2)): 
                     layer_alpha = int(alpha_base / (i + 1))
-                    thickness = int(pulse + 10 + (i * 5))
+                    thickness = int(pulse + 4 + (i * 3)) 
                     
                     poly = [(60, 70), (140, 70), (135, 240), (65, 240)]
                     
-                    pygame.draw.polygon(self.inf_surf, (100, 200, 255, layer_alpha), poly, thickness)
-                    pygame.draw.circle(self.inf_surf, (150, 230, 255, layer_alpha), (110, 45), 35 + (thickness//2), thickness)
+                    pygame.draw.polygon(self.inf_surf, (140, 155, 175, layer_alpha), poly, thickness)
+                    pygame.draw.circle(self.inf_surf, (170, 185, 205, layer_alpha), (110, 45), 35 + (thickness//2), thickness)
                 
                 surface.blit(self.inf_surf, (x - 75, y - 55))
 

@@ -299,6 +299,7 @@ def update_sukuna_ai(game, dt):
                         s.energy -= 15 * s.cost_mult; s.cleave_cd = 600
                         if g.infinity > 0 and g.energy > 0 and g.technique_burnout == 0:
                             g.energy = max(0, g.energy - 0.5 * g.cost_mult)
+                            g.inf_hit_timer = 20 
                             s.tech_hits = min(s.max_tech_hits, s.tech_hits + 20)
                         else:
                             g.hp -= 120.0; s.tech_hits = min(s.max_tech_hits, s.tech_hits + 20); game.shake_timer = 40
@@ -360,6 +361,7 @@ def update_sukuna_ai(game, dt):
                 else:
                     if g.infinity > 0 and g.energy > 0 and g.technique_burnout <= 0:
                         g.energy = max(0, g.energy - 0.5 * g.cost_mult)
+                        g.inf_hit_timer = 15  
                         kb_dist = 1200 if is_black_flash else 5
                         g.rect.x += (1 if g.rect.centerx > s.rect.centerx else -1) * kb_dist
                     else:
