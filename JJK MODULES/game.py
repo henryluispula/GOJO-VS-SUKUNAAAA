@@ -286,9 +286,12 @@ class Game:
                     if not hasattr(self.sukuna, "sure_hit_ticker"): self.sukuna.sure_hit_ticker = 0
                     self.sukuna.sure_hit_ticker += time_mult
 
-                    if self.sukuna.sure_hit_ticker >= 4:
-                        self.sukuna.sure_hit_ticker -= 4
-                        if not self.gojo.domain_active:
+                    if self.gojo.domain_active:
+                        self.projectiles = [p for p in self.projectiles if not getattr(p, 'is_sure_hit', False)]
+                        self.sukuna.sure_hit_ticker = 0
+                    else:
+                        if self.sukuna.sure_hit_ticker >= 4:
+                            self.sukuna.sure_hit_ticker -= 4
                             self.sukuna.tech_hits = min(self.sukuna.max_tech_hits, self.sukuna.tech_hits + 4)
 
                             for _ in range(2):
