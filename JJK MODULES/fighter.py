@@ -23,7 +23,7 @@ class Fighter:
         
         # --- OPTIMIZATION: Surface Caching ---
         self.inf_surf = pygame.Surface((220, 320), pygame.SRCALPHA)
-        self.aura_surf = pygame.Surface((220, 320), pygame.SRCALPHA)
+        self.aura_surf = pygame.Surface((600, 600), pygame.SRCALPHA)
         self.sd_surf = pygame.Surface((180, 180), pygame.SRCALPHA)
         self.amp_surf = pygame.Surface((150, 250), pygame.SRCALPHA)
         self.aura_hit_timer = 0 
@@ -75,6 +75,11 @@ class Fighter:
         self.world_slash_unlocked = False 
         self.grab_timer = 0
         self.grab_cd = 0
+        self.rct_particles = []
+        self.aura_sway_x = 0 
+        self.aura_sway_y = 0 
+        self.prev_x_aura = x
+        self.prev_y_aura = y
 
         # --- REFACTOR: Combat Realism & Feedback ---
         self.hit_stop = 0
@@ -308,6 +313,35 @@ class Fighter:
         self.adapt_pulse_timer = max(0, getattr(self, "adapt_pulse_timer", 0) - time_mult)
         self.inf_hit_timer = max(0, self.inf_hit_timer - time_mult)
         self.aura_hit_timer = max(0, self.aura_hit_timer - time_mult)
+
+        # --- CE AURA MOVEMENT SWAY CALCULATION ---
+        curr_vel_x = (self.rect.x - self.prev_x_aura)
+        curr_vel_y = (self.rect.y - self.prev_y_aura)
+        self.prev_x_aura = self.rect.x
+        self.prev_y_aura = self.rect.y
+
+        self.aura_sway_x += (curr_vel_x - self.aura_sway_x) * 0.2
+        self.aura_sway_y += (curr_vel_y - self.aura_sway_y) * 0.2
+
+        # --- RCT SWAY PHYSICS (CIRCULAR DOTS) ---
+        if self.rct_timer > 0:
+            if random.random() < 0.6 * time_mult: 
+                px = self.rect.centerx + random.randint(-35, 35)
+                py = self.rect.bottom - random.randint(0, 40)
+                r_col = random.choice([(150, 255, 150), (255, 255, 200), (100, 255, 150)])
+                self.rct_particles.append({
+                    "pos": [px, py], 
+                    "vel": [random.uniform(-1.6, 1.6), random.uniform(-4.0, -1.5)], 
+                    "color": r_col,
+                    "life": 255
+                })
+
+        for p in self.rct_particles[:]:
+            p["pos"][0] += p["vel"][0] * time_mult 
+            p["pos"][1] += p["vel"][1] * time_mult 
+            p["life"] -= 6 * time_mult 
+            if p["life"] <= 0:
+                self.rct_particles.remove(p)
         
         if self.amp_duration > 0:
             self.amp_duration -= time_mult
@@ -381,34 +415,48 @@ class Fighter:
             aura_color = PURPLE if self.name == "Gojo" else BLUE if self.name == "Sukuna" else MAHO_COLOR
             self.aura_surf.fill((0,0,0,0))
             
-            aura_w, aura_h = (210, 400) if self.name == "Mahoraga" else (130, 280)
-            center_x, center_y = 110, 160
+            aura_w, aura_h = (180, 400) if self.name == "Mahoraga" else (85, 280)
+            center_x, center_y = 300, 300
             
             points = []
-            num_segments = 20 
+            num_segments = 24 
             for i in range(num_segments):
                 angle = (i / num_segments) * math.pi * 2
-                px = math.cos(angle) * (aura_w / 2)
-                py = math.sin(angle) * (aura_h / 2)
+                base_x = math.cos(angle) * (aura_w / 2)
+                base_y = math.sin(angle) * (aura_h / 2)
                 
-                flicker = abs(math.sin(t * 8 + i * 1.5)) * 5
-                wave = math.sin(t * 3 + i * 0.8) * 3
+                h_ratio = abs(base_x) / (aura_w / 2)
+                y_ratio = (base_y + (aura_h / 2)) / aura_h
+                v_stabilizer = math.sin(y_ratio * math.pi) 
+
+                sway_weight = h_ratio * v_stabilizer
+
+                m_lag_x = -self.aura_sway_x * 3.5 
                 
-                px += (px / (aura_w/2)) * flicker + wave
-                py += (py / (aura_h/2)) * flicker
+                is_front = (base_x > 0 and m_lag_x < 0) or (base_x < 0 and m_lag_x > 0)
                 
-                if py > self.rect.height // 2: 
-                    py = self.rect.height // 2
+                if is_front:
+                    m_lag_x *= 0.060 
+                else:
+                    m_lag_x *= 0.30 
+
+                edge_wiggle = math.sin(t * 6 + i * 0.8) * 7
+                pulse = math.sin(t * 10 + i) * 5
+                
+                px = base_x + (base_x / (aura_w/2)) * pulse + edge_wiggle + (m_lag_x * sway_weight)
+                py = base_y + (base_y / (aura_h/2)) * pulse + edge_wiggle + (-self.aura_sway_y * 1.2 * sway_weight)
+                
+                if py > self.rect.height // 2: py = self.rect.height // 2
                 points.append((center_x + px, center_y + py))
 
-            pygame.draw.polygon(self.aura_surf, (*aura_color, 35), points)
+            pygame.draw.polygon(self.aura_surf, (*aura_color, 80), points)
 
             for layer in range(3):
                 alpha = [220, 150, 90][layer] 
                 thick = [1, 2, 4][layer]
                 pygame.draw.polygon(self.aura_surf, (*aura_color, alpha), points, thick)
-                
-            surface.blit(self.aura_surf, (mid_x - 110, y + (self.rect.height // 2) - 160))
+            
+            surface.blit(self.aura_surf, (mid_x - 300, y + (self.rect.height // 2) - 300))
 
         if self.name == "Gojo":
             has_active_infinity = self.infinity > 0 and self.technique_burnout == 0 and not getattr(self, "dev_disable_infinity", False)
@@ -746,15 +794,10 @@ class Fighter:
                 t_x = (mid_x - mouth_w//2) + (t_i * (mouth_w // 5))
                 pygame.draw.line(surface, (30, 35, 40), (t_x, y + int(8*scale)), (t_x, y + int(8*scale) + mouth_h), max(1, int(1*scale)))
 
-        if self.rct_timer > 0:
-            offsets = [-35, 0, 35] 
-            for j, x_off in enumerate(offsets):
-                for i in range(5): 
-                    sx = mid_x + x_off + math.sin(t * 5 + i + j) * 15
-                    sy = (y + int(160*scale)) - ((t * 80 + i * 40 + j * 20) % int(150*scale))
-                    
-                    r_color = [(150, 255, 150), (255, 255, 200), (100, 255, 150)][(i+j) % 3]
-                    pygame.draw.circle(surface, r_color, (int(sx), int(sy)), 3)
+        for p in self.rct_particles:
+            p_alpha = max(0, min(255, int(p["life"])))
+            pygame.draw.circle(surface, (*p["color"], p_alpha), (int(p["pos"][0]), int(p["pos"][1])), 3)
+            pygame.draw.circle(surface, (*p["color"], p_alpha // 4), (int(p["pos"][0]), int(p["pos"][1])), 6)
 
         if self.name != "Mahoraga":
             h_color = WHITE if self.name == "Gojo" else (20, 20, 25)
