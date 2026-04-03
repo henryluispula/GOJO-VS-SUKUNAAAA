@@ -20,6 +20,8 @@ class Fighter:
         self.infinity = self.max_infinity
         self.max_tech_hits = 1000 
         self.max_sd_hits = 300 if name == "Sukuna" else 152 
+        self.max_stance = 600
+        self.stance = 600
         
         # --- OPTIMIZATION: Surface Caching ---
         self.inf_surf = pygame.Surface((220, 320), pygame.SRCALPHA)
@@ -796,8 +798,9 @@ class Fighter:
 
         for p in self.rct_particles:
             p_alpha = max(0, min(255, int(p["life"])))
-            pygame.draw.circle(surface, (*p["color"], p_alpha), (int(p["pos"][0]), int(p["pos"][1])), 3)
-            pygame.draw.circle(surface, (*p["color"], p_alpha // 4), (int(p["pos"][0]), int(p["pos"][1])), 6)
+            # Changed the core radius from 3 to 1, and the glow radius from 6 to 3
+            pygame.draw.circle(surface, (*p["color"], p_alpha), (int(p["pos"][0]), int(p["pos"][1])), 1)
+            pygame.draw.circle(surface, (*p["color"], p_alpha // 4), (int(p["pos"][0]), int(p["pos"][1])), 3)
 
         if self.name != "Mahoraga":
             h_color = WHITE if self.name == "Gojo" else (20, 20, 25)

@@ -65,18 +65,9 @@ def draw_hud(self, render_surf, dt):
         render_surf.blit(self.clash_msg_bg, (WIDTH//2 - bg_w//2, HEIGHT//2 - 100), (0, 0, bg_w, bg_h))
         render_surf.blit(clash_txt, (WIDTH//2 - clash_txt.get_width()//2, HEIGHT//2 - 90))
 
-    if getattr(self, "clash_phase_timer", 0) > 0:
-        seconds_left = self.clash_phase_timer / 60.0
-        clash_txt = self.get_text(f"DOMAIN CLASH: {seconds_left:.1f}s", (255, 255, 100))
+    if getattr(self, "clash_active_flag", False):
+        clash_txt = self.get_text("DOMAIN CLASH!", (255, 255, 100))
         render_surf.blit(clash_txt, (WIDTH//2 - clash_txt.get_width()//2, 80))
-        
-        damage_goal = (self.sukuna.max_hp * 0.50)
-        current_damage = max(0, getattr(self, "sukuna_hp_at_clash_start", self.sukuna.hp) - self.sukuna.hp)
-        damage_remaining = max(0, damage_goal - current_damage)
-        
-        if damage_remaining > 0:
-            health_txt = self.get_text(f"DAMAGE TO BREAK SHRINE: {int(damage_remaining)}", WHITE, font=self.mini_font)
-            render_surf.blit(health_txt, (WIDTH//2 - health_txt.get_width()//2, 115))
 
     render_surf.blit(self.gojo_hud_bg, (10, 10))
     
@@ -193,6 +184,25 @@ def draw_hud(self, render_surf, dt):
         sm_txt = f"PN:{p_p}% BL:{b_p}% RD:{r_p}% PR:{pu_p}% IN:{i_p}% VD:{v_p}%"
         
         render_surf.blit(self.get_text(sm_txt, WHITE, font=self.micro_font), (WIDTH - 335, 270))
+
+    # --- Vertical Stance Bars ---
+    # Stance bars matching the full height of the HUD backgrounds
+    g_bar_x, g_bar_y, bar_w, bar_h = 356, 10, 15, 210
+    pygame.draw.rect(render_surf, (0, 0, 0), (g_bar_x - 4, g_bar_y - 4, bar_w + 8, bar_h + 8), border_radius=4)
+    pygame.draw.rect(render_surf, (40, 40, 40), (g_bar_x, g_bar_y, bar_w, bar_h), border_radius=2)
+    g_stance = max(0, getattr(self.gojo, "stance", 300))
+    g_fill_h = int((g_stance / 600.0) * bar_h)
+    if g_fill_h > 0:
+        pygame.draw.rect(render_surf, (200, 200, 255), (g_bar_x, g_bar_y + bar_h - g_fill_h, bar_w, g_fill_h), border_radius=2)
+
+    # Sukuna Stance Bar (Placed directly left of his HUD square)
+    s_bar_x = WIDTH - 370
+    pygame.draw.rect(render_surf, (0, 0, 0), (s_bar_x - 4, g_bar_y - 4, bar_w + 8, bar_h + 8), border_radius=4)
+    pygame.draw.rect(render_surf, (40, 40, 40), (s_bar_x, g_bar_y, bar_w, bar_h), border_radius=2)
+    s_stance = max(0, getattr(self.sukuna, "stance", 300))
+    s_fill_h = int((s_stance / 600.0) * bar_h)
+    if s_fill_h > 0:
+        pygame.draw.rect(render_surf, (255, 100, 100), (s_bar_x, g_bar_y + bar_h - s_fill_h, bar_w, s_fill_h), border_radius=2)
 
     if hasattr(self, "ce_hud_popups"):
         active_ce_popups = []

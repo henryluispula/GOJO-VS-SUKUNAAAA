@@ -191,8 +191,10 @@ def update_domain_clash(game, keys, gojo_can_clash, dt):
             if game.clash_decision_timer <= 0:
                 game.clash_resolved = True
                 if getattr(g, "domain_shrunk", False) and not getattr(game, "clash_failed", False):
-                    game.clash_phase_timer = 1200; game.sukuna_hp_at_clash_start = s.hp
-                    game.popups.append({"x": g.rect.centerx, "y": g.rect.centery - 100, "timer": 60, "text": "DOMAIN CLASH: 20 SECONDS!", "color": WHITE})
+                    game.clash_active_flag = True; g.stance = 600; s.stance = 600
+                    g.last_hp_clash = g.hp; g.last_ce_clash = g.energy
+                    s.last_hp_clash = s.hp; s.last_ce_clash = s.energy
+                    game.popups.append({"x": g.rect.centerx, "y": g.rect.centery - 100, "timer": 60, "text": "DOMAIN CLASH: BREAK STANCE!", "color": WHITE})
                     game.shake_timer = 20
                 else:
                     game.clash_winner = "SUKUNA WINS CLASH!"; g.end_domain(); g.domain_shrunk = False
@@ -201,12 +203,12 @@ def update_domain_clash(game, keys, gojo_can_clash, dt):
     else:
         game.clash_resolved = False; game.clash_decision_timer = 0; game.clash_failed = False
 
-    if getattr(game, "clash_phase_timer", 0) > 0:
+    if getattr(game, "clash_active_flag", False):
         maho_exists = game.mahoraga and game.mahoraga.hp > 0
         maho_adapted = maho_exists and game.mahoraga.adaptation["void"] <= 0
 
         if maho_adapted:
-            game.clash_phase_timer = 0
+            game.clash_active_flag = False
             game.clash_winner = "MAHORAGA WINS!"
             game.clash_msg_timer = 120 
             game.shake_timer = 60 
@@ -224,7 +226,6 @@ def update_domain_clash(game, keys, gojo_can_clash, dt):
             })
             return 
 
-        game.clash_phase_timer -= time_mult
         g.domain_timer = max(g.domain_timer, 200); s.domain_timer = max(s.domain_timer, 200)
         
         purple_in_air = any(p.type == "purple_orb" for p in game.projectiles)
@@ -250,12 +251,22 @@ def update_domain_clash(game, keys, gojo_can_clash, dt):
         else:
             s.adapting_to = None
 
-        damage_dealt = getattr(game, "sukuna_hp_at_clash_start", s.hp) - s.hp
-        if damage_dealt >= (s.max_hp * 0.50):
-            game.clash_phase_timer = 0; game.clash_winner = "GOJO WINS CLASH!"; s.end_domain()
+        for fighter in [g, s]:
+            hp_lost = getattr(fighter, "last_hp_clash", fighter.hp) - fighter.hp
+            ce_lost = getattr(fighter, "last_ce_clash", fighter.energy) - fighter.energy
+            if hp_lost > 0:
+                raw = hp_lost
+                if ce_lost > 0:
+                    raw += ce_lost / max(0.1, fighter.cost_mult * 2.0)
+                fighter.stance = max(0, getattr(fighter, "stance", 3000) - raw)
+            fighter.last_hp_clash = fighter.hp
+            fighter.last_ce_clash = fighter.energy
+
+        if s.stance <= 0:
+            game.clash_active_flag = False; game.clash_winner = "GOJO WINS CLASH!"; s.end_domain()
             g.domain_shrunk = False; g.domain_timer = 400; game.clash_msg_timer = 90; game.shake_timer = 40
             game.popups.append({"x": s.rect.centerx, "y": s.rect.centery - 100, "timer": 60, "text": "SHRINE COLLAPSED!", "color": BLUE})
-        elif game.clash_phase_timer <= 0:
-            game.clash_winner = "SUKUNA WINS CLASH!"; g.end_domain(); g.domain_shrunk = False
+        elif g.stance <= 0:
+            game.clash_active_flag = False; game.clash_winner = "SUKUNA WINS CLASH!"; g.end_domain(); g.domain_shrunk = False
             g.technique_burnout = 1200; s.domain_timer = 400; game.clash_msg_timer = 90; game.shake_timer = 40
             game.popups.append({"x": g.rect.centerx, "y": g.rect.centery - 100, "timer": 60, "text": "UV COLLAPSED!", "color": RED})
