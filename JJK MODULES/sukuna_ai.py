@@ -82,6 +82,13 @@ def update_sukuna_ai(game, dt):
         purple_imminent = g.purple_cd == 0 and g.tech_hits >= g.max_tech_hits
         is_purple_threat = g.purple_charge > 0 or purple_flying or purple_imminent
 
+        # --- CONTACT & DODGE RESTRICTION LOGIC ---
+        is_touching_gojo = s.rect.colliderect(g.rect)
+        if is_touching_gojo:
+            if s.dodge_cd < 25:
+                s.dodge_cd = 25
+            s.dodge_cd += time_mult 
+
         # --- RE-PRIORITIZED EVASION LOGIC ---
         incoming_orbs = [p for p in game.projectiles if p.type in ["blue_orb", "red_orb", "purple_orb"] and abs(p.pos.x - s.rect.centerx) < 400]        
         if incoming_orbs:
@@ -96,6 +103,10 @@ def update_sukuna_ai(game, dt):
 
         elif g.domain_charge > 0 or is_purple_threat:
             is_near_gojo = dist < 200 or s.rect.colliderect(g.rect)
+            
+            if is_near_gojo:
+                s.dodge_cd = 90
+            
             threat_speed = 9 if is_near_gojo else 28
 
             can_tank_purple = not (is_purple_threat and (s.hp <= 150 or s.energy <= 300 * s.cost_mult))
