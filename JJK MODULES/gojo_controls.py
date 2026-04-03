@@ -44,7 +44,7 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
             and g.domain_charge <= 0 and g.purple_charge <= 0):
         game.pb_blue_ready = False
         g.energy -= 60 * g.cost_mult
-        g.blue_cd = 480
+        g.blue_cd = 240
         s.rect.centerx = g.rect.centerx + (50 * g.direction)
         pb_blue_dmg = 30.0
         if s.amp_duration > 0: pb_blue_dmg *= 0.2
