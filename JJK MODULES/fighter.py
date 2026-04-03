@@ -20,8 +20,8 @@ class Fighter:
         self.infinity = self.max_infinity
         self.max_tech_hits = 1000 
         self.max_sd_hits = 300 if name == "Sukuna" else 152 
-        self.max_stance = 600
-        self.stance = 600
+        self.max_stance = 700
+        self.stance = 700
         
         # --- OPTIMIZATION: Surface Caching ---
         self.inf_surf = pygame.Surface((220, 320), pygame.SRCALPHA)

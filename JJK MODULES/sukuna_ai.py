@@ -172,6 +172,7 @@ def update_sukuna_ai(game, dt):
             in_clash = getattr(game, "clash_phase_timer", 0) > 0
             if can_afford and desperate and not in_clash:
                 s.hp -= vow_hp_cost
+                s.vow_hp_to_ignore = getattr(s, "vow_hp_to_ignore", 0) + vow_hp_cost
                 s.ignore_shatter_once = True 
                 s.energy = min(s.max_energy, s.energy + vow_ce_gain)
                 game.shake_timer = 20; s.amp_duration = 0; s.amp_cd = 600
@@ -291,7 +292,10 @@ def update_sukuna_ai(game, dt):
                     s.fuga_charge = 0
                     game.projectiles.append(Projectile(s.rect.centerx, s.rect.centery, g.rect.centerx, g.rect.centery, 28, (255, 100, 0), size_mult=5.8, type="fuga_arrow"))
                     s.energy = max(0, s.energy - 195 * s.cost_mult)
-                    s.hp -= s.max_hp * 0.50; game.shake_timer = 35
+                    vow_cost = s.max_hp * 0.50
+                    s.hp -= vow_cost
+                    s.vow_hp_to_ignore = getattr(s, "vow_hp_to_ignore", 0) + vow_cost
+                    game.shake_timer = 35
                     for _ in range(30):
                         bx, by = s.rect.center
                         game.blood_particles.append([bx, by, random.uniform(-8, 8), random.uniform(-10, 0), 50, random.randint(4, 7)])

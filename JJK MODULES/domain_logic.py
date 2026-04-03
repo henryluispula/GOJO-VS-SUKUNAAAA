@@ -191,7 +191,7 @@ def update_domain_clash(game, keys, gojo_can_clash, dt):
             if game.clash_decision_timer <= 0:
                 game.clash_resolved = True
                 if getattr(g, "domain_shrunk", False) and not getattr(game, "clash_failed", False):
-                    game.clash_active_flag = True; g.stance = 600; s.stance = 600
+                    game.clash_active_flag = True; g.stance = 700; s.stance = 700
                     g.last_hp_clash = g.hp; g.last_ce_clash = g.energy
                     s.last_hp_clash = s.hp; s.last_ce_clash = s.energy
                     game.popups.append({"x": g.rect.centerx, "y": g.rect.centery - 100, "timer": 60, "text": "DOMAIN CLASH: BREAK STANCE!", "color": WHITE})
@@ -252,13 +252,18 @@ def update_domain_clash(game, keys, gojo_can_clash, dt):
             s.adapting_to = None
 
         for fighter in [g, s]:
-            hp_lost = getattr(fighter, "last_hp_clash", fighter.hp) - fighter.hp
+            hp_diff = getattr(fighter, "last_hp_clash", fighter.hp) - fighter.hp
+            vow_ignore = getattr(fighter, "vow_hp_to_ignore", 0)
+            
+            hp_lost = max(0, hp_diff - vow_ignore)
+            fighter.vow_hp_to_ignore = 0 
+            
             ce_lost = getattr(fighter, "last_ce_clash", fighter.energy) - fighter.energy
             if hp_lost > 0:
                 raw = hp_lost
                 if ce_lost > 0:
                     raw += ce_lost / max(0.1, fighter.cost_mult * 2.0)
-                fighter.stance = max(0, getattr(fighter, "stance", 3000) - raw)
+                fighter.stance = max(0, getattr(fighter, "stance", 700) - raw)
             fighter.last_hp_clash = fighter.hp
             fighter.last_ce_clash = fighter.energy
 
