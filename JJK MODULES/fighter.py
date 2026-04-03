@@ -451,7 +451,7 @@ class Fighter:
                 if py > self.rect.height // 2: py = self.rect.height // 2
                 points.append((center_x + px, center_y + py))
 
-            pygame.draw.polygon(self.aura_surf, (*aura_color, 80), points)
+            pygame.draw.polygon(self.aura_surf, (*aura_color, 100), points)
 
             for layer in range(3):
                 alpha = [220, 150, 90][layer] 
@@ -460,6 +460,46 @@ class Fighter:
             
             surface.blit(self.aura_surf, (mid_x - 300, y + (self.rect.height // 2) - 300))
 
+        # --- RCT MINI-AURA & PARTICLES (DRAWN BEHIND FIGHTER) ---
+        if self.rct_timer > 0:
+            rct_color = (0, 255, 130)
+            self.aura_surf.fill((0,0,0,0)) 
+            
+            aura_w, aura_h = (120, 250) if self.name == "Mahoraga" else (70, 220)
+            center_x, center_y = 300, 300
+            
+            points = []
+            num_segments = 20 
+            for i in range(num_segments):
+                angle = (i / num_segments) * math.pi * 2
+                base_x = math.cos(angle) * (aura_w / 2)
+                base_y = math.sin(angle) * (aura_h / 2)
+                
+                h_ratio = abs(base_x) / (aura_w / 2)
+                y_ratio = (base_y + (aura_h / 2)) / aura_h
+                v_stabilizer = math.sin(y_ratio * math.pi) 
+
+                sway_weight = h_ratio * v_stabilizer
+                m_lag_x = -self.aura_sway_x * 2.0 
+                
+                is_front = (base_x > 0 and m_lag_x < 0) or (base_x < 0 and m_lag_x > 0)
+                if is_front: m_lag_x *= 0.05 
+                else: m_lag_x *= 0.25 
+
+                edge_wiggle = math.sin(t * 8 + i * 1.5) * 4
+                pulse = math.sin(t * 12 + i) * 3
+                
+                px = base_x + (base_x / (aura_w/2)) * pulse + edge_wiggle + (m_lag_x * sway_weight)
+                py = base_y + (base_y / (aura_h/2)) * pulse + edge_wiggle + (-self.aura_sway_y * 0.8 * sway_weight)
+                
+                if py > self.rect.height // 2: py = self.rect.height // 2
+                points.append((center_x + px, center_y + py))
+
+            pygame.draw.polygon(self.aura_surf, (*rct_color, 100), points)
+            pygame.draw.polygon(self.aura_surf, (*rct_color, 120), points, 2)
+            pygame.draw.polygon(self.aura_surf, (15, 80, 15, 150), points, 1)
+            
+            surface.blit(self.aura_surf, (mid_x - 300, y + (self.rect.height // 2) - 300))
         if self.name == "Gojo":
             has_active_infinity = self.infinity > 0 and self.technique_burnout == 0 and not getattr(self, "dev_disable_infinity", False)
             
@@ -795,12 +835,6 @@ class Fighter:
             for t_i in range(1, 5):
                 t_x = (mid_x - mouth_w//2) + (t_i * (mouth_w // 5))
                 pygame.draw.line(surface, (30, 35, 40), (t_x, y + int(8*scale)), (t_x, y + int(8*scale) + mouth_h), max(1, int(1*scale)))
-
-        for p in self.rct_particles:
-            p_alpha = max(0, min(255, int(p["life"])))
-            # Changed the core radius from 3 to 1, and the glow radius from 6 to 3
-            pygame.draw.circle(surface, (*p["color"], p_alpha), (int(p["pos"][0]), int(p["pos"][1])), 1)
-            pygame.draw.circle(surface, (*p["color"], p_alpha // 4), (int(p["pos"][0]), int(p["pos"][1])), 3)
 
         if self.name != "Mahoraga":
             h_color = WHITE if self.name == "Gojo" else (20, 20, 25)
