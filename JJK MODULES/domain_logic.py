@@ -202,23 +202,19 @@ def update_domain_clash(game, keys, gojo_can_clash, dt):
         game.clash_resolved = False; game.clash_decision_timer = 0; game.clash_failed = False
 
     if getattr(game, "clash_phase_timer", 0) > 0:
-        # --- NEW: MAHORAGA ADAPTATION INTERVENTION ---
         maho_exists = game.mahoraga and game.mahoraga.hp > 0
         maho_adapted = maho_exists and game.mahoraga.adaptation["void"] <= 0
 
         if maho_adapted:
-            # End the clash immediately with no winners
             game.clash_phase_timer = 0
-            game.clash_winner = "MAHORAGA ADAPTED: CLASH INVALIDATED!"
-            game.clash_msg_timer = 120 # Show the message for 2 seconds
-            game.shake_timer = 60 # Big screen shake for the impact
+            game.clash_winner = "MAHORAGA WINS!"
+            game.clash_msg_timer = 120 
+            game.shake_timer = 60 
             
-            # Force both domains to shut down
             g.end_domain()
             s.end_domain()
             g.domain_shrunk = False
             
-            # Add a visual popup at Mahoraga's location
             game.popups.append({
                 "x": game.mahoraga.rect.centerx, 
                 "y": game.mahoraga.rect.centery - 120, 
@@ -226,9 +222,8 @@ def update_domain_clash(game, keys, gojo_can_clash, dt):
                 "text": "VOID ADAPTATION COMPLETE", 
                 "color": (0, 255, 0)
             })
-            return # Exit function so no winner logic runs this frame
+            return 
 
-        # --- CONTINUING NORMAL CLASH LOGIC ---
         game.clash_phase_timer -= time_mult
         g.domain_timer = max(g.domain_timer, 200); s.domain_timer = max(s.domain_timer, 200)
         
@@ -237,7 +232,6 @@ def update_domain_clash(game, keys, gojo_can_clash, dt):
         purple_unlocked_or_close = g.purple_cd <= 0 and g.tech_hits >= (g.max_tech_hits * 0.80)
         is_purple_threat = purple_in_air or purple_charging or purple_unlocked_or_close
 
-        # We separate Blue/Red into standard proximity checks
         incoming_threats = [p for p in game.projectiles if p.active and p.type in ["blue_orb", "red_orb"] and abs(p.pos.x - s.rect.centerx) < 300]
         
         dist_clash = abs(g.rect.centerx - s.rect.centerx)
@@ -245,7 +239,6 @@ def update_domain_clash(game, keys, gojo_can_clash, dt):
         actual_punch_threat = g.punch_timer > 0 and dist_clash < 140 and gojo_is_facing
         is_greedy = s.hp > (s.max_hp * 0.65)
         
-        # If Purple is a threat AT ALL, he keeps DA up permanently!
         if (is_purple_threat or incoming_threats or getattr(g, "grab_timer", 0) > 0 or (actual_punch_threat and not is_greedy)) and s.energy > 5:
             s.amp_duration = max(s.amp_duration, 20)
         else:

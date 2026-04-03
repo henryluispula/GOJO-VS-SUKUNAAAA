@@ -289,6 +289,11 @@ def draw_world(self, punching, dt):
     self.popups = active_popups
                 
     
+    # --- STEP 1: Draw Mahoraga (Background Fighter Layer) ---
+    if self.mahoraga and self.mahoraga.hp > 0: 
+        self.mahoraga.draw_detailed(self.world_surf)
+
+    # --- STEP 2: Draw Sukuna (Middle Fighter Layer) ---
     if self.mahoraga_summon_timer > 0:
         self.shared_world_overlay.fill((0, 0, 0, 150))
         self.world_surf.blit(self.shared_world_overlay, (0,0))
@@ -308,8 +313,8 @@ def draw_world(self, punching, dt):
         eff = "summoning" if (is_summoning or is_adapting_now) else None
         self.sukuna.draw_detailed(self.world_surf, effect=eff, is_amp=(self.sukuna.amp_duration > 0))
     
+    # --- STEP 3: Draw Gojo (Foreground Fighter Layer) ---
     self.gojo.draw_detailed(self.world_surf, punching)
-    if self.mahoraga and self.mahoraga.hp > 0: self.mahoraga.draw_detailed(self.world_surf)
 
     for p in self.projectiles: p.draw(self.world_surf)
 
