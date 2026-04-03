@@ -19,7 +19,7 @@ class Fighter:
         self.max_infinity = 1000 if name == "Gojo" else 0 
         self.infinity = self.max_infinity
         self.max_tech_hits = 1000 
-        self.max_sd_hits = 300 if name == "Sukuna" else 38 
+        self.max_sd_hits = 300 if name == "Sukuna" else 152 
         
         # --- OPTIMIZATION: Surface Caching ---
         self.inf_surf = pygame.Surface((220, 320), pygame.SRCALPHA)
@@ -115,11 +115,11 @@ class Fighter:
         self.domain_uses += 1
         
         if self.domain_uses <= 5:
-            self.domain_cd = 480 
+            self.domain_cd = 120 
             self.technique_burnout = 0
         else:
             self.domain_cd = 3000
-            self.technique_burnout = 1200
+            self.technique_burnout = 1800
             if self.name == "Gojo":
                 self.infinity = 0                                          
 

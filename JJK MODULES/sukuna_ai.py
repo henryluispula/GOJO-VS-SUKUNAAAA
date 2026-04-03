@@ -60,8 +60,12 @@ def update_sukuna_ai(game, dt):
             s.domain_charge = 60
             s.energy -= 200 * s.cost_mult
 
-    # ── Simple Domain While Trapped in UV ───────────────────────────────────
-    if g.domain_active and not s.domain_active:
+    # ── Simple Domain ─────────────────────
+    in_clash = getattr(game, "clash_phase_timer", 0) > 0
+    clash_damage = getattr(game, "sukuna_hp_at_clash_start", s.hp) - s.hp
+    is_losing_clash = in_clash and clash_damage > (s.max_hp * 0.35) 
+
+    if (g.domain_active and not s.domain_active) or is_losing_clash:
         if s.energy > 5 * s.cost_mult and s.sd_broken_timer <= 0:
             if not getattr(s, "sd_was_active", False):
                 s.energy -= 25.0 * s.cost_mult; s.sd_hits = 0
@@ -168,6 +172,7 @@ def update_sukuna_ai(game, dt):
             in_clash = getattr(game, "clash_phase_timer", 0) > 0
             if can_afford and desperate and not in_clash:
                 s.hp -= vow_hp_cost
+                s.ignore_shatter_once = True 
                 s.energy = min(s.max_energy, s.energy + vow_ce_gain)
                 game.shake_timer = 20; s.amp_duration = 0; s.amp_cd = 600
                 s.tactical_eval_timer = 600; is_amp = False; is_tactical_eval = True
@@ -421,7 +426,7 @@ def update_sukuna_ai(game, dt):
         s.domain_charge -= time_mult
         if s.domain_charge <= 0:
             s.domain_charge = 0
-            s.domain_active = True; s.domain_timer = 400
+            s.domain_active = True; s.domain_timer = 900 
             s.domain_cd = 3000; game.shake_timer = 30
 
     return dist, fuga_priority, gojo_has_inf

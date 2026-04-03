@@ -9,8 +9,9 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
     s = game.sukuna
     time_mult = dt * 60.0
 
-    # ── Simple Domain (Right-Click Hold) ────────────────────────────────────
-    if mouse_click[2] and g.energy > 5 * g.cost_mult and not g.domain_active and g.sd_broken_timer <= 0:
+    # ── Simple Domain (Right-Click Hold) ──────────────────
+    in_clash = getattr(game, "clash_phase_timer", 0) > 0
+    if mouse_click[2] and g.energy > 5 * g.cost_mult and (not g.domain_active or in_clash) and g.sd_broken_timer <= 0:
         if not getattr(g, "sd_was_active", False):
             g.energy -= 25.0 * g.cost_mult
             g.sd_hits = 0
@@ -229,7 +230,7 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
         g.domain_charge -= time_mult
         if g.domain_charge <= 0:
             g.domain_charge = 0
-            g.domain_active = True; g.domain_timer = 400
+            g.domain_active = True; g.domain_timer = 900 
             g.domain_cd = 3000; g.infinity = g.max_infinity
             game.shake_timer = 30
 

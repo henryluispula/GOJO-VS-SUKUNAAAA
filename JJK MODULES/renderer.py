@@ -172,8 +172,8 @@ def draw_world(self, punching, dt):
             
             self.world_surf.blit(self.star_layers[(pygame.time.get_ticks() // 200) % 3], (0, 0))
 
-        if self.gojo.domain_timer > 380:
-            flash_alpha = int(((self.gojo.domain_timer - 380) / 20.0) * 180)
+        if self.gojo.domain_timer > 880:
+            flash_alpha = min(255, max(0, int(((self.gojo.domain_timer - 880) / 20.0) * 180)))
             self.shared_flash_surf.fill((150, 200, 255, flash_alpha))
             self.world_surf.blit(self.shared_flash_surf, (0, 0))
     
@@ -234,7 +234,8 @@ def draw_world(self, punching, dt):
 
         self.world_surf.blit(self.cached_ms_bg, (0, 0))
         
-        if self.sukuna.domain_timer > 390: self.world_surf.fill((200, 0, 0))
+        if self.sukuna.domain_timer > 890: 
+            self.world_surf.fill((200, 0, 0))
     
     else:
         self.world_surf.blit(self.cached_shinjuku_bg, (0, 0))

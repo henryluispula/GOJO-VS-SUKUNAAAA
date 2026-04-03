@@ -205,7 +205,7 @@ def update_projectiles(self, dt):
                 if self.gojo.sd_hits >= self.gojo.max_sd_hits: 
                     self.gojo.simple_domain_active = False
                     self.gojo.sd_was_active = False
-                    self.gojo.sd_broken_timer = 120 
+                    self.gojo.sd_broken_timer = 60 
                     self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 100, "timer": 45, "text": "SD CRUMBLED!", "color": RED})
                     self.shake_timer = 15
                     

@@ -232,7 +232,7 @@ class Game:
                                     if enemy.sd_hits >= enemy.max_sd_hits: 
                                         enemy.simple_domain_active = False
                                         enemy.sd_was_active = False
-                                        enemy.sd_broken_timer = 120 
+                                        enemy.sd_broken_timer = 60 
                                         self.popups.append({"x": enemy.rect.centerx, "y": enemy.rect.centery - 100, "timer": 45, "text": "SD CRUMBLED!", "color": RED})
                                         self.shake_timer = 15
                                         enemy.is_paralyzed = True
@@ -286,16 +286,18 @@ class Game:
                     if not hasattr(self.sukuna, "sure_hit_ticker"): self.sukuna.sure_hit_ticker = 0
                     self.sukuna.sure_hit_ticker += time_mult
 
-                    if self.sukuna.sure_hit_ticker >= 8:
-                        self.sukuna.sure_hit_ticker -= 8
+                    if self.sukuna.sure_hit_ticker >= 4:
+                        self.sukuna.sure_hit_ticker -= 4
                         if not self.gojo.domain_active:
-                            self.sukuna.tech_hits = min(self.sukuna.max_tech_hits, self.sukuna.tech_hits + 2)
-                            
-                            sx = self.gojo.rect.centerx + random.randint(-40, 40)
-                            sy = self.gojo.rect.centery + random.randint(-60, 60)
-                            stype = "cleave" if abs(self.sukuna.rect.centerx - self.gojo.rect.centerx) < 150 else "dismantle"
-                            
-                            self.projectiles.append(Projectile(sx, sy, self.gojo.rect.centerx, self.gojo.rect.centery, 5, RED, size_mult=3.0, type=stype, is_sure_hit=True))
+                            self.sukuna.tech_hits = min(self.sukuna.max_tech_hits, self.sukuna.tech_hits + 4)
+
+                            for _ in range(2):
+                                sx = self.gojo.rect.centerx + random.randint(-60, 60)
+                                sy = self.gojo.rect.centery + random.randint(-80, 80)
+                                dist_to_target = abs(self.sukuna.rect.centerx - self.gojo.rect.centerx)
+                                stype = "cleave" if dist_to_target < 200 else "dismantle"
+                                
+                                self.projectiles.append(Projectile(sx, sy, self.gojo.rect.centerx, self.gojo.rect.centery, 5, RED, size_mult=4.5, type=stype, is_sure_hit=True))
 
                 update_projectiles(self, sim_dt)
 
@@ -374,19 +376,23 @@ class Game:
                 if fighter is not None:
                     if fighter.hp < fighter.prev_hp:
                         damage = fighter.prev_hp - fighter.hp
+                        is_vow_damage = getattr(fighter, "ignore_shatter_once", False)
                         
-                        if fighter.domain_charge > 0:
+                        if fighter.domain_charge > 0 and not is_vow_damage:
                             fighter.domain_charge = 0
-                            fighter.domain_cd = 300 
+                            fighter.domain_cd = 120 
                             self.popups.append({"x": fighter.rect.centerx, "y": fighter.rect.centery - 100, "timer": 45, "text": "DOMAIN INTERRUPTED!", "color": WHITE})
                         
                         if fighter.name == "Sukuna" and damage >= 60: 
-                            if fighter.domain_active:
+                            if fighter.domain_active and not is_vow_damage:
                                 break_chance = 0.75 if damage >= 120 else 0.30 
                                 if random.random() < break_chance:
                                     fighter.end_domain()
                                     self.shake_timer = 20 
                                     self.popups.append({"x": fighter.rect.centerx, "y": fighter.rect.centery - 100, "timer": 60, "text": "DOMAIN SHATTERED!", "color": WHITE})
+
+                        if is_vow_damage: 
+                            fighter.ignore_shatter_once = False
                         
                         num_drops = min(int(damage * 1.5), 40) 
                         for _ in range(num_drops):
