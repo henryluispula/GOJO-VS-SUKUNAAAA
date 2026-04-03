@@ -95,6 +95,9 @@ def update_sukuna_ai(game, dt):
                 s.dodge(); s.dodge_cd = 40
 
         elif g.domain_charge > 0 or is_purple_threat:
+            is_near_gojo = dist < 200 or s.rect.colliderect(g.rect)
+            threat_speed = 9 if is_near_gojo else 14
+
             can_tank_purple = not (is_purple_threat and (s.hp <= 150 or s.energy <= 300 * s.cost_mult))
             if is_purple_threat and not can_tank_purple:
                 if getattr(s, "panic_wall_timer", 0) > 0:
@@ -110,7 +113,7 @@ def update_sukuna_ai(game, dt):
                     if s.on_ground: s.jump()
                 
                 s.direction = run_dir
-                s.rect.x += 28 * run_dir * time_mult
+                s.rect.x += threat_speed * run_dir * time_mult 
                 if s.dodge_cd <= 0 and s.stamina >= 20: s.dodge(); s.dodge_cd = 40
                 vow_cost = 2.4 * s.cost_mult
                 if s.energy > vow_cost:
@@ -122,7 +125,7 @@ def update_sukuna_ai(game, dt):
                 if s.world_slash_unlocked and s.world_slash_cd <= 0 and getattr(s, "world_slash_charge", 0) <= 0 and s.energy >= 80 * s.cost_mult:
                     s.world_slash_charge = 120
                 elif dist > 100:
-                    s.rect.x += 28 * s.direction * time_mult
+                    s.rect.x += threat_speed * s.direction * time_mult
                     if s.dodge_cd <= 0 and s.stamina >= 20: s.dodge(); s.dodge_cd = 40
 
         if is_amp and dist > 150 and (s.dismantle_cd == 0 or s.cleave_cd == 0) and not is_purple_threat:
