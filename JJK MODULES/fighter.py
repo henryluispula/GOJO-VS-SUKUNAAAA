@@ -381,7 +381,7 @@ class Fighter:
             aura_color = PURPLE if self.name == "Gojo" else BLUE if self.name == "Sukuna" else MAHO_COLOR
             self.aura_surf.fill((0,0,0,0))
             
-            aura_w, aura_h = (165, 400) if self.name == "Mahoraga" else (85, 280)
+            aura_w, aura_h = (210, 400) if self.name == "Mahoraga" else (130, 280)
             center_x, center_y = 110, 160
             
             points = []

@@ -105,7 +105,7 @@ def update_sukuna_ai(game, dt):
             is_near_gojo = dist < 200 or s.rect.colliderect(g.rect)
             
             if is_near_gojo:
-                s.dodge_cd = 90
+                s.dodge_cd = 40
             
             threat_speed = 9 if is_near_gojo else 28
 
