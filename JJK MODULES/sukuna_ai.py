@@ -96,7 +96,7 @@ def update_sukuna_ai(game, dt):
 
         elif g.domain_charge > 0 or is_purple_threat:
             is_near_gojo = dist < 200 or s.rect.colliderect(g.rect)
-            threat_speed = 9 if is_near_gojo else 14
+            threat_speed = 9 if is_near_gojo else 28
 
             can_tank_purple = not (is_purple_threat and (s.hp <= 150 or s.energy <= 300 * s.cost_mult))
             if is_purple_threat and not can_tank_purple:
