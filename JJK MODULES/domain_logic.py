@@ -202,6 +202,33 @@ def update_domain_clash(game, keys, gojo_can_clash, dt):
         game.clash_resolved = False; game.clash_decision_timer = 0; game.clash_failed = False
 
     if getattr(game, "clash_phase_timer", 0) > 0:
+        # --- NEW: MAHORAGA ADAPTATION INTERVENTION ---
+        maho_exists = game.mahoraga and game.mahoraga.hp > 0
+        maho_adapted = maho_exists and game.mahoraga.adaptation["void"] <= 0
+
+        if maho_adapted:
+            # End the clash immediately with no winners
+            game.clash_phase_timer = 0
+            game.clash_winner = "MAHORAGA ADAPTED: CLASH INVALIDATED!"
+            game.clash_msg_timer = 120 # Show the message for 2 seconds
+            game.shake_timer = 60 # Big screen shake for the impact
+            
+            # Force both domains to shut down
+            g.end_domain()
+            s.end_domain()
+            g.domain_shrunk = False
+            
+            # Add a visual popup at Mahoraga's location
+            game.popups.append({
+                "x": game.mahoraga.rect.centerx, 
+                "y": game.mahoraga.rect.centery - 120, 
+                "timer": 90, 
+                "text": "VOID ADAPTATION COMPLETE", 
+                "color": (0, 255, 0)
+            })
+            return # Exit function so no winner logic runs this frame
+
+        # --- CONTINUING NORMAL CLASH LOGIC ---
         game.clash_phase_timer -= time_mult
         g.domain_timer = max(g.domain_timer, 200); s.domain_timer = max(s.domain_timer, 200)
         
