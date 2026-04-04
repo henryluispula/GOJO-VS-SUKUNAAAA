@@ -3,6 +3,7 @@ import math
 import random
 import time
 from settings import *
+from aura import draw_fighter_auras
 
 class Fighter:
     def __init__(self, x, y, name, color=CLOTHES):
@@ -396,6 +397,7 @@ class Fighter:
                 pygame.draw.line(surface, BLACK, (rx, ry), (rx+random.randint(-40,40), ry+random.randint(-40,40)), 6)
                 pygame.draw.line(surface, (255, 0, 0), (rx, ry), (rx+random.randint(-20,20), ry+random.randint(-20,20)), 3)
 
+        # DOMAIN CHARGE
         if getattr(self, "domain_charge", 0) > 0:
             ct = (60 - self.domain_charge) / 60.0
             burst = int(180 * ct)
@@ -404,168 +406,51 @@ class Fighter:
             if ct > 0.8:
                 pygame.draw.circle(surface, WHITE, (mid_x, y + 40), int(burst * 1.2), 3)
 
-        if self.simple_domain_active:
-            self.sd_surf.fill((0,0,0,0)) 
-            pygame.draw.circle(self.sd_surf, (200, 200, 255, 40), (90, 90), 90)
-            pygame.draw.circle(self.sd_surf, (255, 255, 255, 120), (90, 90), 90, 3)
-            pulse = (math.sin(t_real * 10) + 1) * 0.5 
-            pygame.draw.circle(self.sd_surf, (200, 200, 255, int(100 * pulse)), (90, 90), 85, 1)
-            surface.blit(self.sd_surf, (mid_x - 90, y + 80 - 90))
+        # AURAS
+        draw_fighter_auras(self, surface, t, t_real)
 
-        # --- CE REINFORCEMENT AURA ---
-        if self.aura_hit_timer > 0:
-            aura_color = PURPLE if self.name == "Gojo" else BLUE if self.name == "Sukuna" else MAHO_COLOR
-            self.aura_surf.fill((0,0,0,0))
-            
-            aura_w, aura_h = (180, 400) if self.name == "Mahoraga" else (85, 280)
-            center_x, center_y = 300, 300
-            
-            points = []
-            num_segments = 24 
-            for i in range(num_segments):
-                angle = (i / num_segments) * math.pi * 2
-                base_x = math.cos(angle) * (aura_w / 2)
-                base_y = math.sin(angle) * (aura_h / 2)
-                
-                h_ratio = abs(base_x) / (aura_w / 2)
-                y_ratio = (base_y + (aura_h / 2)) / aura_h
-                v_stabilizer = math.sin(y_ratio * math.pi) 
+        if self.purple_charge > 0:
+            ct = (120 - self.purple_charge) / 120.0
+            spiral_r = 85 * (1.0 - ct)
+            bx = mid_x + math.cos(t * 7 + ct * 22) * spiral_r
+            by = y + 40 + math.sin(t * 7 + ct * 22) * spiral_r * 0.55
+            rx = mid_x + math.cos(t * 7 + ct * 22 + math.pi) * spiral_r
+            ry = y + 40 + math.sin(t * 7 + ct * 22 + math.pi) * spiral_r * 0.55
 
-                sway_weight = h_ratio * v_stabilizer
+            orb_r = int(18 + 22 * ct)
+            pygame.draw.circle(surface, (100, 180, 255), (int(bx), int(by)), orb_r + 6)
+            pygame.draw.circle(surface, BLUE, (int(bx), int(by)), orb_r)
+            pygame.draw.circle(surface, (255, 80, 80), (int(rx), int(ry)), orb_r + 6)
+            pygame.draw.circle(surface, RED, (int(rx), int(ry)), orb_r)
 
-                m_lag_x = -self.aura_sway_x * 3.5 
-                
-                is_front = (base_x > 0 and m_lag_x < 0) or (base_x < 0 and m_lag_x > 0)
-                
-                if is_front:
-                    m_lag_x *= 0.060 
-                else:
-                    m_lag_x *= 0.30 
+            if ct > 0.25:
+                for _ in range(int(6 * ct)):
+                    lx = int(bx + random.randint(-12, 12))
+                    ly = int(by + random.randint(-12, 12))
+                    ex = int(rx + random.randint(-12, 12))
+                    ey = int(ry + random.randint(-12, 12))
+                    pygame.draw.line(surface, (220, 120, 255), (lx, ly), (ex, ey), 2)
+                    pygame.draw.line(surface, WHITE, (lx, ly), (ex, ey), 1)
 
-                edge_wiggle = math.sin(t * 6 + i * 0.8) * 7
-                pulse = math.sin(t * 10 + i) * 5
-                
-                px = base_x + (base_x / (aura_w/2)) * pulse + edge_wiggle + (m_lag_x * sway_weight)
-                py = base_y + (base_y / (aura_h/2)) * pulse + edge_wiggle + (-self.aura_sway_y * 1.2 * sway_weight)
-                
-                if py > self.rect.height // 2: py = self.rect.height // 2
-                points.append((center_x + px, center_y + py))
+            if ct > 0.45:
+                for ri in range(4):
+                    ring_r = int((30 + ri * 20) * ct)
+                    alpha = max(1, 4 - ri)
+                    pygame.draw.circle(surface, PURPLE, (mid_x, y + 40), ring_r, alpha)
 
-            pygame.draw.polygon(self.aura_surf, (*aura_color, 100), points)
-
-            for layer in range(3):
-                alpha = [220, 150, 90][layer] 
-                thick = [1, 2, 4][layer]
-                pygame.draw.polygon(self.aura_surf, (*aura_color, alpha), points, thick)
-            
-            surface.blit(self.aura_surf, (mid_x - 300, y + (self.rect.height // 2) - 300))
-
-        # --- RCT MINI-AURA & PARTICLES (DRAWN BEHIND FIGHTER) ---
-        if self.rct_timer > 0:
-            rct_color = (0, 255, 130)
-            self.aura_surf.fill((0,0,0,0)) 
-            
-            aura_w, aura_h = (120, 250) if self.name == "Mahoraga" else (70, 220)
-            center_x, center_y = 300, 300
-            
-            points = []
-            num_segments = 20 
-            for i in range(num_segments):
-                angle = (i / num_segments) * math.pi * 2
-                base_x = math.cos(angle) * (aura_w / 2)
-                base_y = math.sin(angle) * (aura_h / 2)
-                
-                h_ratio = abs(base_x) / (aura_w / 2)
-                y_ratio = (base_y + (aura_h / 2)) / aura_h
-                v_stabilizer = math.sin(y_ratio * math.pi) 
-
-                sway_weight = h_ratio * v_stabilizer
-                m_lag_x = -self.aura_sway_x * 2.0 
-                
-                is_front = (base_x > 0 and m_lag_x < 0) or (base_x < 0 and m_lag_x > 0)
-                if is_front: m_lag_x *= 0.05 
-                else: m_lag_x *= 0.25 
-
-                edge_wiggle = math.sin(t * 8 + i * 1.5) * 4
-                pulse = math.sin(t * 12 + i) * 3
-                
-                px = base_x + (base_x / (aura_w/2)) * pulse + edge_wiggle + (m_lag_x * sway_weight)
-                py = base_y + (base_y / (aura_h/2)) * pulse + edge_wiggle + (-self.aura_sway_y * 0.8 * sway_weight)
-                
-                if py > self.rect.height // 2: py = self.rect.height // 2
-                points.append((center_x + px, center_y + py))
-
-            pygame.draw.polygon(self.aura_surf, (*rct_color, 100), points)
-            pygame.draw.polygon(self.aura_surf, (*rct_color, 120), points, 2)
-            pygame.draw.polygon(self.aura_surf, (15, 80, 15, 150), points, 1)
-            
-            surface.blit(self.aura_surf, (mid_x - 300, y + (self.rect.height // 2) - 300))
-        if self.name == "Gojo":
-            has_active_infinity = self.infinity > 0 and self.technique_burnout == 0 and not getattr(self, "dev_disable_infinity", False)
-            
-            is_hit = self.hp < self.prev_hp or self.energy < self.prev_energy or self.grab_timer > 0 or self.inf_hit_timer > 0
-            
-            is_bypassed = (self.hp < self.prev_hp) and not (self.inf_hit_timer > 0)
-
-            if has_active_infinity and (self.inf_hit_timer > 0 or (is_hit and not is_bypassed)):
-                alpha_base = 150 
-                pulse = math.sin(t * 20) * 8  
-                
-                self.inf_surf.fill((0,0,0,0)) 
-                
-                for i in reversed(range(2)): 
-                    layer_alpha = int(alpha_base / (i + 1))
-                    thickness = int(pulse + 4 + (i * 3)) 
-                    
-                    poly = [(70, 70), (150, 70), (145, 225), (75, 225)]
-                    
-                    pygame.draw.polygon(self.inf_surf, (140, 155, 175, layer_alpha), poly, thickness)
-                    pygame.draw.circle(self.inf_surf, (170, 185, 205, layer_alpha), (110, 45), 35 + (thickness//2), thickness)
-                
-                surface.blit(self.inf_surf, (x - 75, y - 55))
-
-            if self.purple_charge > 0:
-                ct = (120 - self.purple_charge) / 120.0
-                spiral_r = 85 * (1.0 - ct)
-                bx = mid_x + math.cos(t * 7 + ct * 22) * spiral_r
-                by = y + 40 + math.sin(t * 7 + ct * 22) * spiral_r * 0.55
-                rx = mid_x + math.cos(t * 7 + ct * 22 + math.pi) * spiral_r
-                ry = y + 40 + math.sin(t * 7 + ct * 22 + math.pi) * spiral_r * 0.55
-
-                orb_r = int(18 + 22 * ct)
-                pygame.draw.circle(surface, (100, 180, 255), (int(bx), int(by)), orb_r + 6)
-                pygame.draw.circle(surface, BLUE, (int(bx), int(by)), orb_r)
-                pygame.draw.circle(surface, (255, 80, 80), (int(rx), int(ry)), orb_r + 6)
-                pygame.draw.circle(surface, RED, (int(rx), int(ry)), orb_r)
-
-                if ct > 0.25:
-                    for _ in range(int(6 * ct)):
-                        lx = int(bx + random.randint(-12, 12))
-                        ly = int(by + random.randint(-12, 12))
-                        ex = int(rx + random.randint(-12, 12))
-                        ey = int(ry + random.randint(-12, 12))
-                        pygame.draw.line(surface, (220, 120, 255), (lx, ly), (ex, ey), 2)
-                        pygame.draw.line(surface, WHITE, (lx, ly), (ex, ey), 1)
-
-                if ct > 0.45:
-                    for ri in range(4):
-                        ring_r = int((30 + ri * 20) * ct)
-                        alpha = max(1, 4 - ri)
-                        pygame.draw.circle(surface, PURPLE, (mid_x, y + 40), ring_r, alpha)
-
-                if ct > 0.80:
-                    burst = int(140 * ((ct - 0.80) / 0.20))
-                    pygame.draw.circle(surface, PURPLE, (mid_x, y + 40), burst, 8)
-                    pygame.draw.circle(surface, (220, 180, 255), (mid_x, y + 40), burst // 2, 4)
-                    pygame.draw.circle(surface, WHITE, (mid_x, y + 40), burst // 4, 3)
-                    for _ in range(30):
-                        fpx = mid_x + random.randint(-burst, burst)
-                        fpy = y + 40 + random.randint(-burst, burst)
-                        pygame.draw.circle(surface, PURPLE, (int(fpx), int(fpy)), random.randint(3, 12))
-                    for _ in range(12):
-                        fpx = mid_x + random.randint(-burst // 2, burst // 2)
-                        fpy = y + 40 + random.randint(-burst // 2, burst // 2)
-                        pygame.draw.circle(surface, WHITE, (int(fpx), int(fpy)), random.randint(2, 6))
+            if ct > 0.80:
+                burst = int(140 * ((ct - 0.80) / 0.20))
+                pygame.draw.circle(surface, PURPLE, (mid_x, y + 40), burst, 8)
+                pygame.draw.circle(surface, (220, 180, 255), (mid_x, y + 40), burst // 2, 4)
+                pygame.draw.circle(surface, WHITE, (mid_x, y + 40), burst // 4, 3)
+                for _ in range(30):
+                    fpx = mid_x + random.randint(-burst, burst)
+                    fpy = y + 40 + random.randint(-burst, burst)
+                    pygame.draw.circle(surface, PURPLE, (int(fpx), int(fpy)), random.randint(3, 12))
+                for _ in range(12):
+                    fpx = mid_x + random.randint(-burst // 2, burst // 2)
+                    fpy = y + 40 + random.randint(-burst // 2, burst // 2)
+                    pygame.draw.circle(surface, WHITE, (int(fpx), int(fpy)), random.randint(2, 6))
 
         if self.name == "Sukuna" and getattr(self, "world_slash_charge", 0) > 0:
             ct = (120 - self.world_slash_charge) / 120.0
