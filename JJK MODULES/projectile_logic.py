@@ -195,18 +195,29 @@ def update_projectiles(self, dt):
                 p.active = False 
     
         intercepted_by_sd = False
-        if self.gojo.simple_domain_active and getattr(p, "is_sure_hit", False):
+        
+        is_domain_slash = getattr(p, "is_sure_hit", False)
+
+        if self.gojo.simple_domain_active and is_domain_slash:
             dist_to_gojo = pygame.Vector2(self.gojo.rect.center).distance_to(p.pos)
+            
             if dist_to_gojo < 100: 
-                p.active = False
+                p.active = False 
                 intercepted_by_sd = True
                 
                 self.gojo.sd_hits += 1
+                
                 if self.gojo.sd_hits >= self.gojo.max_sd_hits: 
                     self.gojo.simple_domain_active = False
                     self.gojo.sd_was_active = False
                     self.gojo.sd_broken_timer = 60 
-                    self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 100, "timer": 45, "text": "SD CRUMBLED!", "color": RED})
+                    self.popups.append({
+                        "x": self.gojo.rect.centerx, 
+                        "y": self.gojo.rect.centery - 100, 
+                        "timer": 45, 
+                        "text": "SD CRUMBLED!", 
+                        "color": RED
+                    })
                     self.shake_timer = 15
                     
         hit_radius = 50 * p.size_mult if p.type in ["dismantle", "cleave", "world_slash"] else 20

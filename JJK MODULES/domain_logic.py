@@ -197,9 +197,15 @@ def update_domain_clash(game, keys, gojo_can_clash, dt):
                     game.popups.append({"x": g.rect.centerx, "y": g.rect.centery - 100, "timer": 60, "text": "DOMAIN CLASH: BREAK STANCE!", "color": WHITE})
                     game.shake_timer = 20
                 else:
-                    game.clash_winner = "SUKUNA WINS CLASH!"; g.end_domain(); g.domain_shrunk = False
+                    game.clash_winner = "FAILED TO SHRINK DOMAIN!"; g.end_domain(); g.domain_shrunk = False
                     game.clash_msg_timer = 90; game.shake_timer = 30
-                    game.popups.append({"x": g.rect.centerx, "y": g.rect.centery - 100, "timer": 60, "text": "DOMAIN COLLAPSED!", "color": RED})
+                    game.popups.append({
+                        "x": g.rect.centerx, 
+                        "y": g.rect.centery - 100, 
+                        "timer": 60, 
+                        "text": "TIMING FAILED: DOMAIN COLLAPSED!", 
+                        "color": RED
+                    })
     else:
         game.clash_resolved = False; game.clash_decision_timer = 0; game.clash_failed = False
 
