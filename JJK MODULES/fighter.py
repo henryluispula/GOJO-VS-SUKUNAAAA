@@ -4,6 +4,7 @@ import random
 import time
 from settings import *
 from aura import draw_fighter_auras
+from techniques import draw_special_techniques
 
 class Fighter:
     def __init__(self, x, y, name, color=CLOTHES):
@@ -409,126 +410,9 @@ class Fighter:
         # AURAS
         draw_fighter_auras(self, surface, t, t_real)
 
-        if self.purple_charge > 0:
-            ct = (120 - self.purple_charge) / 120.0
-            spiral_r = 85 * (1.0 - ct)
-            bx = mid_x + math.cos(t * 7 + ct * 22) * spiral_r
-            by = y + 40 + math.sin(t * 7 + ct * 22) * spiral_r * 0.55
-            rx = mid_x + math.cos(t * 7 + ct * 22 + math.pi) * spiral_r
-            ry = y + 40 + math.sin(t * 7 + ct * 22 + math.pi) * spiral_r * 0.55
-
-            orb_r = int(18 + 22 * ct)
-            pygame.draw.circle(surface, (100, 180, 255), (int(bx), int(by)), orb_r + 6)
-            pygame.draw.circle(surface, BLUE, (int(bx), int(by)), orb_r)
-            pygame.draw.circle(surface, (255, 80, 80), (int(rx), int(ry)), orb_r + 6)
-            pygame.draw.circle(surface, RED, (int(rx), int(ry)), orb_r)
-
-            if ct > 0.25:
-                for _ in range(int(6 * ct)):
-                    lx = int(bx + random.randint(-12, 12))
-                    ly = int(by + random.randint(-12, 12))
-                    ex = int(rx + random.randint(-12, 12))
-                    ey = int(ry + random.randint(-12, 12))
-                    pygame.draw.line(surface, (220, 120, 255), (lx, ly), (ex, ey), 2)
-                    pygame.draw.line(surface, WHITE, (lx, ly), (ex, ey), 1)
-
-            if ct > 0.45:
-                for ri in range(4):
-                    ring_r = int((30 + ri * 20) * ct)
-                    alpha = max(1, 4 - ri)
-                    pygame.draw.circle(surface, PURPLE, (mid_x, y + 40), ring_r, alpha)
-
-            if ct > 0.80:
-                burst = int(140 * ((ct - 0.80) / 0.20))
-                pygame.draw.circle(surface, PURPLE, (mid_x, y + 40), burst, 8)
-                pygame.draw.circle(surface, (220, 180, 255), (mid_x, y + 40), burst // 2, 4)
-                pygame.draw.circle(surface, WHITE, (mid_x, y + 40), burst // 4, 3)
-                for _ in range(30):
-                    fpx = mid_x + random.randint(-burst, burst)
-                    fpy = y + 40 + random.randint(-burst, burst)
-                    pygame.draw.circle(surface, PURPLE, (int(fpx), int(fpy)), random.randint(3, 12))
-                for _ in range(12):
-                    fpx = mid_x + random.randint(-burst // 2, burst // 2)
-                    fpy = y + 40 + random.randint(-burst // 2, burst // 2)
-                    pygame.draw.circle(surface, WHITE, (int(fpx), int(fpy)), random.randint(2, 6))
-
-        if self.name == "Sukuna" and getattr(self, "world_slash_charge", 0) > 0:
-            ct = (120 - self.world_slash_charge) / 120.0
-            
-            pull_r = int(250 * (1.0 - ct))
-            core_size = int(60 * ct + math.sin(t * 30) * 10)
-            pygame.draw.circle(surface, (5, 5, 10), (mid_x, y + 60), core_size)
-            pygame.draw.circle(surface, (100, 255, 255), (mid_x, y + 60), core_size + 5, max(1, int(15 * ct)))
-            
-            for _ in range(int(20 * ct) + 5):
-                ang = random.uniform(0, math.pi * 2)
-                p1_x = mid_x + math.cos(ang) * pull_r
-                p1_y = y + 60 + math.sin(ang) * pull_r
-                p2_x = mid_x + math.cos(ang + random.uniform(-0.2, 0.2)) * (pull_r * 0.6)
-                p2_y = y + 60 + math.sin(ang + random.uniform(-0.2, 0.2)) * (pull_r * 0.6)
-                
-                pygame.draw.line(surface, BLACK, (p1_x, p1_y), (p2_x, p2_y), max(2, int(8 * ct)))
-                pygame.draw.line(surface, WHITE, (p1_x, p1_y), (p2_x, p2_y), max(1, int(3 * ct)))
-                
-            if ct > 0.4:
-                grid_alpha = int(255 * ((ct - 0.4) / 0.6))
-                grid_len = int(300 * ct)
-                pygame.draw.line(surface, (255, 255, 255, grid_alpha), (mid_x - grid_len, y + 60), (mid_x + grid_len, y + 60), 1)
-                pygame.draw.line(surface, (255, 255, 255, grid_alpha), (mid_x, y + 60 - grid_len), (mid_x, y + 60 + grid_len), 1)
-
-            if ct > 0.6:
-                slash_len = int(250 * ((ct - 0.6) / 0.4))
-                pygame.draw.line(surface, (200, 255, 255), (mid_x - slash_len, y + 60 - slash_len//3), (mid_x + slash_len, y + 60 + slash_len//3), 15)
-                pygame.draw.line(surface, BLACK, (mid_x - slash_len, y + 60 - slash_len//3), (mid_x + slash_len, y + 60 + slash_len//3), 8)
-                pygame.draw.line(surface, WHITE, (mid_x - slash_len, y + 60 - slash_len//3), (mid_x + slash_len, y + 60 + slash_len//3), 2)
-                
-            if ct > 0.95:
-                pygame.draw.circle(surface, BLACK, (mid_x, y + 60), 800)
-                pygame.draw.circle(surface, WHITE, (mid_x, y + 60), int(1000 * ((ct - 0.95)/0.05)), 20)
-
-        if self.name == "Sukuna" and self.fuga_charge > 0:
-            ct = (120 - self.fuga_charge) / 120.0
-
-            pillar_h = int(220 * ct)
-            pillar_w = int(22 + 65 * ct)
-            pygame.draw.ellipse(surface, (255, 55, 0),
-                (mid_x - pillar_w // 2, y + 40 - pillar_h // 2, pillar_w, pillar_h),
-                max(1, int(9 * ct)))
-            pygame.draw.ellipse(surface, (255, 180, 0),
-                (mid_x - pillar_w // 4, y + 40 - pillar_h // 4, pillar_w // 2, pillar_h // 2),
-                max(1, int(5 * ct)))
-
-            pulse_r = int(50 * ct + 6 * math.sin(t * 18))
-            pygame.draw.circle(surface, (255, 100, 0), (mid_x, y + 40), pulse_r, max(1, int(14 * ct)))
-            pygame.draw.circle(surface, (255, 220, 0), (mid_x, y + 40), max(1, pulse_r // 2), max(1, int(6 * ct)))
-
-            n_parts = int(8 + 30 * ct)
-            for _ in range(n_parts):
-                px = mid_x + random.randint(-int(90 * ct), int(90 * ct))
-                py = y + 40 + random.randint(-int(90 * ct), int(90 * ct))
-                size = random.randint(3, int(7 + 15 * ct))
-                pygame.draw.circle(surface, random.choice([(255, 0, 0), (255, 110, 0), (255, 200, 0), (255, 255, 50)]),
-                    (int(px), int(py)), size)
-
-            if ct > 0.35:
-                for ri in range(4):
-                    ring_r = int((35 + ri * 28) * ct)
-                    pygame.draw.circle(surface, (255, 80, 0), (mid_x, y + 40), ring_r, max(1, 4 - ri))
-
-            if ct > 0.78:
-                burst = int(160 * ((ct - 0.78) / 0.22))
-                pygame.draw.circle(surface, (255, 140, 0), (mid_x, y + 40), burst, 8)
-                pygame.draw.circle(surface, (255, 255, 100), (mid_x, y + 40), burst // 2, 5)
-                pygame.draw.circle(surface, WHITE, (mid_x, y + 40), burst // 4, 3)
-                for _ in range(35):
-                    bpx = mid_x + random.randint(-burst, burst)
-                    bpy = y + 40 + random.randint(-burst, burst)
-                    pygame.draw.circle(surface, (255, random.randint(80, 255), 0),
-                        (int(bpx), int(bpy)), random.randint(4, 16))
-                for _ in range(10):
-                    bpx = mid_x + random.randint(-burst // 2, burst // 2)
-                    bpy = y + 40 + random.randint(-burst // 2, burst // 2)
-                    pygame.draw.circle(surface, WHITE, (int(bpx), int(bpy)), random.randint(2, 7))
+        # SPECIAL TECHNIQUES
+        draw_special_techniques(self, surface, t)
+        
         if is_amp:
             for i in range(3):
                 amp_y = y + 160 - ((t * 120 + i * 50) % 160)
