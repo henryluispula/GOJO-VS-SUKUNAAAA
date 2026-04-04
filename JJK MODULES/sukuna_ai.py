@@ -21,7 +21,8 @@ def update_sukuna_ai(game, dt):
     # ── Domain Cast Decision ─────────────────────────────────────────────────
     if (s.energy >= 200 * s.cost_mult and s.domain_cd == 0 and s.technique_burnout == 0
             and s.domain_charge == 0 and not s.domain_active and not s.is_paralyzed
-            and g.grab_timer <= 0 and s.attack_cooldown <= 0 and game.mahoraga_summon_timer <= 0):
+            and g.grab_timer <= 0 and s.grab_timer <= 0 and s.attack_cooldown <= 0 
+            and game.mahoraga_summon_timer <= 0):
         should_cast_domain = False
         sukuna_est_power = s.hp + s.energy
         gojo_est_power = g.hp + g.energy
