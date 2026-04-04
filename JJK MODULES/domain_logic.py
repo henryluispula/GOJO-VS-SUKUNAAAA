@@ -258,12 +258,22 @@ def update_domain_clash(game, keys, gojo_can_clash, dt):
             s.amp_duration = max(s.amp_duration, 20)
         else:
             s.amp_duration = 0
+        # Adaptation transfer logic
         if s.amp_duration <= 0:
-            s.adapting_to = "void"; s.adaptation_points["void"] += 1.25 * time_mult
-            turns = s.adaptation_points["void"] / 250.0
-            s.adaptation["void"] = max(0, 1.0 - min(1.0, turns / 10.0))
+            if maho_active:
+                s.adapting_to = None
+                game.mahoraga.adapting_to = "void"
+                game.mahoraga.adaptation_points["void"] += 1.25 * time_mult
+                m_turns = game.mahoraga.adaptation_points["void"] / 250.0
+                game.mahoraga.adaptation["void"] = max(0, 1.0 - min(1.0, m_turns / 10.0))
+            else:
+                s.adapting_to = "void"
+                s.adaptation_points["void"] += 1.25 * time_mult
+                s_turns = s.adaptation_points["void"] / 250.0
+                s.adaptation["void"] = max(0, 1.0 - min(1.0, s_turns / 10.0))
         else:
             s.adapting_to = None
+            if maho_active: game.mahoraga.adapting_to = None
 
         for fighter in [g, s]:
             hp_diff = getattr(fighter, "last_hp_clash", fighter.hp) - fighter.hp
