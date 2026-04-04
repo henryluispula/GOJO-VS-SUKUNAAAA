@@ -122,7 +122,7 @@ def draw_world(self, punching, dt):
     if is_shrunk:
         self.world_surf.blit(self.cached_shinjuku_bg, (0, 0))
 
-    # --- NEW: DOMAIN CLASH GLITCH LOGIC ---
+    # --- DOMAIN CLASH GLITCH LOGIC ---
     draw_gojo = self.gojo.domain_active
     draw_sukuna = self.sukuna.domain_active
     is_glitching = False
@@ -131,21 +131,17 @@ def draw_world(self, punching, dt):
         current_time = pygame.time.get_ticks()
         cycle_time = current_time % 2000
         
-        # The last 300ms of the 2-second cycle is the "Glitch Window"
         if cycle_time > 1700:
             is_glitching = True
-            # Flicker between domains every 100ms (Slower, less epileptic)
             if (current_time // 100) % 2 == 0:
                 draw_gojo = False
             else:
                 draw_sukuna = False
         else:
-            # Stable phase (normal 2-second swap)
             if (current_time // 2000) % 2 == 0:
                 draw_gojo = False
             else:
                 draw_sukuna = False
-    # --------------------------------------
 
     if draw_gojo:
         if is_shrunk and hasattr(self.gojo, "domain_center_x"):
@@ -181,23 +177,20 @@ def draw_world(self, punching, dt):
             blit_y = int(cy - 400)
             
             if is_glitching:
-                # Ghosting effect (subtle overlap)
                 ghost_surf = self.cached_uv_bg_shrunk.copy()
-                ghost_surf.set_alpha(40) # Drastically reduced brightness
+                ghost_surf.set_alpha(40) 
                 self.world_surf.blit(self.cached_uv_bg_shrunk, (blit_x, blit_y))
                 self.world_surf.blit(ghost_surf, (blit_x + random.randint(-8, 8), blit_y + random.randint(-8, 8)))
                 
-                # Digital Tearing ONLY inside the 800x800 domain
-                for _ in range(random.randint(2, 4)): # Fewer tears
+                for _ in range(random.randint(2, 4)): 
                     slice_y = random.randint(0, 750)
                     slice_h = random.randint(10, 25)
-                    offset_x = random.randint(-12, 12) # Smaller shifts
+                    offset_x = random.randint(-12, 12) 
                     
                     strip = self.cached_uv_bg_shrunk.subsurface((0, slice_y, 800, slice_h))
                     self.world_surf.blit(strip, (blit_x + offset_x, blit_y + slice_y))
                     
-                    if random.random() < 0.3: # Less frequent scanlines
-                        # Darker, muted colors instead of pure bright neon
+                    if random.random() < 0.3: 
                         dark_neon = random.choice([(0, 100, 150), (50, 50, 80), (0, 50, 80)])
                         pygame.draw.line(self.world_surf, dark_neon, (blit_x + offset_x, blit_y + slice_y), (blit_x + offset_x + 800, blit_y + slice_y), 1)
             else:
@@ -234,18 +227,15 @@ def draw_world(self, punching, dt):
                 self.cached_ms_bg_shrunk.fill((0, 0, 0, 0))
                 small_cx, small_cy = 400, 400
                 
-                # --- STEP 1: CREATE A TEMPORARY CANVAS FOR THE SHRINE ---
                 shrine_canvas = pygame.Surface((800, 800), pygame.SRCALPHA)
-                shrine_x, shrine_y = small_cx, small_cy + 120 # Lifted slightly for a perfect fit
+                shrine_x, shrine_y = small_cx, small_cy + 120
                 scale = 0.65
                 
-                # Draw the glow/halo logic onto the canvas
                 pygame.draw.circle(shrine_canvas, (150, 0, 0, 150), (shrine_x, int(shrine_y - 250 * scale)), int(450 * scale))
                 pygame.draw.circle(shrine_canvas, (200, 30, 30, 200), (shrine_x, int(shrine_y - 250 * scale)), int(330 * scale))
                 pygame.draw.circle(shrine_canvas, (255, 150, 150, 255), (shrine_x, int(shrine_y - 250 * scale)), int(240 * scale))
                 
                 shrine_color = (15, 5, 5) 
-                # Draw the main house structure onto the canvas
                 pygame.draw.rect(shrine_canvas, shrine_color, (shrine_x - int(270*scale), shrine_y - int(150*scale), int(540*scale), int(750*scale)))
                 pygame.draw.polygon(shrine_canvas, shrine_color, [(shrine_x - int(450*scale), shrine_y - int(120*scale)), (shrine_x + int(450*scale), shrine_y - int(120*scale)), (shrine_x + int(270*scale), shrine_y - int(240*scale)), (shrine_x - int(270*scale), shrine_y - int(240*scale))])
                 pygame.draw.polygon(shrine_canvas, shrine_color, [(shrine_x - int(360*scale), shrine_y - int(240*scale)), (shrine_x + int(360*scale), shrine_y - int(240*scale)), (shrine_x + int(180*scale), shrine_y - int(345*scale)), (shrine_x - int(180*scale), shrine_y - int(345*scale))])
@@ -264,17 +254,11 @@ def draw_world(self, punching, dt):
                 for ty in range(int(shrine_y + 70*scale), int(shrine_y + 320*scale), int(45*scale)):
                     pygame.draw.polygon(shrine_canvas, teeth_color, [(shrine_x + int(150*scale), ty), (shrine_x + int(150*scale), ty + int(35*scale)), (shrine_x + int(75*scale), ty + int(17*scale))])
 
-                # --- STEP 2: CREATE THE ALPHA MASK (THE CIRCLE) ---
                 mask = pygame.Surface((800, 800), pygame.SRCALPHA)
                 pygame.draw.circle(mask, (255, 255, 255, 255), (small_cx, small_cy), 400)
                 
-                # --- STEP 3: BLEND THEM (CRITICAL FIX) ---
-                # This multiplies the Shrine pixels by the Circle's alpha.
-                # Anything outside the circle becomes 0 alpha (invisible).
                 shrine_canvas.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
                 
-                # --- STEP 4: ASSEMBLE ONTO CACHED SURFACE ---
-                # First the domain floor, then the clipped house, then the outer rim.
                 pygame.draw.circle(self.cached_ms_bg_shrunk, (20, 5, 5, 240), (small_cx, small_cy), 400)
                 self.cached_ms_bg_shrunk.blit(shrine_canvas, (0, 0))
                 pygame.draw.circle(self.cached_ms_bg_shrunk, RED, (small_cx, small_cy), 400, 4)
@@ -283,22 +267,20 @@ def draw_world(self, punching, dt):
             blit_y = int(cy - 400)
             
             if is_glitching:
-                # Ghosting effect (subtle overlap)
                 ghost_surf = self.cached_ms_bg_shrunk.copy()
-                ghost_surf.set_alpha(40) # Drastically reduced brightness
+                ghost_surf.set_alpha(40) 
                 self.world_surf.blit(self.cached_ms_bg_shrunk, (blit_x, blit_y))
                 self.world_surf.blit(ghost_surf, (blit_x + random.randint(-8, 8), blit_y + random.randint(-8, 8)))
                 
-                for _ in range(random.randint(2, 4)): # Fewer tears
+                for _ in range(random.randint(2, 4)): 
                     slice_y = random.randint(0, 750)
                     slice_h = random.randint(10, 25)
-                    offset_x = random.randint(-12, 12) # Smaller shifts
+                    offset_x = random.randint(-12, 12)
                     
                     strip = self.cached_ms_bg_shrunk.subsurface((0, slice_y, 800, slice_h))
                     self.world_surf.blit(strip, (blit_x + offset_x, blit_y + slice_y))
                     
-                    if random.random() < 0.3: # Less frequent scanlines
-                        # Darker, muted colors instead of pure bright neon
+                    if random.random() < 0.3: 
                         dark_neon = random.choice([(150, 0, 0), (80, 20, 20), (100, 0, 0)])
                         pygame.draw.line(self.world_surf, dark_neon, (blit_x + offset_x, blit_y + slice_y), (blit_x + offset_x + 800, blit_y + slice_y), 1)
             else:
@@ -405,11 +387,9 @@ def draw_world(self, punching, dt):
     self.popups = active_popups
                 
     
-    # --- STEP 1: Draw Mahoraga (Background Fighter Layer) ---
     if self.mahoraga and self.mahoraga.hp > 0: 
         self.mahoraga.draw_detailed(self.world_surf)
 
-    # --- STEP 2: Draw Sukuna (Middle Fighter Layer) ---
     if self.mahoraga_summon_timer > 0:
         self.shared_world_overlay.fill((0, 0, 0, 150))
         self.world_surf.blit(self.shared_world_overlay, (0,0))
@@ -429,7 +409,6 @@ def draw_world(self, punching, dt):
         eff = "summoning" if (is_summoning or is_adapting_now) else None
         self.sukuna.draw_detailed(self.world_surf, effect=eff, is_amp=(self.sukuna.amp_duration > 0))
     
-    # --- STEP 3: Draw Gojo (Foreground Fighter Layer) ---
     self.gojo.draw_detailed(self.world_surf, punching)
 
     for p in self.projectiles: p.draw(self.world_surf)
