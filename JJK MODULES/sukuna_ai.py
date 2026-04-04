@@ -112,10 +112,12 @@ def update_sukuna_ai(game, dt):
             if is_near_gojo:
                 s.dodge_cd = 40
             
+            # Threat speed logic
             threat_speed = 9 if is_near_gojo else 28
 
+            # Panic retreat exception
             can_tank_purple = not (is_purple_threat and (s.hp <= 150 or s.energy <= 300 * s.cost_mult))
-            if is_purple_threat and not can_tank_purple:
+            if is_purple_threat and not can_tank_purple and (not g.domain_active or s.domain_active):
                 if getattr(s, "panic_wall_timer", 0) > 0:
                     s.panic_wall_timer -= time_mult
                     run_dir = getattr(s, "panic_dir", 1)
@@ -159,9 +161,11 @@ def update_sukuna_ai(game, dt):
                     if s.grab_cd > 0 or g.domain_active:
                         s.amp_duration = 600; is_amp = True
 
+        # Energy consumption logic
         if is_amp: s.energy -= 0.25 * s.cost_mult * time_mult
 
-        rush_distance = 40 if g.domain_active else 110
+        # Tether distance exception
+        rush_distance = 0 if (g.domain_active and not s.domain_active) else 110
         is_draining_ce = s.energy < (s.max_energy * 0.65)
 
         # CE Vow / Flesh vow
@@ -186,9 +190,10 @@ def update_sukuna_ai(game, dt):
                 s.direction = 1 if s.rect.x > g.rect.x else -1
                 s.dodge(); s.dodge_cd = 25
 
+        # Tactical retreat exception
         needs_healing = s.hp < (s.max_hp * 0.4) and s.energy > 50 and not s.ce_exhausted
         needs_energy = s.energy < (s.max_energy * 0.3)
-        retreating = (needs_healing or needs_energy or is_tactical_eval) and not g.domain_active
+        retreating = (needs_healing or needs_energy or is_tactical_eval) and (not g.domain_active or s.domain_active)
 
         if retreating and g.grab_timer <= 0:
             if is_tactical_eval:
@@ -246,8 +251,9 @@ def update_sukuna_ai(game, dt):
 
         elif g.domain_active and not s.domain_active and g.rect.bottom < s.rect.top - 20 and s.on_ground:
             s.jump()
+        # Pursuit speed exception
         elif dist > rush_distance or g.grab_timer > 0:
-            speed = 35 if (s.ce_exhausted or g.domain_active) else (28 if (s.cleave_cd <= 0 and dist < 600 and g.grab_timer <= 0) else 9)
+            speed = 35 if (g.domain_active and not s.domain_active) else (35 if s.ce_exhausted else (28 if (s.cleave_cd <= 0 and dist < 600 and g.grab_timer <= 0) else 9))
             if g.grab_timer > 0:
                 s.rect.x += speed * s.direction * time_mult
                 if random.random() < 0.02: s.direction *= -1
