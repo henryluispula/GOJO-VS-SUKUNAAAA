@@ -131,7 +131,11 @@ def update_physics_and_grabs(game, dt):
                     game.blood_particles.append([g.rect.centerx, g.rect.centery, random.uniform(-5, 5), random.uniform(-5, 0), 30, random.randint(3, 6)])
 
             if grab_type == "amp_punch":
-                s.amp_duration = max(s.amp_duration, 10); bd = 0.2 * time_mult
+                maho_active = game.mahoraga and game.mahoraga.hp > 0
+                if not maho_active:
+                    s.amp_duration = max(s.amp_duration, 10)
+                
+                bd = 0.2 * time_mult
                 if s.energy >= 2.0 * s.cost_mult * time_mult: s.energy -= 2.0 * s.cost_mult * time_mult; bd *= 1.6
                 if g.energy > 0:
                     rm = random.uniform(0.15, 0.35); md = bd * (1.0 - rm); bd *= rm
@@ -246,7 +250,11 @@ def update_domain_clash(game, keys, gojo_can_clash, dt):
         actual_punch_threat = g.punch_timer > 0 and dist_clash < 140 and gojo_is_facing
         is_greedy = s.hp > (s.max_hp * 0.65)
         
-        if (is_purple_threat or incoming_threats or getattr(g, "grab_timer", 0) > 0 or (actual_punch_threat and not is_greedy)) and s.energy > 5:
+        maho_active = game.mahoraga and game.mahoraga.hp > 0
+        
+        if maho_active:
+            s.amp_duration = 0
+        elif (is_purple_threat or incoming_threats or getattr(g, "grab_timer", 0) > 0 or (actual_punch_threat and not is_greedy)) and s.energy > 5:
             s.amp_duration = max(s.amp_duration, 20)
         else:
             s.amp_duration = 0
