@@ -121,6 +121,10 @@ def draw_world(self, punching, dt):
 
     if is_shrunk:
         self.world_surf.blit(self.cached_shinjuku_bg, (0, 0))
+        
+        if hasattr(self, 'shared_world_overlay'):
+            self.shared_world_overlay.fill((0, 0, 0, 170)) 
+            self.world_surf.blit(self.shared_world_overlay, (0, 0))
 
     # --- DOMAIN CLASH GLITCH LOGIC ---
     draw_gojo = self.gojo.domain_active
