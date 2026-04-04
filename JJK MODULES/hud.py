@@ -80,9 +80,30 @@ def draw_hud(self, render_surf, dt):
     self.draw_bar_on(render_surf, 190, 95, self.gojo.infinity, self.gojo.max_infinity, INF_COLOR, 145, 8, "INFINITY")          
     self.draw_bar_on(render_surf, 25, 125, self.gojo.tech_hits, self.gojo.max_tech_hits, (180, 0, 255), 310, 2, "")
 
+    # SD_READY_LOGIC_GOJO
+    if not hasattr(self.gojo, "sd_trig"): setattr(self.gojo, "sd_trig", False)
+    if self.gojo.sd_broken_timer <= 0:
+        if not self.gojo.sd_trig:
+            setattr(self.gojo, "sd_fx", 25.0)
+            setattr(self.gojo, "sd_trig", True)
+    else: setattr(self.gojo, "sd_trig", False)
+    
+    fx_g = getattr(self.gojo, "sd_fx", 0)
     sd_label_g = f"SIMPLE DOMAIN (CD: {int(self.gojo.sd_broken_timer)//60 + 1}s)" if self.gojo.sd_broken_timer > 0 else "SIMPLE DOMAIN"
     sd_color_g = (0, 255, 255) if self.gojo.sd_broken_timer <= 0 else (100, 100, 100)
-    self.draw_bar_on(render_surf, 25, 145, max(0, self.gojo.max_sd_hits - self.gojo.sd_hits), self.gojo.max_sd_hits, sd_color_g, 310, 6, sd_label_g)
+    
+    # SD_FX_DRAW_GOJO
+    if fx_g > 0:
+        setattr(self.gojo, "sd_fx", fx_g - time_mult)
+        y_bnc = -8 if fx_g > 15 else 0 # CARTOON_BOUNCE
+        flash_val = min(255, int((fx_g / 25.0) * 510))
+        fx_color = (max(sd_color_g[0], flash_val), max(sd_color_g[1], flash_val), max(sd_color_g[2], flash_val))
+        self.draw_bar_on(render_surf, 25, 145 + y_bnc, max(0, self.gojo.max_sd_hits - self.gojo.sd_hits), self.gojo.max_sd_hits, fx_color, 310, 6, sd_label_g)
+        # CYAN_STREAK
+        streak_x = 25 + (310 * (1.0 - fx_g / 25.0))
+        pygame.draw.rect(render_surf, (255, 255, 255), (streak_x, 145 + y_bnc, 20, 8))
+    else:
+        self.draw_bar_on(render_surf, 25, 145, max(0, self.gojo.max_sd_hits - self.gojo.sd_hits), self.gojo.max_sd_hits, sd_color_g, 310, 6, sd_label_g)
 
     is_burned_out = self.gojo.technique_burnout > 0 and self.gojo.domain_uses >= 5
     
