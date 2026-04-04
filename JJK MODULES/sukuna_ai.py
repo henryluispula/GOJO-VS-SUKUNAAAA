@@ -65,10 +65,11 @@ def update_sukuna_ai(game, dt):
     clash_damage = getattr(game, "sukuna_hp_at_clash_start", s.hp) - s.hp
     is_losing_clash = in_clash and clash_damage > (s.max_hp * 0.35) 
 
+    # Simple Domain activation
     if (g.domain_active and not s.domain_active) or is_losing_clash:
         if s.energy > 5 * s.cost_mult and s.sd_broken_timer <= 0:
             if not getattr(s, "sd_was_active", False):
-                s.energy -= 25.0 * s.cost_mult; s.sd_hits = 0
+                s.energy -= 25.0 * s.cost_mult
             s.simple_domain_active = True; s.sd_was_active = True
             s.energy -= 1.0 * s.cost_mult * time_mult
         else:

@@ -25,9 +25,12 @@ class Game:
         self.cam_width = float(WIDTH)
         self.cam_height = float(HEIGHT)
         self.clock = pygame.time.Clock()
+        # State tracking
         self.prev_gojo_burnout = 0
         self.prev_sukuna_burnout = 0
         self.prev_world_slash_cd = 0
+        self.prev_gojo_domain = False
+        self.prev_sukuna_domain = False
         self.gojo = Fighter(200, WORLD_HEIGHT - 300, "Gojo")        
         self.font = pygame.font.SysFont("Impact", 26)
         self.mini_font = pygame.font.SysFont("Impact", 16)
@@ -375,8 +378,18 @@ class Game:
             if not hasattr(self, "ce_hud_popups"): self.ce_hud_popups = []
 
             # --- DAMAGE & CURSED ENERGY TRACKING ---
+            # Simple Domain reset logic
+            domain_ended = (self.prev_gojo_domain and not self.gojo.domain_active) or (self.prev_sukuna_domain and not self.sukuna.domain_active)
+            self.prev_gojo_domain = self.gojo.domain_active
+            self.prev_sukuna_domain = self.sukuna.domain_active
+
             for fighter in [self.gojo, self.sukuna, self.mahoraga]:
                 if fighter is not None:
+                    # Reset check
+                    if domain_ended or (getattr(fighter, "prev_sd_cd", 0) > 0 and fighter.sd_broken_timer <= 0):
+                        fighter.sd_hits = 0
+                    fighter.prev_sd_cd = fighter.sd_broken_timer
+
                     if fighter.hp < fighter.prev_hp:
                         damage = fighter.prev_hp - fighter.hp
                         is_vow_damage = getattr(fighter, "ignore_shatter_once", False)

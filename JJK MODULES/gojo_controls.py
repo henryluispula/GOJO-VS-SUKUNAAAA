@@ -11,10 +11,15 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
 
     # ── Simple Domain (Right-Click Hold) ──────────────────
     in_clash = getattr(game, "clash_phase_timer", 0) > 0
-    if mouse_click[2] and g.energy > 5 * g.cost_mult and (not g.domain_active or in_clash) and g.sd_broken_timer <= 0:
+    if g.sd_broken_timer > 0 and mouse_click[2]:
+        g.sd_wait_for_release = True
+    if not mouse_click[2]:
+        g.sd_wait_for_release = False
+    can_activate_sd = mouse_click[2] and not getattr(g, "sd_wait_for_release", False)
+    
+    if can_activate_sd and g.energy > 5 * g.cost_mult and (not g.domain_active or in_clash) and g.sd_broken_timer <= 0:
         if not getattr(g, "sd_was_active", False):
             g.energy -= 25.0 * g.cost_mult
-            g.sd_hits = 0
         g.simple_domain_active = True
         g.sd_was_active = True
         if g.domain_charge <= 0:
