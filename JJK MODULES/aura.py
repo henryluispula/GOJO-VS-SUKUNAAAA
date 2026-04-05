@@ -59,7 +59,7 @@ def draw_fighter_auras(self, surface, t, t_real):
         rct_color = (255, 255, 255)
         self.aura_surf.fill((0,0,0,0)) 
         soft_alpha = int(80 + math.sin(t_real * 25) * 30)
-        aura_w, aura_h = (120, 250) if self.name == "Mahoraga" else (70, 260)
+        aura_w, aura_h = (160, 250) if self.name == "Mahoraga" else (70, 260)
         center_x, center_y = 300, 300
         points = []
         num_segments = 20 
