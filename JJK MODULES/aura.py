@@ -20,10 +20,8 @@ def draw_fighter_auras(self, surface, t, t_real):
     if self.aura_hit_timer > 0:
         aura_color = PURPLE if self.name == "Gojo" else BLUE if self.name == "Sukuna" else MAHO_COLOR
         self.aura_surf.fill((0,0,0,0))
-        
         aura_w, aura_h = (180, 400) if self.name == "Mahoraga" else (85, 280)
         center_x, center_y = 300, 300
-        
         points = []
         num_segments = 24 
         for i in range(num_segments):
@@ -45,6 +43,10 @@ def draw_fighter_auras(self, surface, t, t_real):
             if py > self.rect.height // 2: py = self.rect.height // 2
             points.append((center_x + px, center_y + py))
 
+        for _ in range(4):
+            jitter_pts = [(p[0] + random.uniform(-3, 3), p[1] + random.uniform(-3, 3)) for p in points]
+            pygame.draw.polygon(self.aura_surf, (0, 0, 0, 200), jitter_pts, random.randint(6, 12))
+
         pygame.draw.polygon(self.aura_surf, (*aura_color, 100), points)
         for layer in range(3):
             alpha = [220, 150, 90][layer] 
@@ -54,8 +56,9 @@ def draw_fighter_auras(self, surface, t, t_real):
 
     # --- RCT MINI-AURA ---
     if self.rct_timer > 0:
-        rct_color = (0, 255, 130)
+        rct_color = (255, 255, 255)
         self.aura_surf.fill((0,0,0,0)) 
+        soft_alpha = int(80 + math.sin(t_real * 25) * 30)
         aura_w, aura_h = (120, 250) if self.name == "Mahoraga" else (70, 260)
         center_x, center_y = 300, 300
         points = []
@@ -79,9 +82,13 @@ def draw_fighter_auras(self, surface, t, t_real):
             if py > self.rect.height // 2: py = self.rect.height // 2
             points.append((center_x + px, center_y + py))
 
-        pygame.draw.polygon(self.aura_surf, (*rct_color, 100), points)
-        pygame.draw.polygon(self.aura_surf, (*rct_color, 120), points, 2)
-        pygame.draw.polygon(self.aura_surf, (15, 80, 15, 150), points, 1)
+        for _ in range(3):
+            jitter_pts = [(p[0] + random.uniform(-2, 2), p[1] + random.uniform(-2, 2)) for p in points]
+            pygame.draw.polygon(self.aura_surf, (0, 0, 0, 220), jitter_pts, random.randint(4, 8))
+
+        pygame.draw.polygon(self.aura_surf, (*rct_color, soft_alpha), points)
+        pygame.draw.polygon(self.aura_surf, (*rct_color, min(255, soft_alpha + 40)), points, 2)
+        pygame.draw.polygon(self.aura_surf, (255, 255, 255, soft_alpha), points, 1)
         surface.blit(self.aura_surf, (mid_x - 300, y + (self.rect.height // 2) - 300))
 
     # --- INFINITY AURA ---
