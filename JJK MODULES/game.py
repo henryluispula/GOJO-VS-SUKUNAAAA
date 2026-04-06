@@ -13,7 +13,12 @@ from mahoraga_ai import update_mahoraga_ai
 from projectile_logic import update_projectiles
 from renderer import draw_world
 from hud import draw_hud
-from dev_controls import handle_dev_controls
+
+try:
+    from dev_controls import handle_dev_controls
+except ImportError:
+    def handle_dev_controls(game, event):
+        pass
 
 class Game:
     # --- MAJOR FUNCTION: INITIALIZATION ---
