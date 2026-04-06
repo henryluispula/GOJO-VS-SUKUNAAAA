@@ -195,7 +195,7 @@ def update_domain_clash(game, keys, gojo_can_clash, dt):
             if game.clash_decision_timer <= 0:
                 game.clash_resolved = True
                 if getattr(g, "domain_shrunk", False) and not getattr(game, "clash_failed", False):
-                    game.clash_active_flag = True; g.stance = 700; s.stance = 700
+                    game.clash_active_flag = True; g.stance = 600; s.stance = 600
                     g.last_hp_clash = g.hp; g.last_ce_clash = g.energy
                     s.last_hp_clash = s.hp; s.last_ce_clash = s.energy
                     game.popups.append({"x": g.rect.centerx, "y": g.rect.centery - 100, "timer": 60, "text": "DOMAIN CLASH: BREAK STANCE!", "color": WHITE})

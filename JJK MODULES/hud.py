@@ -209,7 +209,7 @@ def draw_hud(self, render_surf, dt):
         pygame.draw.rect(render_surf, (0, 0, 0), (g_bar_x - 4, g_bar_y - 4, bar_w + 8, bar_h + 8), border_radius=4)
         pygame.draw.rect(render_surf, (40, 40, 40), (g_bar_x, g_bar_y, bar_w, bar_h), border_radius=2)
         g_stance = max(0, getattr(self.gojo, "stance", 300))
-        g_fill_h = int((g_stance / 700.0) * bar_h)
+        g_fill_h = int((g_stance / 600.0) * bar_h)
         if g_fill_h > 0:
             pygame.draw.rect(render_surf, (200, 200, 255), (g_bar_x, g_bar_y + bar_h - g_fill_h, bar_w, g_fill_h), border_radius=2)
 
@@ -217,7 +217,7 @@ def draw_hud(self, render_surf, dt):
         pygame.draw.rect(render_surf, (0, 0, 0), (s_bar_x - 4, g_bar_y - 4, bar_w + 8, bar_h + 8), border_radius=4)
         pygame.draw.rect(render_surf, (40, 40, 40), (s_bar_x, g_bar_y, bar_w, bar_h), border_radius=2)
         s_stance = max(0, getattr(self.sukuna, "stance", 300))
-        s_fill_h = int((s_stance / 700.0) * bar_h)
+        s_fill_h = int((s_stance / 600.0) * bar_h)
         if s_fill_h > 0:
             pygame.draw.rect(render_surf, (255, 100, 100), (s_bar_x, g_bar_y + bar_h - s_fill_h, bar_w, s_fill_h), border_radius=2)
 
