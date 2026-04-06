@@ -265,7 +265,7 @@ def update_domain_clash(game, keys, gojo_can_clash, dt):
                 game.mahoraga.adapting_to = "void"
                 game.mahoraga.adaptation_points["void"] += 1.25 * time_mult
                 m_turns = game.mahoraga.adaptation_points["void"] / 250.0
-                game.mahoraga.adaptation["void"] = max(0, 1.0 - min(1.0, m_turns / 18.0))
+                game.mahoraga.adaptation["void"] = max(0, 1.0 - min(1.0, m_turns / 14.0))
             else:
                 s.adapting_to = "void"
                 old_s_v_turns = int(s.adaptation_points["void"] // 250)
@@ -273,7 +273,7 @@ def update_domain_clash(game, keys, gojo_can_clash, dt):
                 if int(s.adaptation_points["void"] // 250) > old_s_v_turns:
                     s.adapt_pulse_timer = 30
                 s_turns = s.adaptation_points["void"] / 250.0
-                s.adaptation["void"] = max(0, 1.0 - min(1.0, s_turns / 18.0))
+                s.adaptation["void"] = max(0, 1.0 - min(1.0, s_turns / 14.0))
         else:
             s.adapting_to = None
             if maho_active: game.mahoraga.adapting_to = None

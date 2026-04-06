@@ -42,7 +42,7 @@ def update_mahoraga_ai(self, dt):
             if self.sukuna.amp_duration <= 0:
                 self.mahoraga.trigger_adaptation("infinity", 1.5 * time_mult)
                 turns = self.mahoraga.adaptation_points["infinity"] / 250.0
-                self.mahoraga.adaptation["infinity"] = min(1.0, turns / 17.0)
+                self.mahoraga.adaptation["infinity"] = min(1.0, turns / 13.0)
 
         if self.gojo.rect.colliderect(self.mahoraga.rect) and self.mahoraga.attack_cooldown <= 0:
             self.mahoraga.punch_timer = 20 

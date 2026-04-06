@@ -272,7 +272,7 @@ class Game:
                                             if int(enemy.adaptation_points["void"] // 250) > old_v_turns:
                                                 enemy.adapt_pulse_timer = 30
                                             turns = enemy.adaptation_points["void"] / 250.0
-                                            enemy.adaptation["void"] = max(0, 1.0 - min(1.0, turns / 18.0)) 
+                                            enemy.adaptation["void"] = max(0, 1.0 - min(1.0, turns / 14.0)) 
                                         else:
                                             enemy.adapting_to = None 
 
@@ -280,7 +280,7 @@ class Game:
                                     enemy.adapting_to = "void"
                                     enemy.adaptation_points["void"] += 2.0 * time_mult
                                     turns = enemy.adaptation_points["void"] / 250.0
-                                    enemy.adaptation["void"] = max(0, 1.0 - min(1.0, turns / 18.0)) 
+                                    enemy.adaptation["void"] = max(0, 1.0 - min(1.0, turns / 14.0)) 
                 else:
                     self.sukuna.is_paralyzed = False
                     if self.mahoraga: self.mahoraga.is_paralyzed = False
