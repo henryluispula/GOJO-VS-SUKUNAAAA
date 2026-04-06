@@ -259,6 +259,15 @@ def update_sukuna_ai(game, dt):
             s.jump()
         # Pursuit speed exception
         elif dist > rush_distance or g.grab_timer > 0:
+            if s.memory.get_threat("jump", dist) > 0.4 and s.on_ground:
+                if random.random() < 0.1: s.jump()
+            d_l = s.memory.get_threat("dodge_left", dist)
+            d_r = s.memory.get_threat("dodge_right", dist)
+            if (d_l > 0.4 or d_r > 0.4) and s.dodge_cd <= 0 and s.stamina >= 20:
+                s.direction = 1 if d_l > d_r else -1
+                s.dodge(); s.dodge_cd = 60
+            if s.memory.get_threat("domain", dist) > 0.3 and s.energy >= 200 * s.cost_mult and s.domain_cd <= 0:
+                s.domain_charge = 60; s.energy -= 200 * s.cost_mult
             speed = 35 if (g.domain_active and not s.domain_active) else (35 if s.ce_exhausted else (28 if (s.cleave_cd <= 0 and dist < 600 and g.grab_timer <= 0) else 9))
             if g.grab_timer > 0:
                 s.rect.x += speed * s.direction * time_mult

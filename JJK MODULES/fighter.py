@@ -12,25 +12,28 @@ class AIMemory:
     def __init__(self):
         base_dir = os.path.dirname(os.path.abspath(__file__))
         self.path = os.path.join(base_dir, "sukuna_memory.json")
-        self.patterns = {"punch": [0, 0, 0], "blue": [0, 0, 0], "red": [0, 0, 0], "purple": [0, 0, 0], "pb_blue": [0, 0, 0]}
+        self.patterns = {"punch": [0, 0, 0], "blue": [0, 0, 0], "red": [0, 0, 0], "purple": [0, 0, 0], "pb_blue": [0, 0, 0], "jump": [0, 0, 0], "dodge_left": [0, 0, 0], "dodge_right": [0, 0, 0], "domain": [0, 0, 0]}
         if os.path.exists(self.path):
             try:
-                with open(self.path, "r") as f: self.patterns = json.load(f)
+                with open(self.path, "r") as f: 
+                    loaded = json.load(f)
+                    for k in self.patterns:
+                        if k in loaded: self.patterns[k] = loaded[k]
             except: pass
     def save(self):
         with open(self.path, "w") as f: json.dump(self.patterns, f)
     def record(self, mid, dist, hit=False):
         if mid not in self.patterns: return
         d = self.patterns[mid]
-        d[0] += 1
+        d[0] += 2
         if hit: d[1] += 1
-        d[2] = (d[2] * 0.9) + (dist * 0.1)
+        d[2] = (d[2] * 0.5) + (dist * 0.5)
     def get_threat(self, mid, dist):
         d = self.patterns[mid]
-        if d[0] == 0: return 0.02
-        dr = 1.0 - min(1.0, abs(dist - d[2]) / 500)
-        uf = d[0] / max(1, sum(p[0] for p in self.patterns.values()))
-        return max(0.01, uf * dr)
+        if d[0] == 0: return 0.0
+        dr = 1.0 - min(1.0, abs(dist - d[2]) / 400)
+        uf = min(1.0, d[0] / 10.0)
+        return max(0.0, uf * dr)
 
 class Fighter:
     def __init__(self, x, y, name, color=CLOTHES):

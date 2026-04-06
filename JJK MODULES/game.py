@@ -83,6 +83,7 @@ class Game:
         self.prev_adaptations = {"blue": 1.0, "red": 1.0, "purple": 1.0, "punch": 1.0, "infinity": 0.0, "void": 1.0}
         self.maho_announcements = []
         self.prev_maho_lockout = 0
+        self.rec_flags = {"punch": False, "purple": False, "pb_blue": False, "blue": False, "red": False, "jump": False, "dodge": False, "domain": False}
 
     # --- MAJOR FUNCTION: TEXT CACHING & RENDERING ---
     def get_text(self, text, color, font=None):
@@ -208,11 +209,25 @@ class Game:
                 update_domain_boundary(self)
                 
                 m_dist = abs(self.gojo.rect.centerx - self.sukuna.rect.centerx)
-                if self.gojo.punch_timer == 19: self.sukuna.memory.record("punch", m_dist)
-                if self.gojo.purple_charge == 1: self.sukuna.memory.record("purple", m_dist)
-                if self.gojo.blue_cd == 299: self.sukuna.memory.record("pb_blue", m_dist)
-                if any(p.type == "blue_orb" and p.lifetime == 299 for p in self.projectiles): self.sukuna.memory.record("blue", m_dist)
-                if any(p.type == "red_orb" and p.lifetime == 299 for p in self.projectiles): self.sukuna.memory.record("red", m_dist)
+                g = self.gojo
+                if g.punch_timer > 18 and not self.rec_flags["punch"]: self.sukuna.memory.record("punch", m_dist); self.rec_flags["punch"] = True
+                elif g.punch_timer <= 0: self.rec_flags["punch"] = False
+                if g.purple_charge > 118 and not self.rec_flags["purple"]: self.sukuna.memory.record("purple", m_dist); self.rec_flags["purple"] = True
+                elif g.purple_charge <= 0: self.rec_flags["purple"] = False
+                if g.blue_cd > 298 and not self.rec_flags["pb_blue"]: self.sukuna.memory.record("pb_blue", m_dist); self.rec_flags["pb_blue"] = True
+                elif g.blue_cd < 290: self.rec_flags["pb_blue"] = False
+                if 58 < g.blue_cd < 60 and not self.rec_flags["blue"]: self.sukuna.memory.record("blue", m_dist); self.rec_flags["blue"] = True
+                elif g.blue_cd < 50: self.rec_flags["blue"] = False
+                if 118 < g.red_cd < 120 and not self.rec_flags["red"]: self.sukuna.memory.record("red", m_dist); self.rec_flags["red"] = True
+                elif g.red_cd < 110: self.rec_flags["red"] = False
+                if not g.on_ground and not self.rec_flags["jump"]: self.sukuna.memory.record("jump", m_dist); self.rec_flags["jump"] = True
+                elif g.on_ground: self.rec_flags["jump"] = False
+                if g.is_dodging and not self.rec_flags["dodge"]:
+                    move_id = "dodge_right" if g.direction == 1 else "dodge_left"
+                    self.sukuna.memory.record(move_id, m_dist); self.rec_flags["dodge"] = True
+                elif not g.is_dodging: self.rec_flags["dodge"] = False
+                if g.domain_charge > 58 and not self.rec_flags["domain"]: self.sukuna.memory.record("domain", m_dist); self.rec_flags["domain"] = True
+                elif g.domain_charge <= 0: self.rec_flags["domain"] = False
                 gojo_can_clash = update_physics_and_grabs(self, sim_dt)
                 update_domain_clash(self, keys, gojo_can_clash, sim_dt)
 
