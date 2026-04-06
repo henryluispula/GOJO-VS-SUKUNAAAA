@@ -7,6 +7,30 @@ from aura import draw_fighter_auras
 from techniques import draw_special_techniques
 from physics import update_fighter_physics
 
+import json, os
+class AIMemory:
+    def __init__(self):
+        self.path = "sukuna_memory.json"
+        self.patterns = {"punch": [0, 0, 0], "blue": [0, 0, 0], "red": [0, 0, 0], "purple": [0, 0, 0], "pb_blue": [0, 0, 0]}
+        if os.path.exists(self.path):
+            try:
+                with open(self.path, "r") as f: self.patterns = json.load(f)
+            except: pass
+    def save(self):
+        with open(self.path, "w") as f: json.dump(self.patterns, f)
+    def record(self, mid, dist, hit=False):
+        if mid not in self.patterns: return
+        d = self.patterns[mid]
+        d[0] += 1
+        if hit: d[1] += 1
+        d[2] = (d[2] * 0.9) + (dist * 0.1)
+    def get_threat(self, mid, dist):
+        d = self.patterns[mid]
+        if d[0] == 0: return 0.02
+        dr = 1.0 - min(1.0, abs(dist - d[2]) / 500)
+        uf = d[0] / max(1, sum(p[0] for p in self.patterns.values()))
+        return max(0.01, uf * dr)
+
 class Fighter:
     def __init__(self, x, y, name, color=CLOTHES):
         if name == "Mahoraga":
@@ -111,6 +135,7 @@ class Fighter:
         self.ce_exhausted = False 
         self.anim_tick = 0   
         self.inf_hit_timer = 0    
+        if name == "Sukuna": self.memory = AIMemory()    
 
     @property
     def cost_mult(self):

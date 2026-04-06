@@ -53,7 +53,8 @@ def update_sukuna_ai(game, dt):
             if gojo_is_vulnerable: should_cast_domain = True
             elif gojo_is_hoarding: should_cast_domain = False
             elif domain_advantage and power_advantage and s.hp > s.max_hp * 0.5:
-                if random.random() < 0.01: should_cast_domain = True
+                pressure = s.memory.get_threat("purple", dist) + s.memory.get_threat("pb_blue", dist)
+                if random.random() < (0.01 + pressure): should_cast_domain = True
             elif s.hp < s.max_hp * 0.3 and random.random() < 0.005:
                 should_cast_domain = True
 
@@ -86,7 +87,8 @@ def update_sukuna_ai(game, dt):
         is_amp = s.amp_duration > 0
         purple_flying = any(p.type == "purple_orb" for p in game.projectiles)
         purple_imminent = g.purple_cd == 0 and g.tech_hits >= g.max_tech_hits
-        is_purple_threat = g.purple_charge > 0 or purple_flying or purple_imminent
+        purp_prob = s.memory.get_threat("purple", dist)
+        is_purple_threat = g.purple_charge > 0 or purple_flying or purple_imminent or (purp_prob > 0.15 and g.purple_cd <= 0)
 
         # --- CONTACT & DODGE RESTRICTION LOGIC ---
         is_touching_gojo = s.rect.colliderect(g.rect)
@@ -166,7 +168,8 @@ def update_sukuna_ai(game, dt):
         if is_amp: s.energy -= 0.25 * s.cost_mult * time_mult
 
         # Tether distance exception
-        rush_distance = 0 if (g.domain_active and not s.domain_active) else 110
+        pb_threat = s.memory.get_threat("pb_blue", dist)
+        rush_distance = 0 if (g.domain_active and not s.domain_active) else (110 + (pb_threat * 400))
         is_draining_ce = s.energy < (s.max_energy * 0.65)
 
         # CE Vow / Flesh vow
@@ -237,7 +240,9 @@ def update_sukuna_ai(game, dt):
                 s.dash_dance_timer = 20 
                 if s.on_ground: s.jump()
             else:
-                jump_chance = 0.08 if needs_energy else 0.04
+                blue_threat = s.memory.get_threat("blue", dist)
+                red_threat = s.memory.get_threat("red", dist)
+                jump_chance = max(0.04, blue_threat + red_threat) if not needs_energy else 0.12
                 if s.on_ground and random.random() < jump_chance: s.jump()
 
             s.rect.x += speed * run_dir * time_mult
@@ -264,7 +269,8 @@ def update_sukuna_ai(game, dt):
                 if s.dodge_cd <= 0 and s.stamina >= 20 and not s.stamina_exhausted and not incoming_orbs:
                     s.direction = -1 if s.rect.x > g.rect.x else 1; s.dodge(); s.dodge_cd = 25
             else:
-                if s.dodge_cd == 0 and random.random() < 0.04 and g.grab_timer <= 0:
+                p_threat = s.memory.get_threat("punch", dist)
+                if s.dodge_cd == 0 and random.random() < (0.04 + p_threat) and g.grab_timer <= 0:
                     s.direction = -1 if s.rect.x > g.rect.x else 1; s.dodge()
                     if s.on_ground: s.jump()
                     s.dodge_cd = 70

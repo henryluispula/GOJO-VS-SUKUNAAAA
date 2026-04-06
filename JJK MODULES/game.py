@@ -207,6 +207,12 @@ class Game:
                 dist, fuga_priority, gojo_has_inf = update_sukuna_ai(self, sim_dt)
                 update_domain_boundary(self)
                 
+                m_dist = abs(self.gojo.rect.centerx - self.sukuna.rect.centerx)
+                if self.gojo.punch_timer == 19: self.sukuna.memory.record("punch", m_dist)
+                if self.gojo.purple_charge == 1: self.sukuna.memory.record("purple", m_dist)
+                if self.gojo.blue_cd == 299: self.sukuna.memory.record("pb_blue", m_dist)
+                if any(p.type == "blue_orb" and p.lifetime == 299 for p in self.projectiles): self.sukuna.memory.record("blue", m_dist)
+                if any(p.type == "red_orb" and p.lifetime == 299 for p in self.projectiles): self.sukuna.memory.record("red", m_dist)
                 gojo_can_clash = update_physics_and_grabs(self, sim_dt)
                 update_domain_clash(self, keys, gojo_can_clash, sim_dt)
 
@@ -235,7 +241,7 @@ class Game:
                                     if enemy.sd_hits >= enemy.max_sd_hits: 
                                         enemy.simple_domain_active = False
                                         enemy.sd_was_active = False
-                                        enemy.sd_broken_timer = 60 
+                                        enemy.sd_broken_timer = 120 
                                         self.popups.append({"x": enemy.rect.centerx, "y": enemy.rect.centery - 100, "timer": 45, "text": "SD CRUMBLED!", "color": RED})
                                         self.shake_timer = 15
                                         enemy.is_paralyzed = True
@@ -532,5 +538,6 @@ class Game:
             
             if self.dt > 0.1:
                 self.dt = 0.1
-                
+        
+        self.sukuna.memory.save()
         pygame.quit()
