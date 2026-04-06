@@ -254,7 +254,7 @@ def update_domain_clash(game, keys, gojo_can_clash, dt):
         
         if maho_active:
             s.amp_duration = 0
-        elif (is_purple_threat or incoming_threats or getattr(g, "grab_timer", 0) > 0 or (actual_punch_threat and not is_greedy)) and s.energy > 5:
+        elif (is_purple_threat or incoming_threats or getattr(g, "grab_timer", 0) > 0 or (actual_punch_threat and not is_greedy)) and s.energy > 5 and getattr(s, "tactical_eval_timer", 0) <= 0:
             s.amp_duration = max(s.amp_duration, 20)
         else:
             s.amp_duration = 0
@@ -265,12 +265,15 @@ def update_domain_clash(game, keys, gojo_can_clash, dt):
                 game.mahoraga.adapting_to = "void"
                 game.mahoraga.adaptation_points["void"] += 1.25 * time_mult
                 m_turns = game.mahoraga.adaptation_points["void"] / 250.0
-                game.mahoraga.adaptation["void"] = max(0, 1.0 - min(1.0, m_turns / 10.0))
+                game.mahoraga.adaptation["void"] = max(0, 1.0 - min(1.0, m_turns / 18.0))
             else:
                 s.adapting_to = "void"
+                old_s_v_turns = int(s.adaptation_points["void"] // 250)
                 s.adaptation_points["void"] += 1.25 * time_mult
+                if int(s.adaptation_points["void"] // 250) > old_s_v_turns:
+                    s.adapt_pulse_timer = 30
                 s_turns = s.adaptation_points["void"] / 250.0
-                s.adaptation["void"] = max(0, 1.0 - min(1.0, s_turns / 10.0))
+                s.adaptation["void"] = max(0, 1.0 - min(1.0, s_turns / 18.0))
         else:
             s.adapting_to = None
             if maho_active: game.mahoraga.adapting_to = None

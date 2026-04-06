@@ -32,7 +32,7 @@ def update_projectiles(self, dt):
                 if p_target.name == "Mahoraga" and self.sukuna.amp_duration <= 0:
                     p_target.trigger_adaptation("blue", 1.0 * time_mult)
                     turns = p_target.adaptation_points["blue"] / 250.0
-                    p_target.adaptation["blue"] = max(0, 1.0 - min(1.0, turns / 8.0))
+                    p_target.adaptation["blue"] = max(0, 1.0 - min(1.0, turns / 16.0))
 
                 if not p_target.is_dodging:
                     if p_target.name == "Mahoraga" and p_target.adaptation["blue"] <= 0:
@@ -53,7 +53,7 @@ def update_projectiles(self, dt):
                 if p_target.name == "Mahoraga" and self.sukuna.amp_duration <= 0:
                     p_target.trigger_adaptation("blue", 2.0 * time_mult)
                     turns = p_target.adaptation_points["blue"] / 250.0
-                    p_target.adaptation["blue"] = max(0, 1.0 - min(1.0, turns / 8.0))
+                    p_target.adaptation["blue"] = max(0, 1.0 - min(1.0, turns / 16.0))
                     
                 orb_dmg = 1 * (p_target.adaptation["blue"] if p_target.name == "Mahoraga" else 1.0) * time_mult
                 
@@ -91,7 +91,7 @@ def update_projectiles(self, dt):
                 if p_target.name == "Mahoraga" and self.sukuna.amp_duration <= 0:
                     p_target.trigger_adaptation("red", 1.0 * time_mult)
                     turns = p_target.adaptation_points["red"] / 250.0
-                    p_target.adaptation["red"] = max(0, 1.0 - min(1.0, turns / 8.0))
+                    p_target.adaptation["red"] = max(0, 1.0 - min(1.0, turns / 16.0))
 
                 if not p_target.is_dodging:
                     if p_target.name == "Mahoraga" and p_target.adaptation["red"] <= 0:
@@ -112,7 +112,7 @@ def update_projectiles(self, dt):
                 if p_target.name == "Mahoraga" and self.sukuna.amp_duration <= 0:
                     p_target.trigger_adaptation("red", 2.0 * time_mult)
                     turns = p_target.adaptation_points["red"] / 250.0
-                    p_target.adaptation["red"] = max(0, 1.0 - min(1.0, turns / 8.0))
+                    p_target.adaptation["red"] = max(0, 1.0 - min(1.0, turns / 16.0))
 
                 orb_dmg = 45.0 * (p_target.adaptation["red"] if p_target.name == "Mahoraga" else 1.0) 
                 
@@ -153,7 +153,7 @@ def update_projectiles(self, dt):
                 if p_target.name == "Mahoraga" and self.sukuna.amp_duration <= 0:
                     p_target.trigger_adaptation("purple", 400.0)
                     turns = p_target.adaptation_points["purple"] / 250.0
-                    p_target.adaptation["purple"] = max(0, 1.0 - min(1.0, turns / 9.0))
+                    p_target.adaptation["purple"] = max(0, 1.0 - min(1.0, turns / 17.0))
 
             if dist_x < 80: 
                 purple_dmg = (p_target.max_hp * 1.0)

@@ -168,7 +168,7 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
                     if target.name == "Mahoraga" and game.sukuna.amp_duration <= 0:
                         target.trigger_adaptation("punch", 15.0)
                         turns = target.adaptation_points["punch"] / 250.0
-                        target.adaptation["punch"] = max(0, 1.0 - min(1.0, turns / 5.0))
+                        target.adaptation["punch"] = max(0, 1.0 - min(1.0, turns / 13.0))
             g.attack_cooldown = 12
 
         # RCT Heal (Q)
