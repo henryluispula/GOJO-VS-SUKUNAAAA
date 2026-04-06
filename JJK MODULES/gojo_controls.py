@@ -7,6 +7,7 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
     """All Gojo player controls. Returns: punching (bool)."""
     g = game.gojo
     s = game.sukuna
+    dist = abs(g.rect.centerx - s.rect.centerx)
     time_mult = dt * 60.0
 
     # ── Simple Domain (Right-Click Hold) ──────────────────
@@ -55,6 +56,7 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
             pb_blue_dmg *= reduction_mult
             s.energy = max(0, s.energy - (mitigated_dmg * 2.0) * s.cost_mult)
         s.hp -= pb_blue_dmg
+        s.memory.record("pb_blue", dist, hit=True)
         s.grab_timer = 180
         setattr(s, "grab_type", "gojo_beatdown")
         s.fuga_charge = 0; s.domain_charge = 0; s.amp_duration = 0; s.attack_cooldown = 30
@@ -92,6 +94,7 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
             pb_red_dmg *= reduction_mult
             s.energy = max(0, s.energy - (mitigated_dmg * 2.0) * s.cost_mult)
         s.hp -= pb_red_dmg
+        s.memory.record("red", dist, hit=True)
         s.attack_cooldown = 45
 
         if s.rect.centerx > g.rect.centerx:
@@ -150,6 +153,7 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
                             dmg *= random.uniform(0.6, 0.85)
                     
                     target.hp -= dmg
+                    if target.name == "Sukuna": target.memory.record("punch", dist, hit=True)
                     spark_color = (255, 0, 0) if g.black_flash_timer > 0 else WHITE
                     for _ in range(12):
                         game.hit_sparks.append([target.rect.centerx + random.randint(-15, 15),

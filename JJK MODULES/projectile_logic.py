@@ -71,6 +71,7 @@ def update_projectiles(self, dt):
                     
                 if not p_target.is_dodging:
                     p_target.hp -= orb_dmg
+                    if p_target.name == "Sukuna": p_target.memory.record("blue", dist_to_orb, hit=True)
                     if p_target.name in ["Sukuna", "Mahoraga"]: self.gojo.tech_hits = min(self.gojo.max_tech_hits, self.gojo.tech_hits + 1 * time_mult)
             
             for slash in self.projectiles:
@@ -128,6 +129,7 @@ def update_projectiles(self, dt):
                     
                 if not p_target.is_dodging:
                     p_target.hp -= orb_dmg
+                    if p_target.name == "Sukuna": p_target.memory.record("red", dist_to_orb, hit=True)
                     if p_target.name in ["Sukuna", "Mahoraga"]: 
                         self.gojo.tech_hits = min(self.gojo.max_tech_hits, self.gojo.tech_hits + 10)
                 
@@ -170,6 +172,7 @@ def update_projectiles(self, dt):
                     p_target.energy = max(0, p_target.energy - (mitigated_dmg * 8.5) * p_target.cost_mult)
                 
                 p_target.hp -= purple_dmg
+                if p_target.name == "Sukuna": p_target.memory.record("purple", dist_x, hit=True)
                 p.active = False 
     
         elif p.type == "fuga_arrow":

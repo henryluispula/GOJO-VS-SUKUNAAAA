@@ -25,15 +25,16 @@ class AIMemory:
     def record(self, mid, dist, hit=False):
         if mid not in self.patterns: return
         d = self.patterns[mid]
-        d[0] += 2
-        if hit: d[1] += 1
-        d[2] = (d[2] * 0.5) + (dist * 0.5)
+        d[0] += 3 
+        if hit: d[1] += 2 
+        d[2] = (d[2] * 0.4) + (dist * 0.6) 
     def get_threat(self, mid, dist):
         d = self.patterns[mid]
         if d[0] == 0: return 0.0
-        dr = 1.0 - min(1.0, abs(dist - d[2]) / 400)
-        uf = min(1.0, d[0] / 10.0)
-        return max(0.0, uf * dr)
+        acc = d[1] / d[0]
+        dr = 1.0 - min(1.0, abs(dist - d[2]) / 350) 
+        uf = min(1.0, d[0] / 8.0) 
+        return max(0.0, uf * dr * (0.6 + (acc * 0.4)))
 
 class Fighter:
     def __init__(self, x, y, name, color=CLOTHES):
