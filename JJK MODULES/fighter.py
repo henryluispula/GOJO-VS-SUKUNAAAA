@@ -7,11 +7,35 @@ from aura import draw_fighter_auras
 from techniques import draw_special_techniques
 from physics import update_fighter_physics
 
-import json, os
+import json, os, base64
 class AIMemory:
     def __init__(self):
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        self.path = os.path.join(base_dir, "sukuna_memory.json")
+        # Move storage to a hidden system folder
+        appdata = os.getenv('APPDATA')
+        save_dir = os.path.join(appdata, "GojoVsSukuna")
+        if not os.path.exists(save_dir): os.makedirs(save_dir)
+        self.path = os.path.join(save_dir, "system_data.bin")
+        
+        self.patterns = {"punch": [0, 0, 0], "blue": [0, 0, 0], "red": [0, 0, 0], "purple": [0, 0, 0], "pb_blue": [0, 0, 0], "jump": [0, 0, 0], "dodge_left": [0, 0, 0], "dodge_right": [0, 0, 0], "domain": [0, 0, 0]}
+        if os.path.exists(self.path):
+            try:
+                with open(self.path, "rb") as f:
+                    # Decode the scrambled data
+                    encoded_data = f.read()
+                    decoded_data = base64.b64decode(encoded_data).decode('utf-8')
+                    loaded = json.loads(decoded_data)
+                    for k in self.patterns:
+                        if k in loaded: self.patterns[k] = loaded[k]
+            except: pass
+
+    def save(self):
+        try:
+            # Scramble the JSON into Base64 gibberish
+            json_string = json.dumps(self.patterns)
+            encoded_data = base64.b64encode(json_string.encode('utf-8'))
+            with open(self.path, "wb") as f:
+                f.write(encoded_data)
+        except: pass
         self.patterns = {"punch": [0, 0, 0], "blue": [0, 0, 0], "red": [0, 0, 0], "purple": [0, 0, 0], "pb_blue": [0, 0, 0], "jump": [0, 0, 0], "dodge_left": [0, 0, 0], "dodge_right": [0, 0, 0], "domain": [0, 0, 0]}
         if os.path.exists(self.path):
             try:
