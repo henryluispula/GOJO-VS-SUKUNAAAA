@@ -2,6 +2,8 @@ import pygame # type: ignore
 import math
 import random
 import time
+import os
+import json
 
 from settings import * 
 from fighter import Fighter
@@ -89,6 +91,47 @@ class Game:
         self.maho_announcements = []
         self.prev_maho_lockout = 0
         self.rec_flags = {"punch": False, "purple": False, "pb_blue": False, "blue": False, "red": False, "jump": False, "dodge": False, "domain": False}
+        self.state = "MENU"
+        appdata = os.getenv('APPDATA')
+        self.history_path = os.path.join(appdata, "GojoVsSukuna", "history.json")
+        self.match_history = []
+        if os.path.exists(self.history_path):
+            try:
+                with open(self.history_path, "r") as f: self.match_history = json.load(f)
+            except: pass
+
+    def log_match(self, winner):
+        match_data = {"winner": winner, "date": time.strftime("%Y-%m-%d %H:%M")}
+        self.match_history.insert(0, match_data)
+        self.match_history = self.match_history[:10]
+        with open(self.history_path, "w") as f: json.dump(self.match_history, f)
+        if hasattr(self, 'sukuna'): self.sukuna.memory.save()
+
+    def draw_menu(self, surf):
+        overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 10, 180))
+        surf.blit(overlay, (0, 0))
+        title = pygame.font.SysFont("Impact", 80).render("GOJO VS SUKUNA", True, WHITE)
+        surf.blit(title, (WIDTH//2 - title.get_width()//2, 100))
+        
+        btn_rect = pygame.Rect(WIDTH//2 - 150, 300, 300, 80)
+        mouse_pos = pygame.mouse.get_pos()
+        color = (70, 70, 120) if btn_rect.collidepoint(mouse_pos) else (40, 40, 80)
+        pygame.draw.rect(surf, color, btn_rect, border_radius=10)
+        pygame.draw.rect(surf, WHITE, btn_rect, 2, border_radius=10)
+        txt = self.font.render("PLAY", True, WHITE)
+        surf.blit(txt, (btn_rect.centerx - txt.get_width()//2, btn_rect.centery - txt.get_height()//2))
+
+        y = 450
+        surf.blit(self.get_text("MATCH HISTORY (LAST 10)", (100, 150, 255), self.mini_font), (WIDTH//2 - 100, y))
+        for i, match in enumerate(self.match_history):
+            color = BLUE if match["winner"] == "Gojo" else RED
+            m_txt = self.mini_font.render(f"{match['date']} - WINNER: {match['winner'].upper()}", True, color)
+            surf.blit(m_txt, (WIDTH//2 - m_txt.get_width()//2, y + 30 + (i * 20)))
+
+        if pygame.mouse.get_pressed()[0] and btn_rect.collidepoint(mouse_pos):
+            self.state = "PLAYING"
+            time.sleep(0.2)
 
     # --- MAJOR FUNCTION: TEXT CACHING & RENDERING ---
     def get_text(self, text, color, font=None):
@@ -171,36 +214,39 @@ class Game:
             if not (keys[pygame.K_e] and keys[pygame.K_w]): self.pb_blue_ready = True
             if not (keys[pygame.K_e] and keys[pygame.K_s]): self.pb_red_ready = True
             
+            punching = False
+            time_mult = self.dt * 60.0
             # --- EVENT HANDLING & DEV OVERRIDES ---
             for event in pygame.event.get():
                 if event.type == pygame.QUIT: running = False
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_p: self.paused = not self.paused
-                    handle_dev_controls(self, event) 
-
-                if not self.game_over:
+                
+                if self.state == "PLAYING":
                     if event.type == pygame.KEYDOWN:
-                        if event.key == pygame.K_SPACE: self.gojo.jump()
-                        if event.key == pygame.K_LSHIFT or event.key == pygame.K_RSHIFT: self.gojo.dodge()                       
-                        if event.key == pygame.K_w: self.gojo_combo_buffer.append("W")
-                        if event.key == pygame.K_s: self.gojo_combo_buffer.append("S")
-                    
-                    elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                        self.gojo_combo_buffer.append("CLICK")
-                    
-                    self.gojo_combo_buffer = self.gojo_combo_buffer[-3:]
-                    
-                else:
-                    if event.type == pygame.MOUSEBUTTONDOWN:
-                        if WIDTH//2 - 100 < event.pos[0] < WIDTH//2 + 100 and HEIGHT//2 + 50 < event.pos[1] < HEIGHT//2 + 110:
-                            running = False
+                        if event.key == pygame.K_p: self.paused = not self.paused
+                        handle_dev_controls(self, event) 
+
+                    if not self.game_over:
+                        if event.type == pygame.KEYDOWN:
+                            if event.key == pygame.K_SPACE: self.gojo.jump()
+                            if event.key == pygame.K_LSHIFT or event.key == pygame.K_RSHIFT: self.gojo.dodge()                       
+                            if event.key == pygame.K_w: self.gojo_combo_buffer.append("W")
+                            if event.key == pygame.K_s: self.gojo_combo_buffer.append("S")
+                        
+                        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                            self.gojo_combo_buffer.append("CLICK")
+                        
+                        self.gojo_combo_buffer = self.gojo_combo_buffer[-3:]
+                        
+                    else:
+                        if event.type == pygame.MOUSEBUTTONDOWN:
+                            if WIDTH//2 - 100 < event.pos[0] < WIDTH//2 + 100 and HEIGHT//2 + 50 < event.pos[1] < HEIGHT//2 + 110:
+                                self.__init__()
+                                self.state = "MENU"
 
             # --- COMBAT SIMULATION & AI UPDATES ---
-            if not self.game_over and not self.paused and self.mahoraga_summon_timer <= 0:
+            if self.state == "PLAYING" and not self.game_over and not self.paused and self.mahoraga_summon_timer <= 0:
                 
-                target = self.sukuna 
-                
-                time_mult = self.dt * 60.0
+                target = self.sukuna
                 
                 # --- BLACK FLASH IMPACT PAUSE ---
                 bf_timer = getattr(self, "bf_zoom_timer", 0)
@@ -379,10 +425,13 @@ class Game:
 
                 if self.sukuna.hp <= 0:
                     self.sukuna.hp = 0
-                    if self.mahoraga and self.mahoraga.hp > 0: 
-                        self.mahoraga.hp = 0 
+                    if self.mahoraga and self.mahoraga.hp > 0: self.mahoraga.hp = 0 
+                    if not self.game_over: self.log_match("Gojo")
                     self.game_over = True
-                if self.gojo.hp <= 0: self.gojo.is_split, self.game_over = True, True
+                if self.gojo.hp <= 0: 
+                    self.gojo.is_split = True
+                    if not self.game_over: self.log_match("Sukuna")
+                    self.game_over = True
 
             # --- MAHORAGA SPAWNING EXECUTION ---
             if self.mahoraga_summon_timer > 0:
@@ -544,7 +593,11 @@ class Game:
             
             render_surf = self.render_surf 
             render_surf.blit(scaled_visible, (0, 0)) 
-            draw_hud(self, render_surf, self.dt)
+            
+            if self.state == "PLAYING":
+                draw_hud(self, render_surf, self.dt)
+            else:
+                self.draw_menu(render_surf)
 
             if getattr(self, "show_dev_hud", False) and self.sukuna:
                 y_off = 280
