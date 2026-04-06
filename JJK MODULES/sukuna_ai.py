@@ -167,9 +167,19 @@ def update_sukuna_ai(game, dt):
         # Energy consumption logic
         if is_amp: s.energy -= 0.25 * s.cost_mult * time_mult
 
-        # Tether distance exception
+        # Strategic Decision Logic
         pb_threat = s.memory.get_threat("pb_blue", dist)
-        rush_distance = 0 if (g.domain_active and not s.domain_active) else (110 + (pb_threat * 400))
+        
+        gojo_vulnerable = (g.blue_cd > 290 or g.red_cd > 110 or (g.punch_timer > 0 and dist > 120))
+        is_counter_attacking = gojo_vulnerable and s.stamina > 25 and not is_purple_threat
+        
+        if is_counter_attacking:
+            rush_distance = 0
+            if gojo_has_inf and s.energy >= 15 * s.cost_mult and s.amp_cd <= 0 and dist < 250:
+                s.amp_duration = max(s.amp_duration, 60); is_amp = True
+        else:
+            rush_distance = 0 if (g.domain_active and not s.domain_active) else (110 + (pb_threat * 400))
+            
         is_draining_ce = s.energy < (s.max_energy * 0.65)
 
         # CE Vow / Flesh vow
@@ -263,12 +273,19 @@ def update_sukuna_ai(game, dt):
                 if random.random() < 0.1: s.jump()
             d_l = s.memory.get_threat("dodge_left", dist)
             d_r = s.memory.get_threat("dodge_right", dist)
-            if (d_l > 0.4 or d_r > 0.4) and s.dodge_cd <= 0 and s.stamina >= 20:
+            if (d_l > 0.4 or d_r > 0.4) and s.dodge_cd <= 0 and s.stamina >= 20 and not is_counter_attacking:
                 s.direction = 1 if d_l > d_r else -1
                 s.dodge(); s.dodge_cd = 60
             if s.memory.get_threat("domain", dist) > 0.3 and s.energy >= 200 * s.cost_mult and s.domain_cd <= 0:
                 s.domain_charge = 60; s.energy -= 200 * s.cost_mult
-            speed = 35 if (g.domain_active and not s.domain_active) else (35 if s.ce_exhausted else (28 if (s.cleave_cd <= 0 and dist < 600 and g.grab_timer <= 0) else 9))
+            
+            if is_counter_attacking:
+                speed = 28 if (s.cleave_cd <= 0 and dist < 600) else 9
+                if dist > 150 and s.dodge_cd <= 0 and s.stamina >= 20:
+                    s.direction = -1 if s.rect.x > g.rect.x else 1
+                    s.dodge(); s.dodge_cd = 60
+            else:
+                speed = 35 if (g.domain_active and not s.domain_active) else (35 if s.ce_exhausted else (28 if (s.cleave_cd <= 0 and dist < 600 and g.grab_timer <= 0) else 9))
             if g.grab_timer > 0:
                 s.rect.x += speed * s.direction * time_mult
                 if random.random() < 0.02: s.direction *= -1
@@ -362,7 +379,14 @@ def update_sukuna_ai(game, dt):
         # Dismantle / WS offense when DA is off
         if not is_amp and s.energy > 40 * s.cost_mult and not fuga_priority and s.technique_burnout == 0 and g.grab_timer <= 0:
             if s.world_slash_unlocked and s.energy > 80 * s.cost_mult and s.world_slash_cd <= 0 and getattr(s, "world_slash_charge", 0) <= 0:
-                s.world_slash_charge = 120
+                if gojo_has_inf or is_counter_attacking or is_purple_threat:
+                    s.world_slash_charge = 120
+            elif is_counter_attacking and dist > 150 and s.dismantle_cd <= 0:
+                if gojo_has_inf:
+                    if s.world_slash_unlocked and s.world_slash_cd <= 0: s.world_slash_charge = 120
+                else:
+                    s.slash_count = 3; s.slash_type = "cleave" if dist < 250 else "dismantle"
+                    s.energy -= 10 * s.cost_mult; s.dismantle_cd = 50
             elif dist > 180 and s.dismantle_cd == 0 and not gojo_has_inf:
                 s.slash_count = 6; s.slash_type = "dismantle"
                 s.energy -= 10 * s.cost_mult; s.dismantle_cd = 40
