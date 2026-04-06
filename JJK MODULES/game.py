@@ -540,6 +540,33 @@ class Game:
             render_surf = self.render_surf 
             render_surf.blit(scaled_visible, (0, 0)) 
             draw_hud(self, render_surf, self.dt)
+
+            if getattr(self, "show_dev_hud", False) and self.sukuna:
+                y_off = 280
+                self.draw_bar_on(render_surf, WIDTH - 340, y_off, 1, 1, (20, 20, 30), 320, 280, "SUKUNA PREDICTION ENGINE")
+                dist = abs(self.gojo.rect.centerx - self.sukuna.rect.centerx)
+                
+                for i, (move, data) in enumerate(self.sukuna.memory.patterns.items()):
+                    threat = self.sukuna.memory.get_threat(move, dist)
+                    bar_y = y_off + 30 + (i * 22)
+                    color = (255, 50, 50) if threat > 0.7 else (255, 255, 100) if threat > 0.3 else (100, 255, 100)
+                    self.draw_bar_on(render_surf, WIDTH - 330, bar_y, threat, 1.0, color, 120, 12, "")
+                    
+                    acc = (data[1] / data[0] * 100) if data[0] > 0 else 0
+                    txt = f"{move.upper()}: {int(threat*100)}% (Acc: {int(acc)}% | Dist: {int(data[2])}px)"
+                    render_surf.blit(self.get_text(txt, WHITE, self.micro_font), (WIDTH - 200, bar_y - 3))
+
+                # Counter Stats
+                p_threat = self.sukuna.memory.get_threat("punch", dist)
+                pb_threat = self.sukuna.memory.get_threat("pb_blue", dist)
+                
+                rush_mod = int(pb_threat * 400)
+                dodge_mod = int(p_threat * 100)
+                
+                stats_y = y_off + 235
+                render_surf.blit(self.get_text(f"KITE DISTANCE: +{rush_mod}px", (100, 200, 255), self.micro_font), (WIDTH - 330, stats_y))
+                render_surf.blit(self.get_text(f"MELEE EVASION: +{dodge_mod}%", (255, 100, 100), self.micro_font), (WIDTH - 330, stats_y + 15))
+                render_surf.blit(self.get_text(f"CURRENT DIST: {int(dist)}px", WHITE, self.micro_font), (WIDTH - 330, stats_y + 30))
             
             self.screen.blit(render_surf, display_offset)
             pygame.display.flip()            
