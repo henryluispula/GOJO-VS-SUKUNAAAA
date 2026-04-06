@@ -10,7 +10,8 @@ from physics import update_fighter_physics
 import json, os
 class AIMemory:
     def __init__(self):
-        self.path = "sukuna_memory.json"
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        self.path = os.path.join(base_dir, "sukuna_memory.json")
         self.patterns = {"punch": [0, 0, 0], "blue": [0, 0, 0], "red": [0, 0, 0], "purple": [0, 0, 0], "pb_blue": [0, 0, 0]}
         if os.path.exists(self.path):
             try:
