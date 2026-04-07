@@ -26,7 +26,7 @@ class Game:
     # --- MAJOR FUNCTION: INITIALIZATION ---
     def __init__(self):
         pygame.init()
-        flags = pygame.DOUBLEBUF | pygame.HWSURFACE
+        flags = pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.FULLSCREEN
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT), flags)
         self.world_surf = pygame.Surface((WORLD_WIDTH, WORLD_HEIGHT)).convert()
         self.cam_width = float(WIDTH)
@@ -108,6 +108,7 @@ class Game:
         if hasattr(self, 'sukuna'): self.sukuna.memory.save()
 
     def draw_menu(self, surf):
+        pygame.mouse.set_visible(True)
         overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
         overlay.fill((0, 0, 10, 180))
         surf.blit(overlay, (0, 0))
@@ -245,7 +246,7 @@ class Game:
 
             # --- COMBAT SIMULATION & AI UPDATES ---
             if self.state == "PLAYING" and not self.game_over and not self.paused and self.mahoraga_summon_timer <= 0:
-                
+                pygame.mouse.set_visible(False)
                 target = self.sukuna
                 
                 # --- BLACK FLASH IMPACT PAUSE ---
@@ -428,10 +429,12 @@ class Game:
                     if self.mahoraga and self.mahoraga.hp > 0: self.mahoraga.hp = 0 
                     if not self.game_over: self.log_match("Gojo")
                     self.game_over = True
+                    pygame.mouse.set_visible(True)
                 if self.gojo.hp <= 0: 
                     self.gojo.is_split = True
                     if not self.game_over: self.log_match("Sukuna")
                     self.game_over = True
+                    pygame.mouse.set_visible(True)
 
             # --- MAHORAGA SPAWNING EXECUTION ---
             if self.mahoraga_summon_timer > 0:
