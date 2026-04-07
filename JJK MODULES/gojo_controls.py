@@ -120,7 +120,7 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
         if keys[pygame.K_a]: g.rect.x -= 20 * time_mult; g.direction = -1
         if keys[pygame.K_d]: g.rect.x += 20 * time_mult; g.direction = 1
 
-        if mouse_click[0] and g.attack_cooldown <= 0:
+        if mouse_click[0] and not getattr(g, "mouse_held", False) and g.attack_cooldown <= 0:
             punching = True
             g.punch_timer = 20
             g.punch_count += 1
@@ -239,4 +239,5 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
             g.domain_cd = 3000; g.infinity = g.max_infinity
             game.shake_timer = 30
 
+    g.mouse_held = mouse_click[0]
     return punching

@@ -283,7 +283,7 @@ def update_sukuna_ai(game, dt):
                 speed = 28 if (s.cleave_cd <= 0 and dist < 600) else 9
                 if dist > 150 and s.dodge_cd <= 0 and s.stamina >= 20:
                     s.direction = -1 if s.rect.x > g.rect.x else 1
-                    s.dodge(); s.dodge_cd = 40
+                    s.dodge(); s.dodge_cd = 60
             else:
                 speed = 35 if (g.domain_active and not s.domain_active) else (35 if s.ce_exhausted else (28 if (s.cleave_cd <= 0 and dist < 600 and g.grab_timer <= 0) else 9))
             if g.grab_timer > 0:
