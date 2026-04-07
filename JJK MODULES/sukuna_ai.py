@@ -283,7 +283,7 @@ def update_sukuna_ai(game, dt):
                 speed = 28 if (s.cleave_cd <= 0 and dist < 600) else 9
                 if dist > 150 and s.dodge_cd <= 0 and s.stamina >= 20:
                     s.direction = -1 if s.rect.x > g.rect.x else 1
-                    s.dodge(); s.dodge_cd = 60
+                    s.dodge(); s.dodge_cd = 40
             else:
                 speed = 35 if (g.domain_active and not s.domain_active) else (35 if s.ce_exhausted else (28 if (s.cleave_cd <= 0 and dist < 600 and g.grab_timer <= 0) else 9))
             if g.grab_timer > 0:
@@ -307,11 +307,11 @@ def update_sukuna_ai(game, dt):
             if s.tech_hits >= s.max_tech_hits:
                 vow_hp_cost = s.max_hp * 0.50
                 can_survive_vow = s.hp > (vow_hp_cost + 20)
-                gojo_is_vulnerable = g.infinity <= 0 or g.technique_burnout > 0 or g.ce_exhausted
-                is_guaranteed_kill = g.hp < 150 and gojo_is_vulnerable
+                gojo_is_vulnerable_fuga = g.infinity <= 0 or g.technique_burnout > 0 or g.ce_exhausted
+                is_guaranteed_kill = g.hp < 150 and gojo_is_vulnerable_fuga
                 gojo_is_tanky = g.hp > g.max_hp * 0.7 and g.energy > g.max_energy * 0.5 and g.infinity > 0
                 if can_survive_vow:
-                    if is_guaranteed_kill or (gojo_is_vulnerable and not gojo_is_tanky) or s.hp > s.max_hp * 0.85:
+                    if is_guaranteed_kill or (gojo_is_vulnerable_fuga and not gojo_is_tanky) or s.hp > s.max_hp * 0.85 or is_counter_attacking:
                         s.fuga_charge = 120
 
         # World Slash charge countdown
