@@ -40,7 +40,10 @@ def update_mahoraga_ai(self, dt):
         m_dist = abs(self.mahoraga.rect.centerx - self.gojo.rect.centerx)
         if m_dist < 150:
             if self.sukuna.amp_duration <= 0:
+                old_inf_turns = int(self.mahoraga.adaptation_points["infinity"] // 1000)
                 self.mahoraga.trigger_adaptation("infinity", 1.5 * time_mult)
+                if int(self.mahoraga.adaptation_points["infinity"] // 1000) > old_inf_turns:
+                    self.mahoraga.adapt_pulse_timer = 30
                 turns = self.mahoraga.adaptation_points["infinity"] / 250.0
                 self.mahoraga.adaptation["infinity"] = min(1.0, turns / 13.0)
 

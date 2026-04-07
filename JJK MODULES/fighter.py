@@ -310,11 +310,12 @@ class Fighter:
                 pts = self.adaptation_points[self.adapting_to]
                 turn_progress = (pts % 250) / 250.0
                 total_turns = int(pts // 250)
-                if total_turns > self.last_turn_count:
-                    self.last_turn_count = total_turns
+                visual_steps = total_turns // 4
+                if visual_steps > self.last_turn_count:
+                    self.last_turn_count = visual_steps
                     pygame.draw.circle(surface, WHITE, wheel_center, 60, 2)
                 
-                self.wheel_rotation = (total_turns * 45) + (turn_progress * 45)
+                self.wheel_rotation = ((total_turns + turn_progress) * 45) / 4
             
             angle_offset = math.radians(self.wheel_rotation)
             

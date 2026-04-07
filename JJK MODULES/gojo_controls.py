@@ -166,7 +166,10 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
                     target.rect.x += kb_dir * kb_dist
                     
                     if target.name == "Mahoraga" and game.sukuna.amp_duration <= 0:
+                        old_p_turns = int(target.adaptation_points["punch"] // 1000)
                         target.trigger_adaptation("punch", 15.0)
+                        if int(target.adaptation_points["punch"] // 1000) > old_p_turns:
+                            target.adapt_pulse_timer = 30
                         turns = target.adaptation_points["punch"] / 250.0
                         target.adaptation["punch"] = max(0, 1.0 - min(1.0, turns / 9.0))
             g.attack_cooldown = 12

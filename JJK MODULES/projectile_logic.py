@@ -30,7 +30,10 @@ def update_projectiles(self, dt):
         if p.type == "blue_orb":
             if dist_to_orb < 1000:
                 if p_target.name == "Mahoraga" and self.sukuna.amp_duration <= 0:
+                    old_b_turns = int(p_target.adaptation_points["blue"] // 1000)
                     p_target.trigger_adaptation("blue", 1.0 * time_mult)
+                    if int(p_target.adaptation_points["blue"] // 1000) > old_b_turns:
+                        p_target.adapt_pulse_timer = 30
                     turns = p_target.adaptation_points["blue"] / 250.0
                     p_target.adaptation["blue"] = max(0, 1.0 - min(1.0, turns / 12.0))
 
@@ -90,7 +93,10 @@ def update_projectiles(self, dt):
         elif p.type == "red_orb":
             if dist_to_orb < 600:
                 if p_target.name == "Mahoraga" and self.sukuna.amp_duration <= 0:
+                    old_r_turns = int(p_target.adaptation_points["red"] // 1000)
                     p_target.trigger_adaptation("red", 1.0 * time_mult)
+                    if int(p_target.adaptation_points["red"] // 1000) > old_r_turns:
+                        p_target.adapt_pulse_timer = 30
                     turns = p_target.adaptation_points["red"] / 250.0
                     p_target.adaptation["red"] = max(0, 1.0 - min(1.0, turns / 12.0))
 
@@ -153,7 +159,10 @@ def update_projectiles(self, dt):
             dist_x = abs(p_target.rect.centerx - p.pos.x)
             if dist_x < 180: 
                 if p_target.name == "Mahoraga" and self.sukuna.amp_duration <= 0:
+                    old_pu_turns = int(p_target.adaptation_points["purple"] // 1000)
                     p_target.trigger_adaptation("purple", 400.0)
+                    if int(p_target.adaptation_points["purple"] // 1000) > old_pu_turns:
+                        p_target.adapt_pulse_timer = 30
                     turns = p_target.adaptation_points["purple"] / 250.0
                     p_target.adaptation["purple"] = max(0, 1.0 - min(1.0, turns / 13.0))
 

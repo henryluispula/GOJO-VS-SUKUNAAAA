@@ -340,9 +340,9 @@ class Game:
                                     if self.mahoraga is None or self.mahoraga.hp <= 0:
                                         if not getattr(enemy, "mahoraga_is_dead", False):
                                             enemy.adapting_to = "void"
-                                            old_v_turns = int(enemy.adaptation_points["void"] // 250)
+                                            old_v_turns = int(enemy.adaptation_points["void"] // 1000)
                                             enemy.adaptation_points["void"] += 2.0 * time_mult
-                                            if int(enemy.adaptation_points["void"] // 250) > old_v_turns:
+                                            if int(enemy.adaptation_points["void"] // 1000) > old_v_turns:
                                                 enemy.adapt_pulse_timer = 30
                                             turns = enemy.adaptation_points["void"] / 250.0
                                             enemy.adaptation["void"] = max(0, 1.0 - min(1.0, turns / 14.0)) 
@@ -351,7 +351,11 @@ class Game:
 
                                 if enemy.name == "Mahoraga" and self.sukuna.amp_duration <= 0:
                                     enemy.adapting_to = "void"
+                                    # Syncing Mahoraga's wheel pulse to the 4-turn click
+                                    old_v_turns = int(enemy.adaptation_points["void"] // 1000)
                                     enemy.adaptation_points["void"] += 2.0 * time_mult
+                                    if int(enemy.adaptation_points["void"] // 1000) > old_v_turns:
+                                        enemy.adapt_pulse_timer = 30
                                     turns = enemy.adaptation_points["void"] / 250.0
                                     enemy.adaptation["void"] = max(0, 1.0 - min(1.0, turns / 14.0)) 
                 else:
