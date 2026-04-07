@@ -125,84 +125,84 @@ def draw_hud(self, render_surf, dt):
     render_surf.blit(self.get_text(p_label, p_color, font=self.mini_font), (180, 170)) 
     render_surf.blit(self.get_text(f"{d_cd} | {use_txt}", WHITE, font=self.mini_font), (25, 190))
 
-    if self.mahoraga and self.mahoraga.hp > 0:
-        render_surf.blit(self.sukuna_hud_bg_maho, (WIDTH - 350, 10))
-    else:
-        render_surf.blit(self.sukuna_hud_bg_normal, (WIDTH - 350, 10))
+    # if self.mahoraga and self.mahoraga.hp > 0:
+    #     render_surf.blit(self.sukuna_hud_bg_maho, (WIDTH - 350, 10))
+    # else:
+    #     render_surf.blit(self.sukuna_hud_bg_normal, (WIDTH - 350, 10))
     
-    s_label = self.get_text("RYOMEN SUKUNA", (255, 100, 100))
-    render_surf.blit(s_label, (WIDTH - 335, 15))
-    if self.sukuna.potential_timer > 0:
-        render_surf.blit(self.get_text("120% POT", (255, 215, 0), font=self.mini_font), (WIDTH - 100, 20))
+    # s_label = self.get_text("RYOMEN SUKUNA", (255, 100, 100))
+    # render_surf.blit(s_label, (WIDTH - 335, 15))
+    # if self.sukuna.potential_timer > 0:
+    #     render_surf.blit(self.get_text("120% POT", (255, 215, 0), font=self.mini_font), (WIDTH - 100, 20))
 
-    self.draw_bar_on(render_surf, WIDTH - 335, 60, self.sukuna.hp, self.sukuna.max_hp, RED, 310, 10, "HEALTH")
-    self.draw_bar_on(render_surf, WIDTH - 335, 95, self.sukuna.energy, self.sukuna.max_energy, BLUE, 310, 8, "CURSE ENERGY")
+    # self.draw_bar_on(render_surf, WIDTH - 335, 60, self.sukuna.hp, self.sukuna.max_hp, RED, 310, 10, "HEALTH")
+    # self.draw_bar_on(render_surf, WIDTH - 335, 95, self.sukuna.energy, self.sukuna.max_energy, BLUE, 310, 8, "CURSE ENERGY")
 
-    sd_label_s = f"SIMPLE DOMAIN (CD: {int(self.sukuna.sd_broken_timer)//60 + 1}s)" if self.sukuna.sd_broken_timer > 0 else "SIMPLE DOMAIN"
-    sd_color_s = (0, 255, 255) if self.sukuna.sd_broken_timer <= 0 else (100, 100, 100)
-    self.draw_bar_on(render_surf, WIDTH - 335, 145, max(0, self.sukuna.max_sd_hits - self.sukuna.sd_hits), self.sukuna.max_sd_hits, sd_color_s, 310, 6, sd_label_s)
+    # sd_label_s = f"SIMPLE DOMAIN (CD: {int(self.sukuna.sd_broken_timer)//60 + 1}s)" if self.sukuna.sd_broken_timer > 0 else "SIMPLE DOMAIN"
+    # sd_color_s = (0, 255, 255) if self.sukuna.sd_broken_timer <= 0 else (100, 100, 100)
+    # self.draw_bar_on(render_surf, WIDTH - 335, 145, max(0, self.sukuna.max_sd_hits - self.sukuna.sd_hits), self.sukuna.max_sd_hits, sd_color_s, 310, 6, sd_label_s)
 
-    sukuna_is_burned_out = self.sukuna.technique_burnout > 0 and self.sukuna.domain_uses >= 5
+    # sukuna_is_burned_out = self.sukuna.technique_burnout > 0 and self.sukuna.domain_uses >= 5
     
-    is_da_locked_out = getattr(self.sukuna, "tactical_eval_timer", 0) > 0
-    if self.sukuna.amp_duration > 0:
-        da_status = "ACT"
-    elif is_da_locked_out:
-        da_status = f"{int(self.sukuna.amp_cd) // 60}s"
-    else:
-        da_status = "RDY"
-    da_cd = f"DOMAIN AMP: {da_status}"
+    # is_da_locked_out = getattr(self.sukuna, "tactical_eval_timer", 0) > 0
+    # if self.sukuna.amp_duration > 0:
+    #     da_status = "ACT"
+    # elif is_da_locked_out:
+    #     da_status = f"{int(self.sukuna.amp_cd) // 60}s"
+    # else:
+    #     da_status = "RDY"
+    # da_cd = f"DOMAIN AMP: {da_status}"
     
-    di_cd = f"DISMANTLE: {'BRN' if sukuna_is_burned_out else 'RDY' if self.sukuna.dismantle_cd <= 0 else str(int(self.sukuna.dismantle_cd)//60)+'s'}"
-    cl_cd = f"CLEAVE: {'BRN' if sukuna_is_burned_out else 'RDY' if self.sukuna.cleave_cd <= 0 else str(int(self.sukuna.cleave_cd)//60)+'s'}"
+    # di_cd = f"DISMANTLE: {'BRN' if sukuna_is_burned_out else 'RDY' if self.sukuna.dismantle_cd <= 0 else str(int(self.sukuna.dismantle_cd)//60)+'s'}"
+    # cl_cd = f"CLEAVE: {'BRN' if sukuna_is_burned_out else 'RDY' if self.sukuna.cleave_cd <= 0 else str(int(self.sukuna.cleave_cd)//60)+'s'}"
     
-    fu_status = "BURN" if sukuna_is_burned_out else ("RDY" if self.sukuna.fuga_cd <= 0 else f"{int(self.sukuna.fuga_cd)//60}s")
-    if self.sukuna.tech_hits < self.sukuna.max_tech_hits:
-        fu_label = f"FUGA: LOCKED ({int(self.sukuna.tech_hits)}/{self.sukuna.max_tech_hits})"
-        fu_color = (150, 150, 150) 
-    else:
-        fu_label = f"FUGA: {fu_status}"
-        fu_color = RED if sukuna_is_burned_out else (255, 150, 50)
+    # fu_status = "BURN" if sukuna_is_burned_out else ("RDY" if self.sukuna.fuga_cd <= 0 else f"{int(self.sukuna.fuga_cd)//60}s")
+    # if self.sukuna.tech_hits < self.sukuna.max_tech_hits:
+    #     fu_label = f"FUGA: LOCKED ({int(self.sukuna.tech_hits)}/{self.sukuna.max_tech_hits})"
+    #     fu_color = (150, 150, 150) 
+    # else:
+    #     fu_label = f"FUGA: {fu_status}"
+    #     fu_color = RED if sukuna_is_burned_out else (255, 150, 50)
         
-    sukuna_actual_domain_cooldown = max(self.sukuna.domain_cd, self.sukuna.technique_burnout)
-    sd_cd = f"SHRINE: {'BURN' if sukuna_is_burned_out else 'ACT' if self.sukuna.domain_active else 'RDY' if sukuna_actual_domain_cooldown<=0 else str(int(sukuna_actual_domain_cooldown)//60)+'s'}"
+    # sukuna_actual_domain_cooldown = max(self.sukuna.domain_cd, self.sukuna.technique_burnout)
+    # sd_cd = f"SHRINE: {'BURN' if sukuna_is_burned_out else 'ACT' if self.sukuna.domain_active else 'RDY' if sukuna_actual_domain_cooldown<=0 else str(int(sukuna_actual_domain_cooldown)//60)+'s'}"
 
-    da_txt = self.get_text(da_cd, (150, 220, 255), font=self.mini_font)
-    render_surf.blit(da_txt, (WIDTH - 335, 170))
+    # da_txt = self.get_text(da_cd, (150, 220, 255), font=self.mini_font)
+    # render_surf.blit(da_txt, (WIDTH - 335, 170))
     
-    slash_str = f" | {di_cd} | {cl_cd}"
-    slash_txt = self.get_text(slash_str, (255, 150, 150), font=self.mini_font)
-    render_surf.blit(slash_txt, (WIDTH - 335 + da_txt.get_width(), 170))
+    # slash_str = f" | {di_cd} | {cl_cd}"
+    # slash_txt = self.get_text(slash_str, (255, 150, 150), font=self.mini_font)
+    # render_surf.blit(slash_txt, (WIDTH - 335 + da_txt.get_width(), 170))
 
-    fu_txt = self.get_text(f"{fu_label} | ", fu_color, font=self.mini_font)
-    render_surf.blit(fu_txt, (WIDTH - 335, 190))
-    render_surf.blit(self.get_text(sd_cd, WHITE, font=self.mini_font), (WIDTH - 335 + fu_txt.get_width(), 190))
+    # fu_txt = self.get_text(f"{fu_label} | ", fu_color, font=self.mini_font)
+    # render_surf.blit(fu_txt, (WIDTH - 335, 190))
+    # render_surf.blit(self.get_text(sd_cd, WHITE, font=self.mini_font), (WIDTH - 335 + fu_txt.get_width(), 190))
 
-    if self.mahoraga and self.mahoraga.hp > 0:
-        self.draw_bar_on(render_surf, WIDTH - 335, 235, self.mahoraga.hp, self.mahoraga.max_hp, MAHO_COLOR, 310, 8, "MAHORAGA")
+    # if self.mahoraga and self.mahoraga.hp > 0:
+    #     self.draw_bar_on(render_surf, WIDTH - 335, 235, self.mahoraga.hp, self.mahoraga.max_hp, MAHO_COLOR, 310, 8, "MAHORAGA")
         
-        if self.sukuna.amp_duration > 0:
-            ad_txt = "ADAPT: PAUSED (DOMAIN AMP)"
-            ad_color = (255, 100, 100) 
-        else:
-            ad_txt = f"ADAPT: {self.mahoraga.adapting_to.upper() if self.mahoraga.adapting_to else 'NONE'}"
-            ad_color = (255, 255, 150)
+    #     if self.sukuna.amp_duration > 0:
+    #         ad_txt = "ADAPT: PAUSED (DOMAIN AMP)"
+    #         ad_color = (255, 100, 100) 
+    #     else:
+    #         ad_txt = f"ADAPT: {self.mahoraga.adapting_to.upper() if self.mahoraga.adapting_to else 'NONE'}"
+    #         ad_color = (255, 255, 150)
             
-        if self.sukuna.world_slash_unlocked: 
-            ad_txt = "WORLD SLASH BLUEPRINT ACQUIRED!"
-            ad_color = (255, 255, 150)
+    #     if self.sukuna.world_slash_unlocked: 
+    #         ad_txt = "WORLD SLASH BLUEPRINT ACQUIRED!"
+    #         ad_color = (255, 255, 150)
             
-        render_surf.blit(self.get_text(ad_txt, ad_color, font=self.mini_font), (WIDTH - 335, 250))
+    #     render_surf.blit(self.get_text(ad_txt, ad_color, font=self.mini_font), (WIDTH - 335, 250))
         
-        p_p = int((1.0 - self.mahoraga.adaptation["punch"]) * 100)
-        b_p = int((1.0 - self.mahoraga.adaptation["blue"]) * 100)
-        r_p = int((1.0 - self.mahoraga.adaptation["red"]) * 100)
-        pu_p = int((1.0 - self.mahoraga.adaptation["purple"]) * 100)
-        i_p = int(self.mahoraga.adaptation["infinity"] * 100)
-        v_p = int((1.0 - self.mahoraga.adaptation["void"]) * 100)
-        sm_txt = f"PN:{p_p}% BL:{b_p}% RD:{r_p}% PR:{pu_p}% IN:{i_p}% VD:{v_p}%"
+    #     p_p = int((1.0 - self.mahoraga.adaptation["punch"]) * 100)
+    #     b_p = int((1.0 - self.mahoraga.adaptation["blue"]) * 100)
+    #     r_p = int((1.0 - self.mahoraga.adaptation["red"]) * 100)
+    #     pu_p = int((1.0 - self.mahoraga.adaptation["purple"]) * 100)
+    #     i_p = int(self.mahoraga.adaptation["infinity"] * 100)
+    #     v_p = int((1.0 - self.mahoraga.adaptation["void"]) * 100)
+    #     sm_txt = f"PN:{p_p}% BL:{b_p}% RD:{r_p}% PR:{pu_p}% IN:{i_p}% VD:{v_p}%"
         
-        render_surf.blit(self.get_text(sm_txt, WHITE, font=self.micro_font), (WIDTH - 335, 270))
+    #     render_surf.blit(self.get_text(sm_txt, WHITE, font=self.micro_font), (WIDTH - 335, 270))
 
     if getattr(self, "clash_active_flag", False):
         g_bar_x, g_bar_y, bar_w, bar_h = 356, 10, 15, 210
@@ -224,6 +224,7 @@ def draw_hud(self, render_surf, dt):
     if hasattr(self, "ce_hud_popups"):
         active_ce_popups = []
         for cp in self.ce_hud_popups:
+            if cp.get("color") == BLUE: continue
             cp["y"] -= 1.0 * time_mult
             alpha = min(255, max(0, int(cp["timer"] * 8)))
             
@@ -320,7 +321,7 @@ def draw_hud(self, render_surf, dt):
             "[Z + V]: SHRINK DOMAIN (Mash during a Domain Clash!)",
             "",
             "--- POINT-BLANK COMBOS (Needs 0 Burnout) ---",
-            "[E + W + HOLD CLICK]: POINT-BLANK BLUE (Warped Punch BEATDOWN)",
+            "[E + W + MULTIPLE CLICKS]: POINT-BLANK BLUE (Warped Punch BEATDOWN)",
             "[E + S]: POINT-BLANK RED (Cleave Escape -> Massive Blast)",
             "   * If Burned Out, [E + S] costs 150 extra CE to do a",
             "     Brain RCT Refresh and instantly restore your technique!",
