@@ -1,4 +1,4 @@
-import pygame, random, math # type: ignore
+import pygame, random, math 
 from settings import *
 from projectile import Projectile
 

@@ -1,6 +1,6 @@
 import random
 import math
-import pygame # type: ignore
+import pygame 
 from settings import *
 
 def update_mahoraga_ai(self, dt):

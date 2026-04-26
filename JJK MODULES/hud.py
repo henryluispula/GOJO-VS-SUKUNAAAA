@@ -1,4 +1,4 @@
-import pygame # type: ignore
+import pygame 
 from settings import *
 
 def draw_hud(self, render_surf, dt):

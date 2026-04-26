@@ -1,4 +1,4 @@
-import pygame # type: ignore
+import pygame 
 
 # --- Configuration ---
 WIDTH, HEIGHT = 1280, 720

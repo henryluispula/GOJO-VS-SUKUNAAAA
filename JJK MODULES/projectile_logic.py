@@ -1,5 +1,5 @@
 import random
-import pygame # type: ignore
+import pygame 
 from settings import *
 
 def update_projectiles(self, dt):
