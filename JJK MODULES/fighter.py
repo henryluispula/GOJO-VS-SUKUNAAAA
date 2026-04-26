@@ -143,6 +143,8 @@ class Fighter:
         self.hit_stop = 0
         self.particles = []
         self.active_hitbox = None
+        self.stun_timer = 0
+        self.is_blocking = False
 
         # --- DEV OPTIONS ---
         self.dev_immortal = False
@@ -165,6 +167,7 @@ class Fighter:
         self.anim_tick = 0   
         self.inf_hit_timer = 0    
         if name == "Sukuna": self.memory = AIMemory()    
+
 
     @property
     def cost_mult(self):
@@ -233,6 +236,23 @@ class Fighter:
                 pygame.draw.line(surface, WHITE, (pt[0], pt[1] + 20), (pt[0] - self.direction * (streak_len - 15), pt[1] + 20), 2)
                 
         x, y, mid_x = self.rect.centerx - (self.rect.width // 2), self.rect.y, self.rect.centerx
+        
+        if getattr(self, "stun_timer", 0) > 0:
+            kb_offset = (self.stun_timer / 15.0) * 15 * -self.direction
+            x += kb_offset
+            mid_x += kb_offset
+
+        if self.grab_timer > 0:
+            # Subtle screen-shake style jitter to the grabbed character
+            x += random.randint(-4, 4)
+            y += random.randint(-4, 4)
+            mid_x = x + (self.rect.width // 2)
+
+        ragdoll_angle = 0
+
+
+
+
 
         if self.name == "Sukuna" and self.grab_timer > 0 and getattr(self, "grab_type", "") != "gojo_beatdown":
             arm_color = (100, 0, 0)
@@ -366,6 +386,8 @@ class Fighter:
             body_rect = [(x+5, y+20), (x+65, y+20), (x+55, y+95), (x+15, y+95)]
             
         pygame.draw.polygon(surface, self.color, body_rect)
+
+
         
         if self.name == "Mahoraga":
             pygame.draw.ellipse(surface, (190, 190, 175), (mid_x - int(15*scale), y - int(5*scale), int(30*scale), int(25*scale)))
@@ -395,7 +417,10 @@ class Fighter:
         l_hand = (x + int(5*scale), y + int(85*scale))
         r_hand = (x + w - int(5*scale), y + int(85*scale))
         
-        if self.punch_timer > 0 and not self.is_paralyzed:
+        if self.is_blocking:
+            l_hand = (x + int(w * 0.8), y + int(45*scale))
+            r_hand = (x + int(w * 0.2), y + int(45*scale))
+        elif self.punch_timer > 0 and not self.is_paralyzed and self.stun_timer <= 0:
             phase = (20 - self.punch_timer) / 20.0
             arm_ext = 60 * scale * math.sin(phase * math.pi)
             
@@ -440,12 +465,14 @@ class Fighter:
             pygame.draw.line(surface, (30, 30, 30), rot_pt(-8 * scale, 5 * scale), rot_pt(8 * scale, 5 * scale), int(4*scale))
 
         head_color = WHITE if self.name == "Mahoraga" else SKIN
-        pygame.draw.circle(surface, head_color, (mid_x, y), 30 if self.name == "Mahoraga" else 26)
+        pygame.draw.circle(surface, head_color, (int(mid_x), int(y)), 30 if self.name == "Mahoraga" else 26)
+
+
         
         if self.name == "Sukuna":
             pygame.draw.line(surface, BLACK, (mid_x - 10, y + 5), (mid_x - 5, y + 15), 2)
             pygame.draw.line(surface, BLACK, (mid_x + 10, y + 5), (mid_x + 5, y + 15), 2)
-            pygame.draw.circle(surface, BLACK, (mid_x, y + 18), 3) 
+            pygame.draw.circle(surface, BLACK, (int(mid_x), int(y + 18)), 3) 
             
         if self.name == "Mahoraga":
             pygame.draw.polygon(surface, MAHO_COLOR, [(mid_x - int(12*scale), y - int(8*scale)), (mid_x - int(48*scale), y - int(36*scale)), (mid_x - int(4*scale), y - int(14*scale))])

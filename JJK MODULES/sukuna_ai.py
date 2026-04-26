@@ -17,6 +17,16 @@ def update_sukuna_ai(game, dt):
                      and s.energy >= 195 * s.cost_mult and not g.domain_active
                      and g.domain_cd > 600 and not is_purple_threat_early) or s.fuga_charge > 0
     gojo_has_inf = g.infinity > 0 and g.technique_burnout <= 0
+    is_gojo_blocking = getattr(g, "is_blocking", False)
+    is_stunned = getattr(s, "stun_timer", 0) > 0
+    is_tactical_eval = getattr(s, "tactical_eval_timer", 0) > 0
+    is_amp = s.amp_duration > 0
+    
+    purple_flying = any(p.type == "purple_orb" for p in game.projectiles)
+    purple_imminent = g.purple_cd == 0 and g.tech_hits >= g.max_tech_hits
+    purp_prob = s.memory.get_threat("purple", dist)
+    is_purple_threat = g.purple_charge > 0 or purple_flying or purple_imminent or (purp_prob > 0.15 and g.purple_cd <= 0)
+
 
     # ── Domain Cast Decision ─────────────────────────────────────────────────
     if (s.energy >= 200 * s.cost_mult and s.domain_cd == 0 and s.technique_burnout == 0
@@ -80,15 +90,23 @@ def update_sukuna_ai(game, dt):
         s.simple_domain_active = False; s.sd_was_active = False
 
     # ── Main AI: Movement & Combat ───────────────────────────────────────────
-    if not s.is_paralyzed and s.grab_timer <= 0 and s.domain_charge == 0:
+    s.is_blocking = False
+    if not s.is_paralyzed and s.grab_timer <= 0 and s.domain_charge == 0 and not is_stunned:
         if getattr(s, "tactical_eval_timer", 0) > 0: s.tactical_eval_timer -= time_mult
         is_tactical_eval = getattr(s, "tactical_eval_timer", 0) > 0
         
-        is_amp = s.amp_duration > 0
-        purple_flying = any(p.type == "purple_orb" for p in game.projectiles)
-        purple_imminent = g.purple_cd == 0 and g.tech_hits >= g.max_tech_hits
-        purp_prob = s.memory.get_threat("purple", dist)
-        is_purple_threat = g.purple_charge > 0 or purple_flying or purple_imminent or (purp_prob > 0.15 and g.purple_cd <= 0)
+        # Pattern recognition blocking
+        p_threat = s.memory.get_threat("punch", dist)
+        is_tanking_sukuna = s.hp > s.max_hp * 0.7
+        if dist < 140 and p_threat > 0.35 and getattr(g, "punch_timer", 0) > 0 and not is_tanking_sukuna:
+            s.is_blocking = True
+            
+        # If both are blocking and Gojo isn't attacking, Sukuna should drop block to press the advantage
+        if s.is_blocking and is_gojo_blocking and getattr(g, "punch_timer", 0) <= 0:
+            s.is_blocking = False
+
+        
+
 
         # --- CONTACT & DODGE RESTRICTION LOGIC ---
         is_touching_gojo = s.rect.colliderect(g.rect)
@@ -178,7 +196,11 @@ def update_sukuna_ai(game, dt):
             if gojo_has_inf and s.energy >= 15 * s.cost_mult and s.amp_cd <= 0 and dist < 250:
                 s.amp_duration = max(s.amp_duration, 60); is_amp = True
         else:
-            rush_distance = 0 if (g.domain_active and not s.domain_active) else (110 + (pb_threat * 400))
+            if is_gojo_blocking:
+                rush_distance = 40 # Get very close for the grab
+            else:
+                rush_distance = 0 if (g.domain_active and not s.domain_active) else (110 + (pb_threat * 400))
+
             
         is_draining_ce = s.energy < (s.max_energy * 0.65)
 
@@ -344,7 +366,11 @@ def update_sukuna_ai(game, dt):
 
         # Grab / Cleave initiation
         if s.technique_burnout <= 0 and not fuga_priority and g.grab_timer <= 0:
-            if s.rect.colliderect(g.rect) and s.grab_cd <= 0:
+
+            # Prioritize grabs if Gojo is blocking!
+            grab_range = 120 if is_gojo_blocking else 100
+            if dist < grab_range and s.grab_cd <= 0:
+
                 is_burned_out = (g.domain_uses >= 5 and g.technique_burnout > 0)
                 has_infinity = g.infinity > 0 and g.energy > 0 and not is_burned_out
                 if has_infinity:
@@ -406,7 +432,9 @@ def update_sukuna_ai(game, dt):
             else: s.slash_delay -= time_mult
 
         # Melee punch
-        if dist < 120 and s.attack_cooldown <= 90 and not fuga_priority:
+        if dist < 120 and s.attack_cooldown <= 90 and not fuga_priority and not s.is_blocking:
+
+
             if s.attack_cooldown <= 0:
                 s.punch_timer = 20; s.punch_count += 1; melee_dmg = 7.5
                 imbue_cost = 2.0 * s.cost_mult
@@ -425,11 +453,29 @@ def update_sukuna_ai(game, dt):
                 if is_amp:
                     if not g.is_dodging:
                         actual_dmg = melee_dmg
+                        is_blocked = getattr(g, "is_blocking", False)
+                        is_tanking = g.hp > g.max_hp * 0.7
+                        
+                        if is_blocked:
+                            if g.stamina < 10:
+                                g.stamina = 0
+                                g.is_blocking = False
+                                is_blocked = False
+                                g.stun_timer = 40
+                                game.popups.append({"x": g.rect.centerx, "y": g.rect.centery - 60, "timer": 45, "text": "GUARD BREAK!", "color": (255, 50, 50)})
+                            else:
+                                actual_dmg *= 0.2
+                                g.stamina -= 10
+                                game.popups.append({"x": g.rect.centerx, "y": g.rect.centery - 60, "timer": 20, "text": "BLOCKED", "color": (150, 150, 255)})
+                            
                         if g.energy > 0 and not is_black_flash:
                             rm = random.uniform(0.15, 0.35); md = actual_dmg * (1.0 - rm); actual_dmg *= rm
                             g.energy = max(0, g.energy - (md * 3.5) * g.cost_mult)
                         g.hp -= actual_dmg
-                        sc = (255, 0, 0) if s.black_flash_timer > 0 else RED
+                        if not is_blocked and not is_tanking and not is_black_flash:
+                            g.stun_timer = 15
+                            
+                        sc = (150, 150, 255) if is_blocked else ((255, 0, 0) if s.black_flash_timer > 0 else RED)
                         for _ in range(12): game.hit_sparks.append([g.rect.centerx + random.randint(-15, 15), g.rect.centery - random.randint(10, 30), random.uniform(-12, 12), random.uniform(-12, 12), random.randint(15, 30), sc])
                         
                         kb_dist = 1200 if is_black_flash else 15
@@ -443,11 +489,28 @@ def update_sukuna_ai(game, dt):
                     else:
                         if not g.is_dodging:
                             actual_dmg = melee_dmg
+                            is_blocked = getattr(g, "is_blocking", False)
+                            is_tanking = g.hp > g.max_hp * 0.7
+                            if is_blocked:
+                                if g.stamina < 10:
+                                    g.stamina = 0
+                                    g.is_blocking = False
+                                    is_blocked = False
+                                    g.stun_timer = 40
+                                    game.popups.append({"x": g.rect.centerx, "y": g.rect.centery - 60, "timer": 45, "text": "GUARD BREAK!", "color": (255, 50, 50)})
+                                else:
+                                    actual_dmg *= 0.2
+                                    g.stamina -= 10
+                                    game.popups.append({"x": g.rect.centerx, "y": g.rect.centery - 60, "timer": 20, "text": "BLOCKED", "color": (150, 150, 255)})
+
                             if g.energy > 0 and not is_black_flash:
                                 rm = random.uniform(0.15, 0.35); md = actual_dmg * (1.0 - rm); actual_dmg *= rm
                                 g.energy = max(0, g.energy - (md * 3.5) * g.cost_mult)
                             g.hp -= actual_dmg
-                            sc = (255, 0, 0) if s.black_flash_timer > 0 else RED
+                            if not is_blocked and not is_tanking and not is_black_flash:
+                                g.stun_timer = 15
+                                
+                            sc = (150, 150, 255) if is_blocked else ((255, 0, 0) if s.black_flash_timer > 0 else RED)
                             for _ in range(12): game.hit_sparks.append([g.rect.centerx + random.randint(-15, 15), g.rect.centery - random.randint(10, 30), random.uniform(-12, 12), random.uniform(-12, 12), random.randint(15, 30), sc])
                             
                             kb_dist = 1200 if is_black_flash else 15

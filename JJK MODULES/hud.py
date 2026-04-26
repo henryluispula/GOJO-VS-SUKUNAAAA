@@ -76,8 +76,17 @@ def draw_hud(self, render_surf, dt):
         render_surf.blit(self.get_text("120% POT", (255, 215, 0), font=self.mini_font), (260, 20))
 
     self.draw_bar_on(render_surf, 25, 60, self.gojo.hp, self.gojo.max_hp, RED, 310, 10, "HEALTH")
+    
+    threshold_x = 25 + int(310 * 0.7)
+    pygame.draw.line(render_surf, (255, 255, 255), (threshold_x, 58), (threshold_x, 72), 2)
+    if self.gojo.hp > self.gojo.max_hp * 0.7:
+        render_surf.blit(self.get_text("TANK STUN", (200, 200, 200), font=self.mini_font), (260, 30))
+        
     self.draw_bar_on(render_surf, 25, 95, self.gojo.energy, self.gojo.max_energy, PURPLE, 145, 8, "CURSE ENERGY")
     self.draw_bar_on(render_surf, 190, 95, self.gojo.infinity, self.gojo.max_infinity, INF_COLOR, 145, 8, "INFINITY")
+    
+    stam_color = (255, 50, 50) if self.gojo.stamina < 10 else (50, 255, 100)
+    self.draw_bar_on(render_surf, 25, 120, self.gojo.stamina, getattr(self.gojo, 'max_stamina', 100.0), stam_color, 310, 6, "STAMINA")
 
     # SD_READY_LOGIC_GOJO
     if not hasattr(self.gojo, "sd_trig"): setattr(self.gojo, "sd_trig", False)
@@ -302,36 +311,89 @@ def draw_hud(self, render_surf, dt):
         self.shared_ui_overlay.fill((0, 0, 0, 200))
         render_surf.blit(self.shared_ui_overlay, (0, 0))
         
-        instr_bg = pygame.Rect(WIDTH//2 - 320, HEIGHT//2 - 250, 640, 500)
-        pygame.draw.rect(render_surf, (30, 30, 60), instr_bg, border_radius=20)
-        pygame.draw.rect(render_surf, (200, 200, 255), instr_bg, 3, border_radius=20)
+        instr_bg = pygame.Rect(WIDTH//2 - 400, HEIGHT//2 - 300, 800, 600)
+        pygame.draw.rect(render_surf, (15, 15, 25, 240), instr_bg, border_radius=20)
+        pygame.draw.rect(render_surf, (100, 100, 255), instr_bg, 2, border_radius=20)
         
-        title = self.get_text("CONTROLS & INSTRUCTIONS", (255, 255, 255))
-        render_surf.blit(title, (WIDTH//2 - title.get_width()//2, HEIGHT//2 - 230))
+        title = self.get_text("CONTROLS & INSTRUCTIONS", WHITE)
+        render_surf.blit(title, (WIDTH//2 - title.get_width()//2, HEIGHT//2 - 280))
         
-        lines = [
-            "[A/D]: Move  |  [SPACE]: Jump  |  [SHIFT]: Dodge (I-frames)",
-            "[Q]: RCT Heal (Consumes CE)  |  [CLICK]: Melee Attack",
-            "",
-            "--- SATORU GOJO: LIMITLESS ---",
-            "[W]: LAPSE BLUE (Pulls)   |  [S]: REVERSAL RED (Pushes)",
-            "[R]: HOLLOW PURPLE (Requires Max Hits - HP Wipe!)",
-            "[RIGHT CLICK HOLD]: SIMPLE DOMAIN (Counters Sure-hits)",
-            "[V]: DOMAIN EXPANSION (Ultimate Clash & Paralyze)",
-            "[Z + V]: SHRINK DOMAIN (Mash during a Domain Clash!)",
-            "",
-            "--- POINT-BLANK COMBOS (Needs 0 Burnout) ---",
-            "[E + W + MULTIPLE CLICKS]: POINT-BLANK BLUE (Warped Punch BEATDOWN)",
-            "[E + S]: POINT-BLANK RED (Cleave Escape -> Massive Blast)",
-            "   * If Burned Out, [E + S] costs 150 extra CE to do a",
-            "     Brain RCT Refresh and instantly restore your technique!",
-            "",
-            "[P]: Resume Game"
+        # Categories and their controls
+        sections = [
+            ("BASIC ACTIONS", [
+                ("[A / D]", "Move Left/Right"),
+                ("[SPACE]", "Jump / Double Jump"),
+                ("[SHIFT]", "Dodge (I-frames)"),
+                ("[F]", "BLOCK")
+            ]),
+            ("COMBAT & RECOVERY", [
+                ("[CLICK]", "Standard Melee Punch"),
+                ("[Q]", "Reverse Cursed Technique (Heal HP)")
+            ]),
+            ("SATORU GOJO: LIMITLESS", [
+                ("[W]", "LAPSE BLUE (Pull enemies in)"),
+                ("[S]", "REVERSAL RED (Push enemies away)"),
+                ("[R]", "HOLLOW PURPLE (Massive Damage - Requires Tech Hits)")
+            ]),
+            ("DOMAIN TECHNIQUES", [
+                ("[RIGHT CLICK]", "SIMPLE DOMAIN (Counters Sure-Hits)"),
+                ("[V]", "DOMAIN EXPANSION: UNLIMITED VOID"),
+                ("[Z + V]", "SHRINK DOMAIN (Mash during a Clash)")
+            ]),
+            ("ADVANCED COMBOS", [
+                ("[E + W + CLICK]", "POINT-BLANK BLUE BEATDOWN"),
+                ("[E + S]", "POINT-BLANK RED (Escape Cleave / Tech Refresh)")
+            ])
         ]
         
-        for i, line in enumerate(lines):
-            text = self.get_text(line, (200, 220, 255), font=self.mini_font)
-            render_surf.blit(text, (WIDTH//2 - 290, HEIGHT//2 - 180 + i*25))
+        start_y = HEIGHT // 2 - 220 + self.menu_scroll_y
+        
+        # Set clipping area for scrolling content
+        clip_rect = pygame.Rect(WIDTH//2 - 380, HEIGHT//2 - 230, 760, 460)
+        old_clip = render_surf.get_clip()
+        render_surf.set_clip(clip_rect)
+        
+        for section_title, controls in sections:
+            # Draw section header
+            header_txt = self.get_text(section_title, (150, 180, 255), font=self.mini_font)
+            render_surf.blit(header_txt, (WIDTH//2 - 370, start_y))
+            pygame.draw.line(render_surf, (50, 50, 100), (WIDTH//2 - 370, start_y + 25), (WIDTH//2 + 370, start_y + 25), 1)
+            start_y += 35
+            
+            for key, desc in controls:
+                key_txt = self.get_text(key, (255, 255, 100), font=self.mini_font)
+                desc_txt = self.get_text(f": {desc}", (200, 200, 200), font=self.mini_font)
+                
+                render_surf.blit(key_txt, (WIDTH//2 - 350, start_y))
+                render_surf.blit(desc_txt, (WIDTH//2 - 350 + key_txt.get_width(), start_y))
+                start_y += 28
+            
+            start_y += 15 # Gap between sections
+
+        render_surf.set_clip(old_clip)
+        
+        # Scroll bar visualization
+        content_h = 650 # Total height of content
+        view_h = 460    # Viewable area
+        if content_h > view_h:
+            bar_track_h = 460
+            bar_w = 6
+            bar_x = WIDTH//2 + 385
+            bar_y = HEIGHT//2 - 230
+            
+            # Draw track
+            pygame.draw.rect(render_surf, (30, 30, 50), (bar_x, bar_y, bar_w, bar_track_h), border_radius=3)
+            
+            # Draw handle
+            handle_h = int((view_h / content_h) * bar_track_h)
+            # Clamp scroll ratio between 0 and 1
+            max_scroll = content_h - view_h
+            scroll_ratio = max(0.0, min(1.0, -self.menu_scroll_y / max_scroll))
+            handle_y = bar_y + int(scroll_ratio * (bar_track_h - handle_h))
+            pygame.draw.rect(render_surf, (150, 150, 255), (bar_x, handle_y, bar_w, handle_h), border_radius=3)
+
+        resume_txt = self.get_text("PRESS 'P' TO RESUME", (100, 255, 100), font=self.mini_font)
+        render_surf.blit(resume_txt, (WIDTH//2 - resume_txt.get_width()//2, HEIGHT//2 + 265))
 
     if self.game_over:
         self.shared_ui_overlay.fill((0, 0, 0, 230))

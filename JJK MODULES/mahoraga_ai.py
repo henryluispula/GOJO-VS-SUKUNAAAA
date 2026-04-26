@@ -6,7 +6,10 @@ from settings import *
 def update_mahoraga_ai(self, dt):
     time_mult = dt * 60.0
     self.mahoraga.update_physics(dt)
-    if not self.mahoraga.is_paralyzed:
+    is_stunned = getattr(self.mahoraga, "stun_timer", 0) > 0
+    is_gojo_blocking = getattr(self.gojo, "is_blocking", False)
+    if not self.mahoraga.is_paralyzed and not is_stunned:
+
         ideal_x = self.gojo.rect.centerx 
         
         threats = [p for p in self.projectiles if p.type in ["blue_orb", "red_orb", "purple_orb"] and p.active]
@@ -48,6 +51,8 @@ def update_mahoraga_ai(self, dt):
                 self.mahoraga.adaptation["infinity"] = min(1.0, turns / 13.0)
 
         if self.gojo.rect.colliderect(self.mahoraga.rect) and self.mahoraga.attack_cooldown <= 0:
+
+
             self.mahoraga.punch_timer = 20 
             self.mahoraga.punch_count += 1
             base_dmg = 4.5
@@ -82,6 +87,19 @@ def update_mahoraga_ai(self, dt):
                 to_hp = base_dmg * inf_adapt_ratio
                 to_inf = base_dmg * (1.0 - inf_adapt_ratio)
                 
+                is_blocked = getattr(self.gojo, "is_blocking", False)
+                if is_blocked:
+                    if self.gojo.stamina < 10:
+                        self.gojo.stamina = 0
+                        self.gojo.is_blocking = False
+                        is_blocked = False
+                        self.gojo.stun_timer = 40
+                        self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 60, "timer": 45, "text": "GUARD BREAK!", "color": (255, 50, 50)})
+                    else:
+                        to_hp *= 0.2
+                        self.gojo.stamina -= 10
+                        self.popups.append({"x": self.gojo.rect.centerx, "y": self.gojo.rect.centery - 60, "timer": 20, "text": "BLOCKED", "color": (150, 150, 255)})
+                
                 hit_connected = False
                 if self.gojo.infinity > 0 and self.gojo.energy > 0 and self.gojo.technique_burnout <= 0:
                     self.gojo.inf_hit_timer = 20  
@@ -95,6 +113,7 @@ def update_mahoraga_ai(self, dt):
                     if to_hp > 0: hit_connected = True
                 else:
                     actual_dmg = base_dmg
+                    if is_blocked: actual_dmg *= 0.2
                     if self.gojo.energy > 0 and not is_black_flash: 
                         actual_dmg *= random.uniform(0.15, 0.35)
                         self.gojo.energy -= (base_dmg * 0.75) * 3.5 
@@ -102,8 +121,13 @@ def update_mahoraga_ai(self, dt):
                     self.gojo.hp -= actual_dmg
                     hit_connected = True
                     
+                if hit_connected and not is_blocked and not is_black_flash:
+                    is_tanking = self.gojo.hp > self.gojo.max_hp * 0.7
+                    if not is_tanking:
+                        self.gojo.stun_timer = 15
+                    
                 if hit_connected:
-                    spark_color = (255, 0, 0) if self.mahoraga.black_flash_timer > 0 else MAHO_COLOR
+                    spark_color = (150, 150, 255) if is_blocked else ((255, 0, 0) if self.mahoraga.black_flash_timer > 0 else MAHO_COLOR)
                     for _ in range(12):
                         self.hit_sparks.append([self.gojo.rect.centerx + random.randint(-15, 15), self.gojo.rect.centery - random.randint(10, 30), random.uniform(-12, 12), random.uniform(-12, 12), random.randint(15, 30), spark_color])
                     

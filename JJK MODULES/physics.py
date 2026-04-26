@@ -45,7 +45,10 @@ def update_fighter_physics(self, dt):
     if not hasattr(self, "y_remainder"): self.y_remainder = 0.0
     if not hasattr(self, "x_remainder"): self.x_remainder = 0.0
 
-    if self.is_paralyzed or self.grab_timer > 0:
+    if getattr(self, "stun_timer", 0) > 0:
+        self.stun_timer -= time_mult
+
+    if self.is_paralyzed or self.grab_timer > 0 or getattr(self, "stun_timer", 0) > 0:
         self.is_dodging = False
         self.dodge_timer = 0
         self.vel_y = 0

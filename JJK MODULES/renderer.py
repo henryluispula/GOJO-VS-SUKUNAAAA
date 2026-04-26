@@ -415,7 +415,38 @@ def draw_world(self, punching, dt):
     
     self.gojo.draw_detailed(self.world_surf, punching)
 
+    # --- GRABBED INDICATOR (Standard Style) ---
+    for f in [self.gojo, self.sukuna, self.mahoraga]:
+        if f and f.hp > 0 and f.grab_timer > 0:
+            # Match the pulsating/scaling style of other popups
+            scale_f = 1.1 + math.sin(pygame.time.get_ticks() * 0.012) * 0.1
+            
+            # Use character-specific colors for clarity
+            g_color = RED
+            if f.name == "Gojo": g_color = PURPLE
+            elif f.name == "Sukuna": g_color = BLUE
+            elif f.name == "Mahoraga": g_color = MAHO_COLOR
+
+            
+            txt = self.get_text("GRABBED!", BLACK)
+            out = self.get_text("GRABBED!", g_color)
+
+            
+            s_out = pygame.transform.scale(out, (int(out.get_width() * scale_f), int(out.get_height() * scale_f)))
+            s_txt = pygame.transform.scale(txt, (int(txt.get_width() * scale_f), int(txt.get_height() * scale_f)))
+            
+            gx, gy = f.rect.centerx, f.rect.y - 120
+            
+            # Draw shadow/outline
+            self.world_surf.blit(s_out, (gx - s_out.get_width()//2 - 3, gy - s_out.get_height()//2 - 3))
+            self.world_surf.blit(s_out, (gx - s_out.get_width()//2 + 3, gy - s_out.get_height()//2 + 3))
+            self.world_surf.blit(s_out, (gx - s_out.get_width()//2 - 3, gy - s_out.get_height()//2 + 3))
+            self.world_surf.blit(s_out, (gx - s_out.get_width()//2 + 3, gy - s_out.get_height()//2 - 3))
+            # Draw main text
+            self.world_surf.blit(s_txt, (gx - s_txt.get_width()//2, gy - s_txt.get_height()//2))
+
     for p in self.projectiles: p.draw(self.world_surf)
+
 
     active_blood = []
     if len(self.blood_particles) > 150:
@@ -429,6 +460,37 @@ def draw_world(self, punching, dt):
         if bp[4] > 0:
             active_blood.append(bp)
     self.blood_particles = active_blood
+
+    # --- SD GLASS SHARDS ---
+    active_shards = []
+    for shard in self.sd_shards:
+        # Physics
+        shard[0] += shard[2] * time_mult # x
+        shard[1] += shard[3] * time_mult # y
+        shard[3] += GRAVITY * 0.8 * time_mult # gravity
+        shard[4] -= time_mult # life
+        shard[6] += shard[2] * 2 * time_mult # rotation based on velocity
+        
+        # Drawing a triangular shard
+        angle = math.radians(shard[6])
+        size = shard[5]
+        points = [
+            (shard[0] + math.cos(angle) * size, shard[1] + math.sin(angle) * size),
+            (shard[0] + math.cos(angle + 2.1) * size, shard[1] + math.sin(angle + 2.1) * size),
+            (shard[0] + math.cos(angle + 4.2) * size, shard[1] + math.sin(angle + 4.2) * size)
+        ]
+        
+        alpha = min(255, int(shard[4] * 2))
+        shard_color = (200, 240, 255, alpha)
+        
+        # Draw on a temp surface for alpha if needed, or just use a polygon
+        pygame.draw.polygon(self.world_surf, shard_color[:3], points)
+        pygame.draw.polygon(self.world_surf, (255, 255, 255), points, 1) # Highlight
+        
+        if shard[4] > 0 and shard[1] < WORLD_HEIGHT - 80:
+            active_shards.append(shard)
+    self.sd_shards = active_shards
+
 
     active_sparks = []
     if len(self.hit_sparks) > 150:

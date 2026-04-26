@@ -78,6 +78,7 @@ class Game:
         self.projectiles = []
         self.blood_particles = [] 
         self.hit_sparks = [] 
+        self.sd_shards = [] 
         self.bf_words = [] 
         self.popups = [] 
         self.gojo_combo_buffer = [] 
@@ -92,6 +93,11 @@ class Game:
         self.prev_maho_lockout = 0
         self.rec_flags = {"punch": False, "purple": False, "pb_blue": False, "blue": False, "red": False, "jump": False, "dodge": False, "domain": False}
         self.state = "MENU"
+        self.menu_scroll_y = 0
+        self.history_scroll_y = 0
+        self.is_dragging_menu_scroll = False
+        self.is_dragging_history_scroll = False
+
         appdata = os.getenv('APPDATA')
         self.history_path = os.path.join(appdata, "GojoVsSukuna", "history.json")
         self.match_history = []
@@ -123,16 +129,46 @@ class Game:
         txt = self.font.render("PLAY", True, WHITE)
         surf.blit(txt, (btn_rect.centerx - txt.get_width()//2, btn_rect.centery - txt.get_height()//2))
 
-        y = 450
+        y = 520 # Fixed title position
         surf.blit(self.get_text("MATCH HISTORY (LAST 10)", (100, 150, 255), self.mini_font), (WIDTH//2 - 100, y))
+        
+        # Clip history area
+        history_clip = pygame.Rect(WIDTH//2 - 250, 550, 500, 180)
+        old_clip = surf.get_clip()
+        surf.set_clip(history_clip)
+        
+        # Items inside use the scroll offset
+        item_y = y + self.history_scroll_y 
         for i, match in enumerate(self.match_history):
             color = BLUE if match["winner"] == "Gojo" else RED
             m_txt = self.mini_font.render(f"{match['date']} - WINNER: {match['winner'].upper()}", True, color)
-            surf.blit(m_txt, (WIDTH//2 - m_txt.get_width()//2, y + 30 + (i * 20)))
+            surf.blit(m_txt, (WIDTH//2 - m_txt.get_width()//2, item_y + 30 + (i * 20)))
 
-        if pygame.mouse.get_pressed()[0] and btn_rect.collidepoint(mouse_pos):
-            self.state = "PLAYING"
-            time.sleep(0.2)
+            
+        surf.set_clip(old_clip)
+        
+        if len(self.match_history) > 5:
+            # Simple scroll indicator for history
+            pygame.draw.rect(surf, (30, 30, 50), (WIDTH//2 + 260, 550, 6, 180), border_radius=3)
+            handle_y = 550 + int((-self.history_scroll_y / 200) * 150)
+            pygame.draw.rect(surf, (150, 150, 255), (WIDTH//2 + 260, max(550, min(700, handle_y)), 6, 30), border_radius=3)
+
+        quit_rect = pygame.Rect(WIDTH//2 - 150, 400, 300, 60)
+
+        q_color = (120, 70, 70) if quit_rect.collidepoint(mouse_pos) else (80, 40, 40)
+        pygame.draw.rect(surf, q_color, quit_rect, border_radius=10)
+        pygame.draw.rect(surf, WHITE, quit_rect, 2, border_radius=10)
+        q_txt = self.font.render("QUIT GAME", True, WHITE)
+        surf.blit(q_txt, (quit_rect.centerx - q_txt.get_width()//2, quit_rect.centery - q_txt.get_height()//2))
+
+        if pygame.mouse.get_pressed()[0]:
+            if btn_rect.collidepoint(mouse_pos):
+                self.state = "PLAYING"
+                time.sleep(0.2)
+            elif quit_rect.collidepoint(mouse_pos):
+                pygame.quit()
+                import sys; sys.exit()
+
 
     # --- MAJOR FUNCTION: TEXT CACHING & RENDERING ---
     def get_text(self, text, color, font=None):
@@ -215,17 +251,79 @@ class Game:
             if not (keys[pygame.K_e] and keys[pygame.K_w]): self.pb_blue_ready = True
             if not (keys[pygame.K_e] and keys[pygame.K_s]): self.pb_red_ready = True
             
+            # --- SCROLL DRAGGING LOGIC ---
+            if self.state == "MENU":
+                pygame.mouse.set_visible(True)
+                if self.is_dragging_history_scroll:
+                    mouse_y = pygame.mouse.get_pos()[1]
+                    bar_y, bar_h = 550, 180
+                    rel_y = max(0, min(bar_h, mouse_y - bar_y))
+                    self.history_scroll_y = -(rel_y / bar_h) * 200 
+            
+            if self.state == "PLAYING":
+                if self.paused or self.game_over:
+                    pygame.mouse.set_visible(True)
+                else:
+                    pygame.mouse.set_visible(False)
+
+                if self.paused and self.is_dragging_menu_scroll:
+                    mouse_y = pygame.mouse.get_pos()[1]
+                    bar_y, bar_h = HEIGHT//2 - 230, 460
+                    rel_y = max(0, min(bar_h, mouse_y - bar_y))
+                    self.menu_scroll_y = -(rel_y / bar_h) * 190 
+
+
+            
             punching = False
+
             time_mult = self.dt * 60.0
             # --- EVENT HANDLING & DEV OVERRIDES ---
             for event in pygame.event.get():
                 if event.type == pygame.QUIT: running = False
                 
+                if self.state == "MENU":
+                    if event.type == pygame.MOUSEBUTTONDOWN:
+                        if event.button == 1:
+                            # History scroll bar check
+                            bar_rect = pygame.Rect(WIDTH//2 + 260, 550, 20, 180) # Larger hit box
+                            if bar_rect.collidepoint(event.pos):
+                                self.is_dragging_history_scroll = True
+                        
+                        if event.button == 4: # Scroll Up
+                            self.history_scroll_y = min(0, self.history_scroll_y + 20)
+                        elif event.button == 5: # Scroll Down
+                            self.history_scroll_y = max(-200, self.history_scroll_y - 20)
+                    
+                    if event.type == pygame.MOUSEBUTTONUP:
+                        if event.button == 1: self.is_dragging_history_scroll = False
+
                 if self.state == "PLAYING":
                     if event.type == pygame.KEYDOWN:
-                        if event.key == pygame.K_p: self.paused = not self.paused
-                        handle_dev_controls(self, event) 
 
+                        if event.key == pygame.K_p:
+                            self.paused = not self.paused
+                            self.is_dragging_menu_scroll = False
+                        handle_dev_controls(self, event) 
+                    
+                    if self.paused:
+                        if event.type == pygame.MOUSEBUTTONDOWN:
+                            if event.button == 1:
+                                # Menu scroll bar check
+                                bar_rect = pygame.Rect(WIDTH//2 + 380, HEIGHT//2 - 230, 25, 460) # Larger hit box
+                                if bar_rect.collidepoint(event.pos):
+                                    self.is_dragging_menu_scroll = True
+                            
+                            if event.button == 4: # Scroll Up
+                                self.menu_scroll_y = min(0, self.menu_scroll_y + 30)
+                            elif event.button == 5: # Scroll Down
+                                self.menu_scroll_y = max(-190, self.menu_scroll_y - 30)
+
+                        
+                        if event.type == pygame.MOUSEBUTTONUP:
+                            if event.button == 1: self.is_dragging_menu_scroll = False
+
+
+                    
                     if not self.game_over:
                         if event.type == pygame.KEYDOWN:
                             if event.key == pygame.K_SPACE: self.gojo.jump()
@@ -246,8 +344,8 @@ class Game:
 
             # --- COMBAT SIMULATION & AI UPDATES ---
             if self.state == "PLAYING" and not self.game_over and not self.paused and self.mahoraga_summon_timer <= 0:
-                pygame.mouse.set_visible(False)
                 target = self.sukuna
+
                 
                 # --- BLACK FLASH IMPACT PAUSE ---
                 bf_timer = getattr(self, "bf_zoom_timer", 0)
@@ -310,6 +408,13 @@ class Game:
                                         enemy.sd_was_active = False
                                         enemy.sd_broken_timer = 120 
                                         self.popups.append({"x": enemy.rect.centerx, "y": enemy.rect.centery - 100, "timer": 45, "text": "SD CRUMBLED!", "color": RED})
+                                        # Spawn glass shards for the 'breaking' effect
+                                        for _ in range(30):
+                                            shard_x = enemy.rect.centerx + random.randint(-80, 80)
+                                            shard_y = enemy.rect.centery + random.randint(-120, 80)
+                                            vx = random.uniform(-12, 12)
+                                            vy = random.uniform(-18, -2)
+                                            self.sd_shards.append([shard_x, shard_y, vx, vy, random.randint(80, 140), random.randint(4, 10), random.uniform(0, 360)])
                                         self.shake_timer = 15
                                         enemy.is_paralyzed = True
                                 elif is_touching_gojo:

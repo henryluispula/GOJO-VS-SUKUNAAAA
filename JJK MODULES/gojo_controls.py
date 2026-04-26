@@ -116,7 +116,14 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
 
     # ── Movement + Standard Combat ───────────────────────────────────────────
     punching = False
-    if not g.is_paralyzed and g.grab_timer <= 0 and g.domain_charge <= 0:
+    
+    if keys[pygame.K_f] and g.stamina > 0 and g.grab_timer <= 0 and not g.is_paralyzed and g.domain_charge <= 0:
+        g.is_blocking = True
+        g.stamina = max(0, g.stamina - 1.5 * time_mult)
+    else:
+        g.is_blocking = False
+
+    if not g.is_paralyzed and g.grab_timer <= 0 and g.domain_charge <= 0 and not g.is_blocking:
         if keys[pygame.K_a]: g.rect.x -= 20 * time_mult; g.direction = -1
         if keys[pygame.K_d]: g.rect.x += 20 * time_mult; g.direction = 1
 
@@ -143,6 +150,9 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
                     game.bf_words.append({"x": target.rect.centerx, "y": target.rect.centery - 60, "timer": 45})
                 
                 if not target.is_dodging:
+                    is_blocked = getattr(target, "is_blocking", False)
+                    is_tanking = False
+                    
                     if not is_black_flash:
                         if target.name == "Sukuna" and target.energy > 0:
                             reduction_mult = random.uniform(0.15, 0.35)
@@ -151,10 +161,33 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
                             target.energy = max(0, target.energy - (mitigated_dmg * 2.0) * target.cost_mult)
                         elif target.name == "Mahoraga":
                             dmg *= random.uniform(0.6, 0.85)
+                            
+                        if not is_blocked:
+                            if target.name == "Sukuna" and target.hp > target.max_hp * 0.7:
+                                is_tanking = True
+                            elif target.name == "Mahoraga" and target.adaptation["punch"] < 0.6:
+                                is_tanking = True
                     
-                    target.hp -= dmg
+                    if is_blocked:
+                        if target.stamina < 10:
+                            target.stamina = 0
+                            target.is_blocking = False
+                            is_blocked = False
+                            target.hp -= dmg
+                            target.stun_timer = 40
+                            game.popups.append({"x": target.rect.centerx, "y": target.rect.centery - 60, "timer": 45, "text": "GUARD BREAK!", "color": (255, 50, 50)})
+                        else:
+                            dmg *= 0.2
+                            target.stamina -= 10
+                            target.hp -= dmg
+                            game.popups.append({"x": target.rect.centerx, "y": target.rect.centery - 60, "timer": 20, "text": "BLOCKED", "color": (150, 150, 255)})
+                    else:
+                        target.hp -= dmg
+                        if not is_tanking and not is_black_flash:
+                            target.stun_timer = 15
+
                     if target.name == "Sukuna": target.memory.record("punch", dist, hit=True)
-                    spark_color = (255, 0, 0) if g.black_flash_timer > 0 else WHITE
+                    spark_color = (150, 150, 255) if is_blocked else ((255, 0, 0) if g.black_flash_timer > 0 else WHITE)
                     for _ in range(12):
                         game.hit_sparks.append([target.rect.centerx + random.randint(-15, 15),
                                                  target.rect.centery - random.randint(10, 30),
