@@ -136,7 +136,7 @@ def update_mahoraga_ai(self, dt):
                 kb_dist = 1200 if is_black_flash else 60
                 self.gojo.rect.x += kb_dir * kb_dist
                 
-            self.mahoraga.attack_cooldown = 12
+            self.mahoraga.attack_cooldown = 16
             
         if self.mahoraga.hp < (self.mahoraga.max_hp * 0.625) and self.mahoraga.energy > 5 * self.mahoraga.cost_mult and not self.mahoraga.ce_exhausted:
             self.mahoraga.hp = min(self.mahoraga.max_hp, self.mahoraga.hp + 1.8 * time_mult) 

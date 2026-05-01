@@ -184,7 +184,7 @@ class Fighter:
             # Punching animation 1
             {
                 "head": [-5, 20], "l_shoulder": [28, 41], "r_shoulder": [105, 97],
-                "l_elbow": [-24, 27], "r_elbow": [50, 143], "l_hand": [-33, 70], "r_hand": [-5, 190],
+                "l_elbow": [-21, 22], "r_elbow": [50, 143], "l_hand": [-38, 92], "r_hand": [-5, 190],
                 "l_foot": [30, 310], "r_foot": [110, 310],
                 "torso_top_l": [38, 26], "torso_top_r": [106, 47], "chest_l": [11, 62], "chest_r": [127, 82],
                 "waist_l": [29, 183], "waist_r": [107, 185], "torso_bottom": [27, 183]
@@ -192,7 +192,7 @@ class Fighter:
             # Punching animation 2
             {
                 "head": [-4, 13], "l_shoulder": [26, 64], "r_shoulder": [128, 34],
-                "l_elbow": [-11, 116], "r_elbow": [166, 48], "l_hand": [-43, 162], "r_hand": [154, 98],
+                "l_elbow": [-11, 116], "r_elbow": [183, 30], "l_hand": [-43, 162], "r_hand": [163, 97],
                 "l_foot": [30, 310], "r_foot": [110, 310],
                 "torso_top_l": [32, 45], "torso_top_r": [127, 19], "chest_l": [14, 94], "chest_r": [137, 72],
                 "waist_l": [27, 182], "waist_r": [113, 178], "torso_bottom": [30, 180]
@@ -441,9 +441,7 @@ class Fighter:
             poses = self.maho_punch_poses if self.name == "Mahoraga" else self.punch_poses
             
             if self.name == "Mahoraga":
-                # Mahoraga alternates between Pose 1 and Pose 2
-                # Re-added Pose 0 (Wind-up) but ONLY during the punch sequence
-                if phase < 0.3:
+                if phase < 0.12:
                     active_rig = poses[0]
                 else:
                     active_rig = poses[1] if self.punch_count % 2 == 1 else poses[2]
