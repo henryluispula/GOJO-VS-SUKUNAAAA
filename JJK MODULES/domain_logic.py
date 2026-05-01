@@ -185,15 +185,23 @@ def update_domain_clash(game, keys, gojo_can_clash, dt):
         if getattr(game, "clash_decision_timer", 0) > 0:
             game.clash_decision_timer -= time_mult
             is_sweet_spot = 1 <= game.clash_decision_timer <= 8 
+            
+            # --- AUTO-CAST CLASH POSE ON SWEET SPOT ---
+            if is_sweet_spot and not getattr(g, "domain_shrunk", False) and not getattr(game, "clash_failed", False):
+                # We can reuse the `domain_charge` flag to force fighter.py to grab the domain pose!
+                g.domain_charge = 1  
+                
             if keys[pygame.K_z] and keys[pygame.K_v] and not getattr(game, "clash_failed", False):
                 if is_sweet_spot and not getattr(g, "domain_shrunk", False):
                     g.domain_shrunk = True; game.shake_timer = 20
+                    g.domain_charge = 0 # Release pose lock
                     game.popups.append({"x": g.rect.centerx, "y": g.rect.centery - 100, "timer": 60, "text": "CRITICAL SHRINK!", "color": (0, 255, 255)})
                 elif game.clash_decision_timer > 8:
                     game.clash_failed = True
                     game.popups.append({"x": g.rect.centerx, "y": g.rect.centery - 50, "timer": 30, "text": "TOO EARLY!", "color": RED})
             if game.clash_decision_timer <= 0:
                 game.clash_resolved = True
+                g.domain_charge = 0 # Release pose lock safely if time ran out
                 if getattr(g, "domain_shrunk", False) and not getattr(game, "clash_failed", False):
                     game.clash_active_flag = True; g.stance = 600; s.stance = 600
                     g.last_hp_clash = g.hp; g.last_ce_clash = g.energy

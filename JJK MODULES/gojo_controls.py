@@ -27,7 +27,8 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
 
     # ── Domain Expansion (V) ─────────────────────────────────────────────────
     if keys[pygame.K_v] and g.domain_cd == 0 and g.technique_burnout == 0 \
-            and g.domain_charge <= 0 and not g.domain_active and g.grab_timer <= 0:
+            and g.domain_charge <= 0 and not g.domain_active and g.grab_timer <= 0 \
+            and getattr(g, "stun_timer", 0) <= 0 and getattr(g, "punch_timer", 0) <= 0 and not getattr(g, "is_blocking", False):
         if g.energy >= 190 * g.cost_mult:
             g.domain_charge = 60
             g.energy -= 190 * g.cost_mult

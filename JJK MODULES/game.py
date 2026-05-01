@@ -551,7 +551,7 @@ class Game:
                         self.sukuna.hp = min((self.sukuna.max_hp * 0.5), self.sukuna.hp + 3.5) 
                         self.sukuna.rct_timer = 5
                     
-                    if self.sukuna.energy >= 200 * self.sukuna.cost_mult and self.sukuna.domain_cd <= 0 and self.sukuna.technique_burnout <= 0 and self.sukuna.domain_charge <= 0 and not self.sukuna.domain_active and self.gojo.grab_timer <= 0 and self.mahoraga_summon_timer <= 0:
+                    if self.sukuna.energy >= 200 * self.sukuna.cost_mult and self.sukuna.domain_cd <= 0 and self.sukuna.technique_burnout <= 0 and self.sukuna.domain_charge <= 0 and not self.sukuna.domain_active and self.gojo.grab_timer <= 0 and self.mahoraga_summon_timer <= 0 and getattr(self.sukuna, "stun_timer", 0) <= 0 and getattr(self.sukuna, "punch_timer", 0) <= 0 and not getattr(self.sukuna, "is_blocking", False):
                         self.sukuna.domain_charge = 60
                         self.sukuna.energy -= 200 * self.sukuna.cost_mult
                         self.popups.append({"x": self.sukuna.rect.centerx, "y": self.sukuna.rect.centery - 100, "timer": 60, "text": "DESPERATE DOMAIN!", "color": RED})

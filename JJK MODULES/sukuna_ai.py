@@ -35,7 +35,8 @@ def update_sukuna_ai(game, dt):
     if (s.energy >= 200 * s.cost_mult and s.domain_cd == 0 and s.technique_burnout == 0
             and s.domain_charge == 0 and not s.domain_active and not s.is_paralyzed
             and g.grab_timer <= 0 and s.grab_timer <= 0 and s.attack_cooldown <= 0 
-            and game.mahoraga_summon_timer <= 0):
+            and game.mahoraga_summon_timer <= 0
+            and getattr(s, "stun_timer", 0) <= 0 and getattr(s, "punch_timer", 0) <= 0 and not getattr(s, "is_blocking", False)):
         should_cast_domain = False
         sukuna_est_power = s.hp + s.energy
         gojo_est_power = g.hp + g.energy
@@ -237,7 +238,7 @@ def update_sukuna_ai(game, dt):
         if retreating and g.grab_timer <= 0:
             if is_tactical_eval:
                 can_survive_counter = s.hp > (s.max_hp * 0.25)
-                if s.energy >= 200 * s.cost_mult and s.domain_cd <= 0 and s.technique_burnout <= 0 and not s.domain_active:
+                if s.energy >= 200 * s.cost_mult and s.domain_cd <= 0 and s.technique_burnout <= 0 and not s.domain_active and getattr(s, "stun_timer", 0) <= 0 and getattr(s, "punch_timer", 0) <= 0 and not getattr(s, "is_blocking", False):
                     s.domain_charge = 60; s.energy -= 200 * s.cost_mult
                 elif s.tech_hits >= s.max_tech_hits and s.fuga_cd <= 0 and s.energy >= 195 * s.cost_mult and s.technique_burnout <= 0 and not g.domain_active and not s.is_paralyzed and not is_purple_threat:
                     if s.hp > (s.max_hp * 0.50 + 40): s.fuga_charge = 120
@@ -249,7 +250,7 @@ def update_sukuna_ai(game, dt):
             if needs_healing and s.energy > 1000 * s.cost_mult:
                 s.energy -= 4.0 * s.cost_mult * time_mult; s.hp = min(s.max_hp, s.hp + 5.0 * time_mult); s.rct_timer = 5
 
-            if not needs_energy and not is_tactical_eval and s.energy >= 200 * s.cost_mult and s.domain_cd == 0 and s.technique_burnout == 0 and s.domain_charge == 0 and not s.domain_active and s.attack_cooldown <= 0:
+            if not needs_energy and not is_tactical_eval and s.energy >= 200 * s.cost_mult and s.domain_cd == 0 and s.technique_burnout == 0 and s.domain_charge == 0 and not s.domain_active and s.attack_cooldown <= 0 and getattr(s, "stun_timer", 0) <= 0 and getattr(s, "punch_timer", 0) <= 0 and not getattr(s, "is_blocking", False):
                 if (5 - g.domain_uses) <= (5 - s.domain_uses):
                     s.domain_charge = 60; s.energy -= 200 * s.cost_mult
 
@@ -301,7 +302,7 @@ def update_sukuna_ai(game, dt):
             if (d_l > 0.4 or d_r > 0.4) and s.dodge_cd <= 0 and s.stamina >= 20 and not is_counter_attacking:
                 s.direction = 1 if d_l > d_r else -1
                 s.dodge(); s.dodge_cd = 60
-            if s.memory.get_threat("domain", dist) > 0.3 and s.energy >= 200 * s.cost_mult and s.domain_cd <= 0:
+            if s.memory.get_threat("domain", dist) > 0.3 and s.energy >= 200 * s.cost_mult and s.domain_cd <= 0 and getattr(s, "domain_charge", 0) <= 0 and getattr(s, "stun_timer", 0) <= 0 and getattr(s, "punch_timer", 0) <= 0 and not getattr(s, "is_blocking", False):
                 s.domain_charge = 60; s.energy -= 200 * s.cost_mult
             
             if is_counter_attacking:
@@ -537,7 +538,10 @@ def update_sukuna_ai(game, dt):
         uv_adapt_percent = 1.0 - s.adaptation["void"]
         maho_available = (game.mahoraga is None and 
                           getattr(s, "mahoraga_lockout", 0) <= 0 and 
-                          game.mahoraga_summon_timer <= 0)
+                          game.mahoraga_summon_timer <= 0 and 
+                          getattr(s, "stun_timer", 0) <= 0 and 
+                          getattr(s, "punch_timer", 0) <= 0 and 
+                          not getattr(s, "is_blocking", False))
 
         # Trigger summon and log status when conditions are met
         if uv_adapt_percent >= 0.65 and maho_available:

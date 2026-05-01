@@ -186,7 +186,7 @@ class Fighter:
                 "head": [-5, 20], "l_shoulder": [28, 41], "r_shoulder": [105, 97],
                 "l_elbow": [-21, 22], "r_elbow": [50, 143], "l_hand": [-38, 92], "r_hand": [-5, 190],
                 "l_foot": [30, 310], "r_foot": [110, 310],
-                "torso_top_l": [15, 27], "torso_top_r": [106, 47], "chest_l": [-4, 80], "chest_r": [134, 75],
+                "torso_top_l": [15, 27], "torso_top_r": [106, 47], "chest_l": [7, 79], "chest_r": [134, 75],
                 "waist_l": [29, 183], "waist_r": [107, 185], "torso_bottom": [27, 183]
             },
             # Punching animation 2
