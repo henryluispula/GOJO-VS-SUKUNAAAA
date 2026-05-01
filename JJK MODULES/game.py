@@ -415,6 +415,24 @@ class Game:
                 gojo_can_clash = update_physics_and_grabs(self, sim_dt)
                 update_domain_clash(self, keys, gojo_can_clash, sim_dt)
 
+                active_fighters = [self.gojo, self.sukuna]
+                if self.mahoraga and self.mahoraga.hp > 0:
+                    active_fighters.append(self.mahoraga)
+                    
+                for victim in active_fighters:
+                    if victim.grab_timer > 0:
+                        if not getattr(victim, "grabber", None):
+                            possible_attackers = [f for f in active_fighters if f != victim]
+                            grabber = min(possible_attackers, key=lambda f: abs(f.rect.centerx - victim.rect.centerx))
+                            victim.grabber = grabber
+                            grabber.is_grabbing_attack = True
+                            grabber.punch_timer = victim.grab_timer
+                    else:
+                        if getattr(victim, "grabber", None):
+                            victim.grabber.is_grabbing_attack = False
+                            victim.grabber = None
+                        victim.is_grabbing_attack = False
+
                 if self.mahoraga and self.mahoraga.hp > 0:
                     update_mahoraga_ai(self, sim_dt) 
 

@@ -156,10 +156,10 @@ class Fighter:
         if name == "Mahoraga":
             del self.rig["torso_top"]
             del self.rig["torso_bottom"]
-            self.rig["l_shoulder"] = [20, 60]
-            self.rig["r_shoulder"] = [120, 60]
-            self.rig["l_elbow"] = [15, 110]
-            self.rig["r_elbow"] = [125, 110]
+            self.rig["l_shoulder"] = [1, 63]
+            self.rig["r_shoulder"] = [139, 63]
+            self.rig["l_elbow"] = [-1, 109]
+            self.rig["r_elbow"] = [141, 109]
             self.rig["l_hand"] = [10, 160]
             self.rig["r_hand"] = [130, 160]
             self.rig["torso_top_l"] = [10, 40]
@@ -186,7 +186,7 @@ class Fighter:
                 "head": [-5, 20], "l_shoulder": [28, 41], "r_shoulder": [105, 97],
                 "l_elbow": [-21, 22], "r_elbow": [50, 143], "l_hand": [-38, 92], "r_hand": [-5, 190],
                 "l_foot": [30, 310], "r_foot": [110, 310],
-                "torso_top_l": [38, 26], "torso_top_r": [106, 47], "chest_l": [11, 62], "chest_r": [127, 82],
+                "torso_top_l": [15, 27], "torso_top_r": [106, 47], "chest_l": [-4, 80], "chest_r": [134, 75],
                 "waist_l": [29, 183], "waist_r": [107, 185], "torso_bottom": [27, 183]
             },
             # Punching animation 2
@@ -194,7 +194,7 @@ class Fighter:
                 "head": [-4, 13], "l_shoulder": [26, 64], "r_shoulder": [128, 34],
                 "l_elbow": [-11, 116], "r_elbow": [183, 30], "l_hand": [-43, 162], "r_hand": [163, 97],
                 "l_foot": [30, 310], "r_foot": [110, 310],
-                "torso_top_l": [32, 45], "torso_top_r": [127, 19], "chest_l": [14, 94], "chest_r": [137, 72],
+                "torso_top_l": [18, 47], "torso_top_r": [127, 19], "chest_l": [4, 74], "chest_r": [131, 77],
                 "waist_l": [27, 182], "waist_r": [113, 178], "torso_bottom": [30, 180]
             }
         ]
@@ -219,6 +219,33 @@ class Fighter:
                 "torso_top": [5, 20], "torso_bottom": [15, 95], "l_foot": [15, 155], "r_foot": [55, 155]
             }
         ]
+        
+        self.grab_poses = [
+            {
+                "head": [0, 0], "l_shoulder": [11, 30], "r_shoulder": [62, 32],
+                "l_elbow": [-21, 38], "r_elbow": [82, 40], "l_hand": [15, 51], "r_hand": [108, 34],
+                "torso_top": [5, 20], "torso_bottom": [15, 95], "l_foot": [15, 155], "r_foot": [55, 155]
+            },
+            {
+                "head": [0, 0], "l_shoulder": [11, 30], "r_shoulder": [62, 32],
+                "l_elbow": [50, 29], "r_elbow": [77, 40], "l_hand": [90, 22], "r_hand": [104, 34],
+                "torso_top": [5, 20], "torso_bottom": [15, 95], "l_foot": [15, 155], "r_foot": [55, 155]
+            }
+        ]
+        
+        self.block_pose = {
+            "head": [1, -1],
+            "l_shoulder": [10, 35],
+            "r_shoulder": [60, 35],
+            "l_elbow": [24, 49],
+            "r_elbow": [45, 50],
+            "l_hand": [23, 2],
+            "r_hand": [46, 2],
+            "torso_top": [5, 20],
+            "torso_bottom": [15, 95],
+            "l_foot": [15, 155],
+            "r_foot": [55, 155]
+        }
         
         # --- REFACTOR: Combat Realism & Feedback ---
         self.hit_stop = 0
@@ -324,10 +351,26 @@ class Fighter:
             mid_x += kb_offset
 
         if self.grab_timer > 0:
-            # Subtle screen-shake style jitter to the grabbed character
-            x += random.randint(-4, 4)
-            y += random.randint(-4, 4)
-            mid_x = x + (self.rect.width // 2)
+            if hasattr(self, "grabber") and self.grabber and hasattr(self.grabber, "last_active_rig"):
+                g = self.grabber
+                hand_pt = g.last_active_rig.get("r_hand", [0, 0])
+                hx = g.rect.x + hand_pt[0] if g.direction == 1 else g.rect.x + g.rect.width - hand_pt[0]
+                hy = g.rect.y + hand_pt[1]
+                
+                # Glue this fighter's neck to the grabbing hand
+                my_neck_y = self.rig.get("torso_top", [5, 20])[1]
+                x = hx - (self.rect.width // 2) + random.randint(-2, 2)
+                y = hy - my_neck_y + 10 + random.randint(-2, 2)
+                mid_x = x + (self.rect.width // 2)
+                
+                # Sync underlying physics rect to visual lock
+                self.rect.x = int(x)
+                self.rect.y = int(y)
+            else:
+                # Subtle screen-shake style jitter to the grabbed character
+                x += random.randint(-4, 4)
+                y += random.randint(-4, 4)
+                mid_x = x + (self.rect.width // 2)
 
         ragdoll_angle = 0
 
@@ -447,11 +490,61 @@ class Fighter:
                     active_rig = poses[1] if self.punch_count % 2 == 1 else poses[2]
             else:
                 # Gojo/Sukuna also alternate between Strike 1 and Strike 2
-                if phase < 0.2:
+                if getattr(self, "is_grabbing_attack", False):
+                    active_rig = self.grab_poses[0] if phase < 0.4 else self.grab_poses[1]
+                elif phase < 0.2:
                     active_rig = poses[0]
                 else:
                     # Alternates based on punch count (Pose 1 then Pose 2)
                     active_rig = poses[1] if self.punch_count % 2 == 1 else poses[2]
+        elif self.is_blocking:
+            active_rig = self.block_pose
+
+        if getattr(self, "grab_timer", 0) > 0 and hasattr(self, "grabber") and self.grabber:
+            rag_t = getattr(self, "anim_tick", 0) * 0.016
+            sway = math.sin(rag_t * 6) * 0.08
+            rag_angle = (0.25 + sway) * -self.grabber.direction
+            
+            rotated_rig = {}
+            if "torso_top" in active_rig:
+                neck_y = active_rig["torso_top"][1]
+                t_top_l = active_rig["torso_top"]
+                t_top_r = [w - active_rig["torso_top"][0], active_rig["torso_top"][1]]
+                t_bot_l = active_rig["torso_bottom"]
+                t_bot_r = [w - active_rig["torso_bottom"][0], active_rig["torso_bottom"][1]]
+                base_points = list(active_rig.items()) + [("torso_top_l", t_top_l), ("torso_top_r", t_top_r), ("torso_bottom_l", t_bot_l), ("torso_bottom_r", t_bot_r)]
+            else:
+                neck_y = active_rig.get("torso_top_l", [10, 40])[1]
+                base_points = list(active_rig.items())
+                
+            pivot_x = w / 2.0
+            
+            for k, v in base_points:
+                if isinstance(v, list) and len(v) == 2:
+                    if k in ["head", "torso_top", "torso_bottom", "torso_top_l", "torso_top_r", "torso_bottom_l", "torso_bottom_r", "chest_l", "chest_r", "waist_l", "waist_r", "l_shoulder", "r_shoulder"]:
+                        rotated_rig[k] = v
+                        continue
+                        
+                    if k in ["l_elbow", "l_hand"]:
+                        p_x, p_y = active_rig.get("l_shoulder", [pivot_x, neck_y])
+                    elif k in ["r_elbow", "r_hand"]:
+                        p_x, p_y = active_rig.get("r_shoulder", [pivot_x, neck_y])
+                    elif k == "l_foot":
+                        p_x, p_y = active_rig.get("torso_bottom_l", active_rig.get("torso_bottom", [pivot_x, neck_y]))
+                    elif k == "r_foot":
+                        p_x, p_y = active_rig.get("torso_bottom_r", active_rig.get("torso_bottom", [pivot_x, neck_y]))
+                    else:
+                        p_x, p_y = pivot_x, neck_y
+                        
+                    true_x = v[0]
+                    dx = true_x - p_x
+                    dy = v[1] - p_y
+                    nx = dx * math.cos(rag_angle) - dy * math.sin(rag_angle)
+                    ny = dx * math.sin(rag_angle) + dy * math.cos(rag_angle)
+                    rotated_rig[k] = [p_x + nx, p_y + ny]
+                else:
+                    rotated_rig[k] = v
+            active_rig = rotated_rig
 
         self.last_active_rig = active_rig
 
@@ -474,8 +567,15 @@ class Fighter:
         l_foot_pt = get_pt("l_foot")
         r_foot_pt = get_pt("r_foot")
         
-        l_hip_x = mid_x - 10
-        r_hip_x = mid_x + 10
+        if getattr(self, "grab_timer", 0) > 0 and "torso_bottom_l" in active_rig:
+            tb_l = get_pt("torso_bottom_l")
+            tb_r = get_pt("torso_bottom_r")
+            bot_mid_x = (tb_l[0] + tb_r[0]) / 2
+            l_hip_x = bot_mid_x - 10
+            r_hip_x = bot_mid_x + 10
+        else:
+            l_hip_x = mid_x - 10
+            r_hip_x = mid_x + 10
 
         # DRAW TAIL FIRST (to be behind the body)
         if self.name == "Mahoraga":
@@ -514,8 +614,9 @@ class Fighter:
                     pygame.draw.line(surface, WHITE, tail_points[i], tail_points[i+1], t_thick)
                     pygame.draw.line(surface, (210, 210, 215), tail_points[i], tail_points[i+1], inner_thick)
         
-        pygame.draw.line(surface, self.color if self.name != "Mahoraga" else (180, 180, 160), (l_hip_x, y + active_rig["torso_bottom"][1]), (l_foot_pt[0] - leg_off, l_foot_pt[1]), int(thickness))
-        pygame.draw.line(surface, self.color if self.name != "Mahoraga" else (180, 180, 160), (r_hip_x, y + active_rig["torso_bottom"][1]), (r_foot_pt[0] + leg_off, r_foot_pt[1]), int(thickness))
+        hip_y = y + active_rig.get("torso_bottom_l", active_rig.get("torso_bottom", [0, 95]))[1]
+        pygame.draw.line(surface, self.color if self.name != "Mahoraga" else (180, 180, 160), (l_hip_x, hip_y), (l_foot_pt[0] - leg_off, l_foot_pt[1]), int(thickness))
+        pygame.draw.line(surface, self.color if self.name != "Mahoraga" else (180, 180, 160), (r_hip_x, hip_y), (r_foot_pt[0] + leg_off, r_foot_pt[1]), int(thickness))
         
         if self.name == "Mahoraga": 
             body_rect = [
@@ -527,12 +628,20 @@ class Fighter:
                 get_pt("chest_l")         
             ]
         else:
-            body_rect = [
-                (x + active_rig["torso_top"][0], y + active_rig["torso_top"][1]), 
-                (x + w - active_rig["torso_top"][0], y + active_rig["torso_top"][1]), 
-                (x + w - active_rig["torso_bottom"][0], y + active_rig["torso_bottom"][1]), 
-                (x + active_rig["torso_bottom"][0], y + active_rig["torso_bottom"][1])
-            ]
+            if "torso_top_l" in active_rig:
+                body_rect = [
+                    get_pt("torso_top_l"), 
+                    get_pt("torso_top_r"), 
+                    get_pt("torso_bottom_r"), 
+                    get_pt("torso_bottom_l")
+                ]
+            else:
+                body_rect = [
+                    (x + active_rig["torso_top"][0], y + active_rig["torso_top"][1]), 
+                    (x + w - active_rig["torso_top"][0], y + active_rig["torso_top"][1]), 
+                    (x + w - active_rig["torso_bottom"][0], y + active_rig["torso_bottom"][1]), 
+                    (x + active_rig["torso_bottom"][0], y + active_rig["torso_bottom"][1])
+                ]
             
         pygame.draw.polygon(surface, self.color, body_rect)
 
@@ -565,12 +674,7 @@ class Fighter:
         if self.name == "Mahoraga" and getattr(self, "punch_timer", 0) > 0:
             print(f"DEBUG [Mahoraga Punch]: Direction={self.direction} | R_HAND_RIG={active_rig['r_hand']} | DRAW_POS={r_hand}")
         
-        if self.is_blocking:
-            l_hand = (x + int(w * 0.8), l_shoulder[1] + 10)
-            r_hand = (x + int(w * 0.2), r_shoulder[1] + 10)
-            l_elbow = (x + int(w * 0.8), l_shoulder[1])
-            r_elbow = (x + int(w * 0.2), r_shoulder[1])
-        elif self.name == "Mahoraga" and getattr(self, "punch_timer", 0) > 0 and not self.is_paralyzed and self.stun_timer <= 0:
+        if self.name == "Mahoraga" and getattr(self, "punch_timer", 0) > 0 and not self.is_paralyzed and self.stun_timer <= 0:
             # Legacy math extension removed to favor the new Rigging System
             pass
         
