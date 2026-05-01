@@ -31,6 +31,8 @@ def run_studio():
         return f
 
     current_fighter = create_preview_fighter("Sukuna")
+    ref_gojo = create_preview_fighter("Gojo")
+    ref_sukuna = create_preview_fighter("Sukuna")
     running = True
 
     # --- BUTTON UI CONFIG ---
@@ -54,9 +56,13 @@ def run_studio():
         
         {"label": "EXHAUST [U]", "key": pygame.K_u, "rect": pygame.Rect(490, 40, 110, 30)},
         {"label": "RESTORE [I]", "key": pygame.K_i, "rect": pygame.Rect(490, 80, 110, 30)},
+        {"label": "COPY RIG [C]", "key": pygame.K_c, "rect": pygame.Rect(490, 120, 110, 30)},
         
         {"label": "RELOAD [R]", "key": pygame.K_r, "rect": pygame.Rect(10, 170, 590, 30)},
     ]
+
+    dragging_joint = None
+    studio_mode = True
 
     while running:
         screen.fill((20, 20, 25)) # Slightly darker for better contrast
@@ -76,9 +82,11 @@ def run_studio():
                     importlib.reload(fighter)
                     hp = current_fighter.hp
                     energy = current_fighter.energy
+                    old_rig = current_fighter.rig
                     current_fighter = create_preview_fighter(current_fighter.name)
-                    current_fighter.hp = hp # keep hp across reloads
-                    current_fighter.energy = energy # keep energy across reloads
+                    current_fighter.hp = hp
+                    current_fighter.energy = energy
+                    current_fighter.rig = old_rig
                 elif action_key == pygame.K_1: current_fighter = create_preview_fighter("Gojo")
                 elif action_key == pygame.K_2: current_fighter = create_preview_fighter("Sukuna")
                 elif action_key == pygame.K_3: current_fighter = create_preview_fighter("Mahoraga")
@@ -103,15 +111,47 @@ def run_studio():
                     current_fighter.energy = max(0, current_fighter.energy - current_fighter.max_energy * 0.1)
                 elif action_key == pygame.K_i:
                     current_fighter.energy = min(current_fighter.max_energy, current_fighter.energy + current_fighter.max_energy * 0.1)
+                elif action_key == pygame.K_c:
+                    import json
+                    print(f"\n--- {current_fighter.name} RIG DATA ---")
+                    print(json.dumps(current_fighter.rig, indent=4))
+                    print("------------------------\n")
 
             if event.type == pygame.KEYDOWN:
                 handle_action(event.key)
             
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
+                    button_clicked = False
                     for btn in buttons:
                         if btn["rect"].collidepoint(event.pos):
                             handle_action(btn["key"])
+                            button_clicked = True
+                            break
+                    
+                    if not button_clicked and studio_mode:
+                        fx, fy = current_fighter.rect.x, current_fighter.rect.y
+                        mid_x = current_fighter.rect.centerx
+                        for j_name, offset in current_fighter.rig.items():
+                            jx = fx + offset[0] if j_name != "head" else mid_x + offset[0]
+                            jy = fy + offset[1]
+                            dist = math.sqrt((mouse_pos[0]-jx)**2 + (mouse_pos[1]-jy)**2)
+                            if dist < 15:
+                                dragging_joint = j_name
+                                break
+
+            if event.type == pygame.MOUSEBUTTONUP:
+                dragging_joint = None
+                
+            if event.type == pygame.MOUSEMOTION and dragging_joint:
+                fx, fy = current_fighter.rect.x, current_fighter.rect.y
+                mid_x = current_fighter.rect.centerx
+                if dragging_joint == "head":
+                    current_fighter.rig[dragging_joint][0] = mouse_pos[0] - mid_x
+                    current_fighter.rig[dragging_joint][1] = mouse_pos[1] - fy
+                else:
+                    current_fighter.rig[dragging_joint][0] = mouse_pos[0] - fx
+                    current_fighter.rig[dragging_joint][1] = mouse_pos[1] - fy
 
         # Manually progress animation frames
         current_fighter.anim_tick += 1
@@ -119,12 +159,37 @@ def run_studio():
         if current_fighter.black_flash_timer > 0: current_fighter.black_flash_timer -= 1
         if getattr(current_fighter, "grab_timer", 0) > 0: current_fighter.grab_timer -= 1
         
-        # Lock position to center
-        current_fighter.rect.center = (400, 450) # Shifted down to make room for UI
+        # Lock position to a unified floor for height comparison
+        current_fighter.rect.centerx = 400
+        current_fighter.rect.bottom = 600
+        
+        if current_fighter.name == "Mahoraga":
+            ref_gojo.rect.centerx = 200
+            ref_gojo.rect.bottom = 600
+            ref_gojo.direction = 1
+            ref_gojo.draw_detailed(screen)
+            
+            ref_sukuna.rect.centerx = 600
+            ref_sukuna.rect.bottom = 600
+            ref_sukuna.direction = -1
+            ref_sukuna.draw_detailed(screen)
         
         # Draw everything from fighter.py
         eff = "summoning" if getattr(current_fighter, "is_paralyzed", False) else None
         current_fighter.draw_detailed(screen, effect=eff, is_amp=getattr(current_fighter, "amp_duration", 0) > 0)
+
+        # Draw Joint Handles
+        if studio_mode:
+            fx, fy = current_fighter.rect.x, current_fighter.rect.y
+            mid_x = current_fighter.rect.centerx
+            for j_name, offset in current_fighter.rig.items():
+                jx = fx + offset[0] if j_name != "head" else mid_x + offset[0]
+                jy = fy + offset[1]
+                color = (255, 255, 0) if dragging_joint == j_name else (0, 255, 255)
+                pygame.draw.circle(screen, color, (int(jx), int(jy)), 8)
+                font = pygame.font.SysFont("Arial", 12)
+                txt = font.render(j_name, True, (255, 255, 255))
+                screen.blit(txt, (jx + 10, jy - 5))
 
         # --- DRAW UI BUTTONS ---
         for btn in buttons:

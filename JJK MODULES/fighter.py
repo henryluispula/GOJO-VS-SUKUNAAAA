@@ -138,7 +138,54 @@ class Fighter:
         self.aura_sway_y = 0 
         self.prev_x_aura = x
         self.prev_y_aura = y
-
+        
+        # --- RIGGING SYSTEM (BONE OFFSETS) ---
+        self.rig = {
+            "head": [0, 0],
+            "l_shoulder": [10, 35],
+            "r_shoulder": [60, 35],
+            "l_elbow": [7, 60],
+            "r_elbow": [63, 60],
+            "l_hand": [5, 85],
+            "r_hand": [65, 85],
+            "torso_top": [5, 20],
+            "torso_bottom": [15, 95],
+            "l_foot": [15, 155],
+            "r_foot": [55, 155]
+        }
+        if name == "Mahoraga":
+            self.rig["l_shoulder"] = [20, 60]
+            self.rig["r_shoulder"] = [120, 60]
+            self.rig["l_elbow"] = [15, 110]
+            self.rig["r_elbow"] = [125, 110]
+            self.rig["l_hand"] = [10, 160]
+            self.rig["r_hand"] = [130, 160]
+            self.rig["torso_top"] = [10, 40]
+            self.rig["torso_bottom"] = [30, 180]
+            self.rig["l_foot"] = [30, 310]
+            self.rig["r_foot"] = [110, 310]
+            
+        self.punch_poses = [
+            # Preparing / Stance
+            {
+                "head": [0, 0], "l_shoulder": [10, 35], "r_shoulder": [60, 35],
+                "l_elbow": [5, 59], "r_elbow": [82, 52], "l_hand": [40, 44], "r_hand": [111, 29],
+                "torso_top": [5, 20], "torso_bottom": [15, 95], "l_foot": [15, 155], "r_foot": [55, 155]
+            },
+            # Punch Animation 1
+            {
+                "head": [0, 0], "l_shoulder": [10, 35], "r_shoulder": [67, 27],
+                "l_elbow": [13, 60], "r_elbow": [102, 30], "l_hand": [46, 45], "r_hand": [134, 31],
+                "torso_top": [5, 20], "torso_bottom": [15, 95], "l_foot": [15, 155], "r_foot": [55, 155]
+            },
+            # Punch Animation 2
+            {
+                "head": [0, 0], "l_shoulder": [10, 35], "r_shoulder": [64, 27],
+                "l_elbow": [58, 37], "r_elbow": [75, 55], "l_hand": [113, 38], "r_hand": [87, 19],
+                "torso_top": [5, 20], "torso_bottom": [15, 95], "l_foot": [15, 155], "r_foot": [55, 155]
+            }
+        ]
+        
         # --- REFACTOR: Combat Realism & Feedback ---
         self.hit_stop = 0
         self.particles = []
@@ -362,23 +409,50 @@ class Fighter:
                     pygame.draw.line(surface, WHITE, tail_points[i], tail_points[i+1], t_thick)
                     pygame.draw.line(surface, (210, 210, 215), tail_points[i], tail_points[i+1], inner_thick)
 
+        active_rig = self.rig
+        if self.name != "Mahoraga" and getattr(self, "punch_timer", 0) > 0 and not self.is_paralyzed and self.stun_timer <= 0:
+            phase = (20 - self.punch_timer) / 20.0
+            if phase < 0.2:
+                active_rig = self.punch_poses[0]
+            elif phase < 0.6:
+                active_rig = self.punch_poses[1]
+            else:
+                active_rig = self.punch_poses[2]
+
+        def get_pt(pt_name):
+            px, py = active_rig[pt_name]
+            if self.direction == -1:
+                return (x + w - px, y + py)
+            return (x + px, y + py)
+
         leg_off = math.sin(t * 12) * (15 * scale) if not self.on_ground and not self.is_paralyzed else 0
         thickness = 32 if self.name == "Mahoraga" else 12
         
-        pygame.draw.line(surface, self.color if self.name != "Mahoraga" else (180, 180, 160), (mid_x - int(10*scale), y + int(90*scale)), (mid_x - int(15*scale) - leg_off, y + int(160*scale)), int(thickness))
-        pygame.draw.line(surface, self.color if self.name != "Mahoraga" else (180, 180, 160), (mid_x + int(10*scale), y + int(90*scale)), (mid_x + int(15*scale) + leg_off, y + int(160*scale)), int(thickness))
+        l_foot_pt = get_pt("l_foot")
+        r_foot_pt = get_pt("r_foot")
+        
+        l_hip_x = mid_x - 10 if self.direction == 1 else mid_x + 10
+        r_hip_x = mid_x + 10 if self.direction == 1 else mid_x - 10
+        
+        pygame.draw.line(surface, self.color if self.name != "Mahoraga" else (180, 180, 160), (l_hip_x, y + active_rig["torso_bottom"][1]), (l_foot_pt[0] - leg_off, l_foot_pt[1]), int(thickness))
+        pygame.draw.line(surface, self.color if self.name != "Mahoraga" else (180, 180, 160), (r_hip_x, y + active_rig["torso_bottom"][1]), (r_foot_pt[0] + leg_off, r_foot_pt[1]), int(thickness))
         
         if self.name == "Mahoraga": 
             body_rect = [
-                (x + int(5*scale), y),                        
-                (x + w - int(5*scale), y),                    
-                (x + w + int(5*scale), y + int(15*scale)),    
-                (x + w - int(25*scale), y + int(100*scale)),  
-                (x + int(25*scale), y + int(100*scale)),      
-                (x - int(5*scale), y + int(15*scale))         
+                (x + active_rig["torso_top"][0], y + active_rig["torso_top"][1]),                        
+                (x + w - active_rig["torso_top"][0], y + active_rig["torso_top"][1]),                    
+                (x + w + 5, y + active_rig["torso_top"][1] + 15),    
+                (x + w - 25, y + active_rig["torso_bottom"][1]),  
+                (x + 25, y + active_rig["torso_bottom"][1]),      
+                (x - 5, y + active_rig["torso_top"][1] + 15)         
             ]
         else:
-            body_rect = [(x+5, y+20), (x+65, y+20), (x+55, y+95), (x+15, y+95)]
+            body_rect = [
+                (x + active_rig["torso_top"][0], y + active_rig["torso_top"][1]), 
+                (x + w - active_rig["torso_top"][0], y + active_rig["torso_top"][1]), 
+                (x + w - active_rig["torso_bottom"][0], y + active_rig["torso_bottom"][1]), 
+                (x + active_rig["torso_bottom"][0], y + active_rig["torso_bottom"][1])
+            ]
             
         pygame.draw.polygon(surface, self.color, body_rect)
 
@@ -397,26 +471,31 @@ class Fighter:
             ]
             pygame.draw.polygon(surface, BLACK, pants_rect)
         
-        l_shoulder = (x + int(10*scale), y + int(35*scale))
-        r_shoulder = (x + w - int(10*scale), y + int(35*scale))
-        l_hand = (x + int(5*scale), y + int(85*scale))
-        r_hand = (x + w - int(5*scale), y + int(85*scale))
+        l_shoulder = get_pt("l_shoulder")
+        r_shoulder = get_pt("r_shoulder")
+        l_elbow = get_pt("l_elbow")
+        r_elbow = get_pt("r_elbow")
+        l_hand = get_pt("l_hand")
+        r_hand = get_pt("r_hand")
         
         if self.is_blocking:
-            l_hand = (x + int(w * 0.8), y + int(45*scale))
-            r_hand = (x + int(w * 0.2), y + int(45*scale))
-        elif self.punch_timer > 0 and not self.is_paralyzed and self.stun_timer <= 0:
+            l_hand = (x + int(w * 0.8), l_shoulder[1] + 10)
+            r_hand = (x + int(w * 0.2), r_shoulder[1] + 10)
+            l_elbow = (x + int(w * 0.8), l_shoulder[1])
+            r_elbow = (x + int(w * 0.2), r_shoulder[1])
+        elif self.name == "Mahoraga" and getattr(self, "punch_timer", 0) > 0 and not self.is_paralyzed and self.stun_timer <= 0:
             phase = (20 - self.punch_timer) / 20.0
             arm_ext = 60 * scale * math.sin(phase * math.pi)
-            
             if self.punch_count % 2 == 1: 
-                l_hand = (x + int(5*scale) - arm_ext * self.direction, y + int(65*scale) - (arm_ext * 0.2))
+                l_hand = (l_hand[0] - arm_ext * self.direction, l_hand[1] - (arm_ext * 0.2))
             else: 
-                r_hand = (x + w - int(5*scale) + arm_ext * self.direction, y + int(65*scale) - (arm_ext * 0.2))
+                r_hand = (r_hand[0] + arm_ext * self.direction, r_hand[1] - (arm_ext * 0.2))
         
         arm_color = WHITE if self.name == "Mahoraga" else SKIN
-        pygame.draw.line(surface, arm_color, l_shoulder, l_hand, int(thickness - 2))
-        pygame.draw.line(surface, arm_color, r_shoulder, r_hand, int(thickness - 2))
+        pygame.draw.line(surface, arm_color, l_shoulder, l_elbow, int(thickness - 2))
+        pygame.draw.line(surface, arm_color, l_elbow, l_hand, int(thickness - 2))
+        pygame.draw.line(surface, arm_color, r_shoulder, r_elbow, int(thickness - 2))
+        pygame.draw.line(surface, arm_color, r_elbow, r_hand, int(thickness - 2))
         
         if self.name == "Mahoraga":
             blade_color = (180, 180, 195)
@@ -449,37 +528,40 @@ class Fighter:
             pygame.draw.line(surface, (30, 30, 30), rot_pt(-8 * scale, -2 * scale), rot_pt(8 * scale, -2 * scale), int(4*scale))
             pygame.draw.line(surface, (30, 30, 30), rot_pt(-8 * scale, 5 * scale), rot_pt(8 * scale, 5 * scale), int(4*scale))
 
-        head_color = WHITE if self.name == "Mahoraga" else SKIN
-        pygame.draw.circle(surface, head_color, (int(mid_x), int(y)), 30 if self.name == "Mahoraga" else 26)
-
-
+        head_x_off = active_rig["head"][0]
+        if self.direction == -1: head_x_off = -head_x_off
+        hx = mid_x + head_x_off
+        hy = y + active_rig["head"][1]
         
+        head_color = WHITE if self.name == "Mahoraga" else SKIN
+        pygame.draw.circle(surface, head_color, (int(hx), int(hy)), 30 if self.name == "Mahoraga" else 26)
+
         if self.name == "Sukuna":
-            pygame.draw.line(surface, BLACK, (mid_x - 10, y + 5), (mid_x - 5, y + 15), 2)
-            pygame.draw.line(surface, BLACK, (mid_x + 10, y + 5), (mid_x + 5, y + 15), 2)
-            pygame.draw.circle(surface, BLACK, (int(mid_x), int(y + 18)), 3) 
+            pygame.draw.line(surface, BLACK, (hx - 10, hy + 5), (hx - 5, hy + 15), 2)
+            pygame.draw.line(surface, BLACK, (hx + 10, hy + 5), (hx + 5, hy + 15), 2)
+            pygame.draw.circle(surface, BLACK, (int(hx), int(hy + 18)), 3) 
             
         if self.name == "Mahoraga":
-            pygame.draw.polygon(surface, MAHO_COLOR, [(mid_x - int(12*scale), y - int(8*scale)), (mid_x - int(48*scale), y - int(36*scale)), (mid_x - int(4*scale), y - int(14*scale))])
-            pygame.draw.polygon(surface, MAHO_COLOR, [(mid_x - int(16*scale), y - int(2*scale)), (mid_x - int(58*scale), y - int(12*scale)), (mid_x - int(10*scale), y + int(4*scale))])
-            pygame.draw.polygon(surface, MAHO_COLOR, [(mid_x + int(12*scale), y - int(8*scale)), (mid_x + int(48*scale), y - int(36*scale)), (mid_x + int(4*scale), y - int(14*scale))])
-            pygame.draw.polygon(surface, MAHO_COLOR, [(mid_x + int(16*scale), y - int(2*scale)), (mid_x + int(58*scale), y - int(12*scale)), (mid_x + int(10*scale), y + int(4*scale))])
+            pygame.draw.polygon(surface, MAHO_COLOR, [(hx - int(12*scale), hy - int(8*scale)), (hx - int(48*scale), hy - int(36*scale)), (hx - int(4*scale), hy - int(14*scale))])
+            pygame.draw.polygon(surface, MAHO_COLOR, [(hx - int(16*scale), hy - int(2*scale)), (hx - int(58*scale), hy - int(12*scale)), (hx - int(10*scale), hy + int(4*scale))])
+            pygame.draw.polygon(surface, MAHO_COLOR, [(hx + int(12*scale), hy - int(8*scale)), (hx + int(48*scale), hy - int(36*scale)), (hx + int(4*scale), hy - int(14*scale))])
+            pygame.draw.polygon(surface, MAHO_COLOR, [(hx + int(16*scale), hy - int(2*scale)), (hx + int(58*scale), hy - int(12*scale)), (hx + int(10*scale), hy + int(4*scale))])
             mouth_w = int(14*scale)
             mouth_h = int(7*scale)
-            mouth_rect = pygame.Rect(mid_x - mouth_w//2, y + int(8*scale), mouth_w, mouth_h)
+            mouth_rect = pygame.Rect(hx - mouth_w//2, hy + int(8*scale), mouth_w, mouth_h)
             pygame.draw.ellipse(surface, (160, 190, 190), mouth_rect)
             pygame.draw.ellipse(surface, (30, 35, 40), mouth_rect, max(1, int(1.5*scale)))
-            pygame.draw.line(surface, (30, 35, 40), (mid_x - mouth_w//2, y + int(8*scale) + mouth_h//2), (mid_x + mouth_w//2, y + int(8*scale) + mouth_h//2), max(1, int(1*scale)))
+            pygame.draw.line(surface, (30, 35, 40), (hx - mouth_w//2, hy + int(8*scale) + mouth_h//2), (hx + mouth_w//2, hy + int(8*scale) + mouth_h//2), max(1, int(1*scale)))
             for t_i in range(1, 5):
-                t_x = (mid_x - mouth_w//2) + (t_i * (mouth_w // 5))
-                pygame.draw.line(surface, (30, 35, 40), (t_x, y + int(8*scale)), (t_x, y + int(8*scale) + mouth_h), max(1, int(1*scale)))
+                t_x = (hx - mouth_w//2) + (t_i * (mouth_w // 5))
+                pygame.draw.line(surface, (30, 35, 40), (t_x, hy + int(8*scale)), (t_x, hy + int(8*scale) + mouth_h), max(1, int(1*scale)))
 
         if self.name != "Mahoraga":
             h_color = WHITE if self.name == "Gojo" else (20, 20, 25)
             num_spikes = 5
             for i in range(num_spikes): 
-                h_x = mid_x - int(25*scale) + i * 10
-                pygame.draw.polygon(surface, h_color, [(h_x, y-5), (h_x+5, y-int(45*scale)), (h_x+10, y-5)])
+                h_x = hx - int(25*scale) + i * 10
+                pygame.draw.polygon(surface, h_color, [(h_x, hy-5), (h_x+5, hy-int(45*scale)), (h_x+10, hy-5)])
 
         hp_ratio = self.hp / self.max_hp
         if hp_ratio < 0.9:
