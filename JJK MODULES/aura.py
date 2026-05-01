@@ -20,7 +20,10 @@ def draw_fighter_auras(self, surface, t, t_real):
     if self.aura_hit_timer > 0:
         aura_color = PURPLE if self.name == "Gojo" else BLUE if self.name == "Sukuna" else MAHO_COLOR
         self.aura_surf.fill((0,0,0,0))
-        aura_w, aura_h = (180, 400) if self.name == "Mahoraga" else (85, 280)
+        # Scale aura size based on current energy
+        energy_ratio = 0.3 + (self.energy / self.max_energy) * 0.7
+        aura_w_base, aura_h_base = (180, 400) if self.name == "Mahoraga" else (85, 280)
+        aura_w, aura_h = aura_w_base * energy_ratio, aura_h_base * energy_ratio
         center_x, center_y = 300, 300
         points = []
         num_segments = 24 

@@ -52,7 +52,10 @@ def run_studio():
         {"label": "HEAL [J]", "key": pygame.K_j, "rect": pygame.Rect(370, 80, 110, 30)},
         {"label": "KILL [K]", "key": pygame.K_k, "rect": pygame.Rect(370, 120, 110, 30)},
         
-        {"label": "RELOAD [R]", "key": pygame.K_r, "rect": pygame.Rect(10, 170, 470, 30)},
+        {"label": "EXHAUST [U]", "key": pygame.K_u, "rect": pygame.Rect(490, 40, 110, 30)},
+        {"label": "RESTORE [I]", "key": pygame.K_i, "rect": pygame.Rect(490, 80, 110, 30)},
+        
+        {"label": "RELOAD [R]", "key": pygame.K_r, "rect": pygame.Rect(10, 170, 590, 30)},
     ]
 
     while running:
@@ -72,8 +75,10 @@ def run_studio():
                     importlib.reload(aura)
                     importlib.reload(fighter)
                     hp = current_fighter.hp
+                    energy = current_fighter.energy
                     current_fighter = create_preview_fighter(current_fighter.name)
                     current_fighter.hp = hp # keep hp across reloads
+                    current_fighter.energy = energy # keep energy across reloads
                 elif action_key == pygame.K_1: current_fighter = create_preview_fighter("Gojo")
                 elif action_key == pygame.K_2: current_fighter = create_preview_fighter("Sukuna")
                 elif action_key == pygame.K_3: current_fighter = create_preview_fighter("Mahoraga")
@@ -94,6 +99,10 @@ def run_studio():
                     current_fighter.hp = min(current_fighter.max_hp, current_fighter.hp + current_fighter.max_hp * 0.1)
                 elif action_key == pygame.K_k:
                     current_fighter.hp = 0
+                elif action_key == pygame.K_u:
+                    current_fighter.energy = max(0, current_fighter.energy - current_fighter.max_energy * 0.1)
+                elif action_key == pygame.K_i:
+                    current_fighter.energy = min(current_fighter.max_energy, current_fighter.energy + current_fighter.max_energy * 0.1)
 
             if event.type == pygame.KEYDOWN:
                 handle_action(event.key)
