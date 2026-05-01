@@ -65,7 +65,7 @@ def draw_hud(self, render_surf, dt):
         render_surf.blit(self.clash_msg_bg, (WIDTH//2 - bg_w//2, HEIGHT//2 - 100), (0, 0, bg_w, bg_h))
         render_surf.blit(clash_txt, (WIDTH//2 - clash_txt.get_width()//2, HEIGHT//2 - 90))
 
-    if getattr(self, "clash_active_flag", False):
+    if getattr(self, "clash_phase_timer", 0) > 0:
         clash_txt = self.get_text("DOMAIN CLASH!", (255, 255, 100))
         render_surf.blit(clash_txt, (WIDTH//2 - clash_txt.get_width()//2, 80))
 
@@ -210,7 +210,7 @@ def draw_hud(self, render_surf, dt):
         
     #     render_surf.blit(self.get_text(sm_txt, WHITE, font=self.micro_font), (WIDTH - 335, 270))
 
-    if getattr(self, "clash_active_flag", False):
+    if getattr(self, "clash_phase_timer", 0) > 0:
         g_bar_x, g_bar_y, bar_w, bar_h = 356, 10, 15, 210
         pygame.draw.rect(render_surf, (0, 0, 0), (g_bar_x - 4, g_bar_y - 4, bar_w + 8, bar_h + 8), border_radius=4)
         pygame.draw.rect(render_surf, (40, 40, 40), (g_bar_x, g_bar_y, bar_w, bar_h), border_radius=2)
@@ -321,7 +321,7 @@ def draw_hud(self, render_surf, dt):
                 ("[A / D]", "Move Left/Right"),
                 ("[SPACE]", "Jump / Double Jump"),
                 ("[SHIFT]", "Dodge (I-frames)"),
-                ("[F]", "BLOCK")
+                ("[F]", "BLOCK Stuns from Punches")
             ]),
             ("COMBAT & RECOVERY", [
                 ("[CLICK]", "Standard Melee Punch"),

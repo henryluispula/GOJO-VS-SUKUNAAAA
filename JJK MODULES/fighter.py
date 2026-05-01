@@ -289,6 +289,20 @@ class Fighter:
             "r_foot": [55, 155]
         }
         
+        self.hit_pose = {
+            "head": [-2, 0],
+            "l_shoulder": [8, 31],
+            "r_shoulder": [62, 35],
+            "l_elbow": [-3, 51],
+            "r_elbow": [72, 50],
+            "l_hand": [4, 74],
+            "r_hand": [79, 69],
+            "torso_top": [6, 20],
+            "torso_bottom": [16, 95],
+            "l_foot": [15, 155],
+            "r_foot": [55, 155]
+        }
+        
         # --- REFACTOR: Combat Realism & Feedback ---
         self.hit_stop = 0
         self.particles = []
@@ -401,18 +415,13 @@ class Fighter:
                 
                 # Glue this fighter's neck to the grabbing hand
                 my_neck_y = self.rig.get("torso_top", [5, 20])[1]
-                x = hx - (self.rect.width // 2) + random.randint(-2, 2)
-                y = hy - my_neck_y + 10 + random.randint(-2, 2)
+                x = hx - (self.rect.width // 2)
+                y = hy - my_neck_y + 10
                 mid_x = x + (self.rect.width // 2)
                 
                 # Sync underlying physics rect to visual lock
                 self.rect.x = int(x)
                 self.rect.y = int(y)
-            else:
-                # Subtle screen-shake style jitter to the grabbed character
-                x += random.randint(-4, 4)
-                y += random.randint(-4, 4)
-                mid_x = x + (self.rect.width // 2)
 
         ragdoll_angle = 0
                 
@@ -537,6 +546,8 @@ class Fighter:
             active_rig = self.gojo_domain_pose if self.name == "Gojo" else self.sukuna_domain_pose
         elif getattr(self, "summon_timer", 0) > 0 and self.name == "Sukuna":
             active_rig = self.summon_pose
+        elif getattr(self, "stun_timer", 0) > 0 and self.name != "Mahoraga":
+            active_rig = self.hit_pose
         elif self.is_blocking:
             active_rig = self.block_pose
 
