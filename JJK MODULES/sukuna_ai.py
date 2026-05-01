@@ -302,17 +302,25 @@ def update_sukuna_ai(game, dt):
                 s.domain_charge = 60; s.energy -= 200 * s.cost_mult
             
             if is_counter_attacking:
-                speed = 28 if (s.cleave_cd <= 0 and dist < 600) else 9
+                speed = 22 if (s.cleave_cd <= 0 and dist < 600) else 9
                 if dist > 150 and s.dodge_cd <= 0 and s.stamina >= 20:
                     s.direction = -1 if s.rect.x > g.rect.x else 1
                     s.dodge(); s.dodge_cd = 60
             else:
-                speed = 35 if (g.domain_active and not s.domain_active) else (35 if s.ce_exhausted else (28 if (s.cleave_cd <= 0 and dist < 600 and g.grab_timer <= 0) else 9))
+                # Reduced pursuit speed from 28 to 18 to make it look like a fast walk, not a glitchy dash
+                speed = 35 if (g.domain_active and not s.domain_active) else (35 if s.ce_exhausted else (18 if (s.cleave_cd <= 0 and dist < 600 and g.grab_timer <= 0) else 9))
+            
             if g.grab_timer > 0:
                 s.rect.x += speed * s.direction * time_mult
                 if random.random() < 0.02: s.direction *= -1
             else:
-                s.rect.x += (-speed if s.rect.x > g.rect.x else speed) * time_mult
+                # Clamping logic to prevent overshooting/vibrating
+                move_dir = -1 if s.rect.x > g.rect.x else 1
+                move_amount = speed * time_mult
+                if dist - rush_distance < move_amount:
+                    s.rect.centerx = g.rect.centerx - (int(rush_distance) * move_dir)
+                else:
+                    s.rect.x += move_dir * move_amount
             if g.domain_active and not s.domain_active:
                 if s.dodge_cd <= 0 and s.stamina >= 20 and not s.stamina_exhausted and not incoming_orbs:
                     s.direction = -1 if s.rect.x > g.rect.x else 1; s.dodge(); s.dodge_cd = 25

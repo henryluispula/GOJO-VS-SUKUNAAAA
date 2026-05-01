@@ -154,16 +154,50 @@ class Fighter:
             "r_foot": [55, 155]
         }
         if name == "Mahoraga":
+            del self.rig["torso_top"]
+            del self.rig["torso_bottom"]
             self.rig["l_shoulder"] = [20, 60]
             self.rig["r_shoulder"] = [120, 60]
             self.rig["l_elbow"] = [15, 110]
             self.rig["r_elbow"] = [125, 110]
             self.rig["l_hand"] = [10, 160]
             self.rig["r_hand"] = [130, 160]
-            self.rig["torso_top"] = [10, 40]
-            self.rig["torso_bottom"] = [30, 180]
+            self.rig["torso_top_l"] = [10, 40]
+            self.rig["torso_top_r"] = [130, 40]
+            self.rig["chest_l"] = [-5, 55]
+            self.rig["chest_r"] = [145, 55]
+            self.rig["waist_l"] = [25, 180]
+            self.rig["waist_r"] = [115, 180]
+            self.rig["torso_bottom"] = [30, 180] # Keep for leg logic
             self.rig["l_foot"] = [30, 310]
             self.rig["r_foot"] = [110, 310]
+
+        self.maho_punch_poses = [
+            # Pose before punching or when near
+            {
+                "head": [0, 0], "l_shoulder": [9, 52], "r_shoulder": [123, 56],
+                "l_elbow": [-27, 82], "r_elbow": [165, 78], "l_hand": [-28, 127], "r_hand": [166, 126],
+                "l_foot": [30, 310], "r_foot": [110, 310],
+                "torso_top_l": [10, 40], "torso_top_r": [130, 40], "chest_l": [-5, 55], "chest_r": [145, 55],
+                "waist_l": [25, 180], "waist_r": [115, 180], "torso_bottom": [30, 180]
+            },
+            # Punching animation 1
+            {
+                "head": [-5, 20], "l_shoulder": [28, 41], "r_shoulder": [105, 97],
+                "l_elbow": [-24, 27], "r_elbow": [50, 143], "l_hand": [-33, 70], "r_hand": [-5, 190],
+                "l_foot": [30, 310], "r_foot": [110, 310],
+                "torso_top_l": [38, 26], "torso_top_r": [106, 47], "chest_l": [11, 62], "chest_r": [127, 82],
+                "waist_l": [29, 183], "waist_r": [107, 185], "torso_bottom": [27, 183]
+            },
+            # Punching animation 2
+            {
+                "head": [-4, 13], "l_shoulder": [26, 64], "r_shoulder": [128, 34],
+                "l_elbow": [-11, 116], "r_elbow": [166, 48], "l_hand": [-43, 162], "r_hand": [154, 98],
+                "l_foot": [30, 310], "r_foot": [110, 310],
+                "torso_top_l": [32, 45], "torso_top_r": [127, 19], "chest_l": [14, 94], "chest_r": [137, 72],
+                "waist_l": [27, 182], "waist_r": [113, 178], "torso_bottom": [30, 180]
+            }
+        ]
             
         self.punch_poses = [
             # Preparing / Stance
@@ -268,7 +302,7 @@ class Fighter:
             
         self.adaptation_points[phenomenon] += intensity
 
-    def draw_detailed(self, surface, is_punching=False, effect=None, is_amp=False):
+    def draw_detailed(self, surface, is_punching=False, effect=None, is_amp=False, show_auras=True, forced_pose_index=None):
         for p in self.particles:
             alpha = int(p["life"] * 255)
             p_surf = pygame.Surface((6, 6), pygame.SRCALPHA)
@@ -312,7 +346,7 @@ class Fighter:
         
         if self.black_flash_timer > 0:
             for _ in range(15):
-                rx, ry = random.randint(x-40, x+110), random.randint(y-40, y+200)
+                rx, ry = random.randint(int(x-40), int(x+110)), random.randint(int(y-40), int(y+200))
                 pygame.draw.line(surface, BLACK, (rx, ry), (rx+random.randint(-40,40), ry+random.randint(-40,40)), 6)
                 pygame.draw.line(surface, (255, 0, 0), (rx, ry), (rx+random.randint(-20,20), ry+random.randint(-20,20)), 3)
 
@@ -326,7 +360,8 @@ class Fighter:
                 pygame.draw.circle(surface, WHITE, (mid_x, y + 40), int(burst * 1.2), 3)
 
         # AURAS
-        draw_fighter_auras(self, surface, t, t_real)
+        if show_auras:
+            draw_fighter_auras(self, surface, t, t_real)
 
         # SPECIAL TECHNIQUES
         draw_special_techniques(self, surface, t)
@@ -393,34 +428,44 @@ class Fighter:
         w = self.rect.width
         h = self.rect.height
         
-        if self.name == "Mahoraga":
-            tail_points = []
-            tail_x = mid_x + (15 * -self.direction)
-            tail_y = y - 10
-            for i in range(8):
-                px = tail_x + (i * 15 * -self.direction)
-                py = tail_y + (i * 26) + (i * i * 0.4)
-                tail_points.append((int(px), int(py)))
-                
-            if len(tail_points) > 1:
-                for i in range(len(tail_points) - 1):
-                    t_thick = max(12, int(75 - (i * 7.5)))
-                    inner_thick = max(1, t_thick - 12)
-                    pygame.draw.line(surface, WHITE, tail_points[i], tail_points[i+1], t_thick)
-                    pygame.draw.line(surface, (210, 210, 215), tail_points[i], tail_points[i+1], inner_thick)
+        # Tail logic moved after head calculation for head-gluing
+        pass
 
         active_rig = self.rig
-        if self.name != "Mahoraga" and getattr(self, "punch_timer", 0) > 0 and not self.is_paralyzed and self.stun_timer <= 0:
+        if forced_pose_index is not None:
+            poses = self.maho_punch_poses if self.name == "Mahoraga" else self.punch_poses
+            if 0 <= forced_pose_index < len(poses):
+                active_rig = poses[forced_pose_index]
+        elif getattr(self, "punch_timer", 0) > 0 and not self.is_paralyzed and self.stun_timer <= 0:
             phase = (20 - self.punch_timer) / 20.0
-            if phase < 0.2:
-                active_rig = self.punch_poses[0]
-            elif phase < 0.6:
-                active_rig = self.punch_poses[1]
+            poses = self.maho_punch_poses if self.name == "Mahoraga" else self.punch_poses
+            
+            if self.name == "Mahoraga":
+                # Mahoraga alternates between Pose 1 and Pose 2
+                # Re-added Pose 0 (Wind-up) but ONLY during the punch sequence
+                if phase < 0.3:
+                    active_rig = poses[0]
+                else:
+                    active_rig = poses[1] if self.punch_count % 2 == 1 else poses[2]
             else:
-                active_rig = self.punch_poses[2]
+                # Gojo/Sukuna also alternate between Strike 1 and Strike 2
+                if phase < 0.2:
+                    active_rig = poses[0]
+                else:
+                    # Alternates based on punch count (Pose 1 then Pose 2)
+                    active_rig = poses[1] if self.punch_count % 2 == 1 else poses[2]
+
+        self.last_active_rig = active_rig
 
         def get_pt(pt_name):
-            px, py = active_rig[pt_name]
+            lookup = pt_name
+            if self.direction == -1:
+                if pt_name.startswith("l_"): lookup = "r_" + pt_name[2:]
+                elif pt_name.startswith("r_"): lookup = "l_" + pt_name[2:]
+                elif pt_name.endswith("_l"): lookup = pt_name[:-2] + "_r"
+                elif pt_name.endswith("_r"): lookup = pt_name[:-2] + "_l"
+                
+            px, py = active_rig.get(lookup, active_rig.get(pt_name, (0, 0)))
             if self.direction == -1:
                 return (x + w - px, y + py)
             return (x + px, y + py)
@@ -431,20 +476,57 @@ class Fighter:
         l_foot_pt = get_pt("l_foot")
         r_foot_pt = get_pt("r_foot")
         
-        l_hip_x = mid_x - 10 if self.direction == 1 else mid_x + 10
-        r_hip_x = mid_x + 10 if self.direction == 1 else mid_x - 10
+        l_hip_x = mid_x - 10
+        r_hip_x = mid_x + 10
+
+        # DRAW TAIL FIRST (to be behind the body)
+        if self.name == "Mahoraga":
+            # Smoothly animate the tail direction when mirroring (reacts over time)
+            if not hasattr(self, "tail_visual_dir"): self.tail_visual_dir = float(-self.direction)
+            target_tail_dir = float(-self.direction)
+            self.tail_visual_dir += (target_tail_dir - self.tail_visual_dir) * 0.1
+
+            # Calculate head position early for tail gluing
+            head_x_off = active_rig["head"][0]
+            if self.direction == -1: head_x_off = -head_x_off
+            hx_tail = mid_x + head_x_off
+            hy_tail = y + active_rig["head"][1]
+
+            tail_points = []
+            tail_x = hx_tail 
+            tail_y = hy_tail + 5
+            
+            wave_speed = 1.5
+            wave_amount = 8
+            
+            for i in range(8):
+                # Each segment waves with a slight delay for a "flowing" effect
+                offset_x = math.sin(t * wave_speed + i * 0.4) * wave_amount
+                offset_y = math.cos(t * wave_speed + i * 0.4) * (wave_amount * 0.6)
+                
+                # px: stretches out more horizontally, now uses visual_dir for smooth swing
+                px = tail_x + (i * 22 * self.tail_visual_dir) + offset_x
+                py = tail_y + (i * 12) + offset_y
+                tail_points.append((int(px), int(py)))
+                
+            if len(tail_points) > 1:
+                for i in range(len(tail_points) - 1):
+                    t_thick = max(12, int(75 - (i * 7.5)))
+                    inner_thick = max(1, t_thick - 12)
+                    pygame.draw.line(surface, WHITE, tail_points[i], tail_points[i+1], t_thick)
+                    pygame.draw.line(surface, (210, 210, 215), tail_points[i], tail_points[i+1], inner_thick)
         
         pygame.draw.line(surface, self.color if self.name != "Mahoraga" else (180, 180, 160), (l_hip_x, y + active_rig["torso_bottom"][1]), (l_foot_pt[0] - leg_off, l_foot_pt[1]), int(thickness))
         pygame.draw.line(surface, self.color if self.name != "Mahoraga" else (180, 180, 160), (r_hip_x, y + active_rig["torso_bottom"][1]), (r_foot_pt[0] + leg_off, r_foot_pt[1]), int(thickness))
         
         if self.name == "Mahoraga": 
             body_rect = [
-                (x + active_rig["torso_top"][0], y + active_rig["torso_top"][1]),                        
-                (x + w - active_rig["torso_top"][0], y + active_rig["torso_top"][1]),                    
-                (x + w + 5, y + active_rig["torso_top"][1] + 15),    
-                (x + w - 25, y + active_rig["torso_bottom"][1]),  
-                (x + 25, y + active_rig["torso_bottom"][1]),      
-                (x - 5, y + active_rig["torso_top"][1] + 15)         
+                get_pt("torso_top_l"),                        
+                get_pt("torso_top_r"),                    
+                get_pt("chest_r"),    
+                get_pt("waist_r"),  
+                get_pt("waist_l"),      
+                get_pt("chest_l")         
             ]
         else:
             body_rect = [
@@ -459,15 +541,19 @@ class Fighter:
 
         
         if self.name == "Mahoraga":
-            pygame.draw.ellipse(surface, (190, 190, 175), (mid_x - int(15*scale), y - int(5*scale), int(30*scale), int(25*scale)))
+            # Chest highlight removed as requested
+            pass
 
         if self.name == "Mahoraga":
+            # Pants follow the waist joints
+            w_l = get_pt("waist_l")
+            w_r = get_pt("waist_r")
             pants_rect = [
-                (x + 10, y + int(90*scale)), 
-                (x + w - 10, y + int(90*scale)), 
-                (x + w + 15, y + int(135*scale)), 
-                (mid_x, y + int(115*scale)), 
-                (x - 15, y + int(135*scale))  
+                (w_l[0] - 15, w_l[1]), 
+                (w_r[0] + 15, w_r[1]), 
+                (w_r[0] + 25, w_r[1] + int(45*scale)), 
+                ((w_l[0] + w_r[0])//2, w_l[1] + int(25*scale)), 
+                (w_l[0] - 25, w_l[1] + int(45*scale))  
             ]
             pygame.draw.polygon(surface, BLACK, pants_rect)
         
@@ -478,24 +564,34 @@ class Fighter:
         l_hand = get_pt("l_hand")
         r_hand = get_pt("r_hand")
         
+        if self.name == "Mahoraga" and getattr(self, "punch_timer", 0) > 0:
+            print(f"DEBUG [Mahoraga Punch]: Direction={self.direction} | R_HAND_RIG={active_rig['r_hand']} | DRAW_POS={r_hand}")
+        
         if self.is_blocking:
             l_hand = (x + int(w * 0.8), l_shoulder[1] + 10)
             r_hand = (x + int(w * 0.2), r_shoulder[1] + 10)
             l_elbow = (x + int(w * 0.8), l_shoulder[1])
             r_elbow = (x + int(w * 0.2), r_shoulder[1])
         elif self.name == "Mahoraga" and getattr(self, "punch_timer", 0) > 0 and not self.is_paralyzed and self.stun_timer <= 0:
-            phase = (20 - self.punch_timer) / 20.0
-            arm_ext = 60 * scale * math.sin(phase * math.pi)
-            if self.punch_count % 2 == 1: 
-                l_hand = (l_hand[0] - arm_ext * self.direction, l_hand[1] - (arm_ext * 0.2))
-            else: 
-                r_hand = (r_hand[0] + arm_ext * self.direction, r_hand[1] - (arm_ext * 0.2))
+            # Legacy math extension removed to favor the new Rigging System
+            pass
         
         arm_color = WHITE if self.name == "Mahoraga" else SKIN
-        pygame.draw.line(surface, arm_color, l_shoulder, l_elbow, int(thickness - 2))
-        pygame.draw.line(surface, arm_color, l_elbow, l_hand, int(thickness - 2))
-        pygame.draw.line(surface, arm_color, r_shoulder, r_elbow, int(thickness - 2))
-        pygame.draw.line(surface, arm_color, r_elbow, r_hand, int(thickness - 2))
+        
+        # Draw arms with direction-based Z-layering (Back arm first, Front arm last)
+        def draw_l_arm():
+            pygame.draw.line(surface, arm_color, l_shoulder, l_elbow, int(thickness - 2))
+            pygame.draw.line(surface, arm_color, l_elbow, l_hand, int(thickness - 2))
+        def draw_r_arm():
+            pygame.draw.line(surface, arm_color, r_shoulder, r_elbow, int(thickness - 2))
+            pygame.draw.line(surface, arm_color, r_elbow, r_hand, int(thickness - 2))
+
+        if self.direction == 1:
+            draw_l_arm()
+            draw_r_arm()
+        else:
+            draw_r_arm()
+            draw_l_arm()
         
         if self.name == "Mahoraga":
             blade_color = (180, 180, 195)
@@ -503,8 +599,8 @@ class Fighter:
             
             wrist_x, wrist_y = l_hand
             
-            arm_dx = l_hand[0] - l_shoulder[0]
-            arm_dy = l_hand[1] - l_shoulder[1]
+            arm_dx = l_hand[0] - l_elbow[0]
+            arm_dy = l_hand[1] - l_elbow[1]
             arm_angle = math.atan2(arm_dy, arm_dx)
             
             rot = arm_angle - (math.pi / 2)
@@ -534,7 +630,13 @@ class Fighter:
         hy = y + active_rig["head"][1]
         
         head_color = WHITE if self.name == "Mahoraga" else SKIN
-        pygame.draw.circle(surface, head_color, (int(hx), int(hy)), 30 if self.name == "Mahoraga" else 26)
+        if self.name == "Mahoraga":
+            # Rounded square head for a more monstrous/statue-like look
+            h_rad = 30
+            head_rect = pygame.Rect(hx - h_rad, hy - h_rad, h_rad * 2, h_rad * 2)
+            pygame.draw.rect(surface, head_color, head_rect, border_radius=20)
+        else:
+            pygame.draw.circle(surface, head_color, (int(hx), int(hy)), 26)
 
         if self.name == "Sukuna":
             pygame.draw.line(surface, BLACK, (hx - 10, hy + 5), (hx - 5, hy + 15), 2)

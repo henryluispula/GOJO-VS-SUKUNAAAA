@@ -57,12 +57,17 @@ def run_studio():
         {"label": "EXHAUST [U]", "key": pygame.K_u, "rect": pygame.Rect(490, 40, 110, 30)},
         {"label": "RESTORE [I]", "key": pygame.K_i, "rect": pygame.Rect(490, 80, 110, 30)},
         {"label": "COPY RIG [C]", "key": pygame.K_c, "rect": pygame.Rect(490, 120, 110, 30)},
-        
-        {"label": "RELOAD [R]", "key": pygame.K_r, "rect": pygame.Rect(10, 170, 590, 30)},
+        {"label": "RELOAD [R]", "key": pygame.K_r, "rect": pygame.Rect(10, 170, 110, 30)},
+        {"label": "MIRROR [M]", "key": pygame.K_m, "rect": pygame.Rect(130, 170, 110, 30)},
+        {"label": "AURA [Z]", "key": pygame.K_z, "rect": pygame.Rect(250, 170, 110, 30)},
+        {"label": "POSE [Q]", "key": pygame.K_q, "rect": pygame.Rect(370, 170, 110, 30)},
     ]
 
     dragging_joint = None
     studio_mode = True
+    show_auras = True
+    selected_pose_index = 0
+    pose_labels = ["IDLE", "PUNCH WINDUP", "PUNCH 1", "PUNCH 2"]
 
     while running:
         screen.fill((20, 20, 25)) # Slightly darker for better contrast
@@ -74,7 +79,7 @@ def run_studio():
             
             # Helper to handle actions
             def handle_action(action_key):
-                nonlocal current_fighter
+                nonlocal current_fighter, show_auras, selected_pose_index
                 if action_key == pygame.K_r:
                     print("Reloading fighter.py and aura.py...")
                     importlib.reload(settings)
@@ -90,7 +95,9 @@ def run_studio():
                 elif action_key == pygame.K_1: current_fighter = create_preview_fighter("Gojo")
                 elif action_key == pygame.K_2: current_fighter = create_preview_fighter("Sukuna")
                 elif action_key == pygame.K_3: current_fighter = create_preview_fighter("Mahoraga")
-                elif action_key == pygame.K_p: current_fighter.punch_timer = 20
+                elif action_key == pygame.K_p: 
+                    current_fighter.punch_timer = 20
+                    current_fighter.punch_count = getattr(current_fighter, "punch_count", 0) + 1
                 elif action_key == pygame.K_b: current_fighter.black_flash_timer = 30
                 elif action_key == pygame.K_g: current_fighter.grab_timer = 30
                 elif action_key == pygame.K_v: 
@@ -107,14 +114,22 @@ def run_studio():
                     current_fighter.hp = min(current_fighter.max_hp, current_fighter.hp + current_fighter.max_hp * 0.1)
                 elif action_key == pygame.K_k:
                     current_fighter.hp = 0
+                elif action_key == pygame.K_m:
+                    current_fighter.direction *= -1
+                elif action_key == pygame.K_z:
+                    show_auras = not show_auras
+                elif action_key == pygame.K_q:
+                    selected_pose_index = (selected_pose_index + 1) % 4
                 elif action_key == pygame.K_u:
                     current_fighter.energy = max(0, current_fighter.energy - current_fighter.max_energy * 0.1)
                 elif action_key == pygame.K_i:
                     current_fighter.energy = min(current_fighter.max_energy, current_fighter.energy + current_fighter.max_energy * 0.1)
                 elif action_key == pygame.K_c:
                     import json
-                    print(f"\n--- {current_fighter.name} RIG DATA ---")
-                    print(json.dumps(current_fighter.rig, indent=4))
+                    poses = current_fighter.maho_punch_poses if current_fighter.name == "Mahoraga" else current_fighter.punch_poses
+                    active_rig = current_fighter.rig if selected_pose_index == 0 else poses[selected_pose_index - 1]
+                    print(f"\n--- {current_fighter.name} {pose_labels[selected_pose_index]} RIG DATA ---")
+                    print(json.dumps(active_rig, indent=4))
                     print("------------------------\n")
 
             if event.type == pygame.KEYDOWN:
@@ -130,10 +145,16 @@ def run_studio():
                             break
                     
                     if not button_clicked and studio_mode:
+                        poses = current_fighter.maho_punch_poses if current_fighter.name == "Mahoraga" else current_fighter.punch_poses
+                        active_rig = current_fighter.rig if selected_pose_index == 0 else poses[selected_pose_index - 1]
                         fx, fy = current_fighter.rect.x, current_fighter.rect.y
+                        w = current_fighter.rect.width
                         mid_x = current_fighter.rect.centerx
-                        for j_name, offset in current_fighter.rig.items():
-                            jx = fx + offset[0] if j_name != "head" else mid_x + offset[0]
+                        for j_name, offset in active_rig.items():
+                            if current_fighter.direction == 1:
+                                jx = fx + offset[0] if j_name != "head" else mid_x + offset[0]
+                            else:
+                                jx = fx + w - offset[0] if j_name != "head" else mid_x - offset[0]
                             jy = fy + offset[1]
                             dist = math.sqrt((mouse_pos[0]-jx)**2 + (mouse_pos[1]-jy)**2)
                             if dist < 15:
@@ -144,14 +165,22 @@ def run_studio():
                 dragging_joint = None
                 
             if event.type == pygame.MOUSEMOTION and dragging_joint:
+                poses = current_fighter.maho_punch_poses if current_fighter.name == "Mahoraga" else current_fighter.punch_poses
+                active_rig = current_fighter.rig if selected_pose_index == 0 else poses[selected_pose_index - 1]
                 fx, fy = current_fighter.rect.x, current_fighter.rect.y
+                w = current_fighter.rect.width
                 mid_x = current_fighter.rect.centerx
-                if dragging_joint == "head":
-                    current_fighter.rig[dragging_joint][0] = mouse_pos[0] - mid_x
-                    current_fighter.rig[dragging_joint][1] = mouse_pos[1] - fy
+                if current_fighter.direction == 1:
+                    if dragging_joint == "head":
+                        active_rig[dragging_joint][0] = mouse_pos[0] - mid_x
+                    else:
+                        active_rig[dragging_joint][0] = mouse_pos[0] - fx
                 else:
-                    current_fighter.rig[dragging_joint][0] = mouse_pos[0] - fx
-                    current_fighter.rig[dragging_joint][1] = mouse_pos[1] - fy
+                    if dragging_joint == "head":
+                        active_rig[dragging_joint][0] = mid_x - mouse_pos[0]
+                    else:
+                        active_rig[dragging_joint][0] = (fx + w) - mouse_pos[0]
+                active_rig[dragging_joint][1] = mouse_pos[1] - fy
 
         # Manually progress animation frames
         current_fighter.anim_tick += 1
@@ -176,20 +205,34 @@ def run_studio():
         
         # Draw everything from fighter.py
         eff = "summoning" if getattr(current_fighter, "is_paralyzed", False) else None
-        current_fighter.draw_detailed(screen, effect=eff, is_amp=getattr(current_fighter, "amp_duration", 0) > 0)
+        f_pose = selected_pose_index - 1 if selected_pose_index > 0 else None
+        current_fighter.draw_detailed(screen, effect=eff, is_amp=getattr(current_fighter, "amp_duration", 0) > 0, 
+                                     show_auras=show_auras, forced_pose_index=f_pose)
 
         # Draw Joint Handles
         if studio_mode:
+            poses = current_fighter.maho_punch_poses if current_fighter.name == "Mahoraga" else current_fighter.punch_poses
+            active_rig = current_fighter.rig if selected_pose_index == 0 else poses[selected_pose_index - 1]
+            
             fx, fy = current_fighter.rect.x, current_fighter.rect.y
+            w = current_fighter.rect.width
             mid_x = current_fighter.rect.centerx
-            for j_name, offset in current_fighter.rig.items():
-                jx = fx + offset[0] if j_name != "head" else mid_x + offset[0]
+            for j_name, offset in active_rig.items():
+                if current_fighter.direction == 1:
+                    jx = fx + offset[0] if j_name != "head" else mid_x + offset[0]
+                else:
+                    jx = fx + w - offset[0] if j_name != "head" else mid_x - offset[0]
                 jy = fy + offset[1]
+                
                 color = (255, 255, 0) if dragging_joint == j_name else (0, 255, 255)
                 pygame.draw.circle(screen, color, (int(jx), int(jy)), 8)
                 font = pygame.font.SysFont("Arial", 12)
-                txt = font.render(j_name, True, (255, 255, 255))
+                txt = font.render(f"{j_name}: {offset}", True, (255, 255, 255))
                 screen.blit(txt, (jx + 10, jy - 5))
+            
+            # Draw Pose Label
+            pose_txt = pygame.font.SysFont("Impact", 24).render(f"EDITING: {pose_labels[selected_pose_index]}", True, (255, 255, 0))
+            screen.blit(pose_txt, (10, 300))
 
         # --- DRAW UI BUTTONS ---
         for btn in buttons:
@@ -252,6 +295,18 @@ def run_studio():
 
         # Status Label
         screen.blit(pygame.font.SysFont("Impact", 20).render("FIGHTER STUDIO - CONTROLS UI", True, settings.WHITE), (10, 10))
+
+        # Live Rig Data Overlay
+        if studio_mode and hasattr(current_fighter, "last_active_rig"):
+            rig_font = pygame.font.SysFont("Consolas", 12)
+            y_offset = 50
+            header = rig_font.render("--- LIVE RIG DATA ---", True, (0, 255, 0))
+            screen.blit(header, (610, y_offset))
+            y_offset += 20
+            for k, v in current_fighter.last_active_rig.items():
+                line = rig_font.render(f"{k}: {v}", True, (200, 255, 200))
+                screen.blit(line, (610, y_offset))
+                y_offset += 15
 
         pygame.display.flip()
         clock.tick(60)
