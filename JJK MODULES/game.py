@@ -25,9 +25,14 @@ except ImportError:
 class Game:
     # --- MAJOR FUNCTION: INITIALIZATION ---
     def __init__(self):
+        # Robustly preserve fullscreen state across re-initializations
+        was_fs = getattr(self, 'is_fullscreen', False)
         pygame.init()
-        flags = pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.FULLSCREEN
+        flags = pygame.DOUBLEBUF | pygame.HWSURFACE
+        if was_fs:
+            flags |= pygame.FULLSCREEN
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT), flags)
+        self.is_fullscreen = was_fs
         self.world_surf = pygame.Surface((WORLD_WIDTH, WORLD_HEIGHT)).convert()
         self.cam_width = float(WIDTH)
         self.cam_height = float(HEIGHT)
@@ -129,16 +134,16 @@ class Game:
         txt = self.font.render("PLAY", True, WHITE)
         surf.blit(txt, (btn_rect.centerx - txt.get_width()//2, btn_rect.centery - txt.get_height()//2))
 
-        y = 520 # Fixed title position
+        y = 560 # Fixed title position
         surf.blit(self.get_text("MATCH HISTORY (LAST 10)", (100, 150, 255), self.mini_font), (WIDTH//2 - 100, y))
         
         # Clip history area
-        history_clip = pygame.Rect(WIDTH//2 - 250, 550, 500, 180)
+        history_clip = pygame.Rect(WIDTH//2 - 250, 590, 500, 140)
         old_clip = surf.get_clip()
         surf.set_clip(history_clip)
         
         # Items inside use the scroll offset
-        item_y = y + self.history_scroll_y 
+        item_y = y + 30 + self.history_scroll_y 
         for i, match in enumerate(self.match_history):
             color = BLUE if match["winner"] == "Gojo" else RED
             m_txt = self.mini_font.render(f"{match['date']} - WINNER: {match['winner'].upper()}", True, color)
@@ -149,11 +154,11 @@ class Game:
         
         if len(self.match_history) > 5:
             # Simple scroll indicator for history
-            pygame.draw.rect(surf, (30, 30, 50), (WIDTH//2 + 260, 550, 6, 180), border_radius=3)
-            handle_y = 550 + int((-self.history_scroll_y / 200) * 150)
-            pygame.draw.rect(surf, (150, 150, 255), (WIDTH//2 + 260, max(550, min(700, handle_y)), 6, 30), border_radius=3)
+            pygame.draw.rect(surf, (30, 30, 50), (WIDTH//2 + 260, 590, 6, 140), border_radius=3)
+            handle_y = 590 + int((-self.history_scroll_y / 200) * 110)
+            pygame.draw.rect(surf, (150, 150, 255), (WIDTH//2 + 260, max(590, min(700, handle_y)), 6, 30), border_radius=3)
 
-        quit_rect = pygame.Rect(WIDTH//2 - 150, 400, 300, 60)
+        quit_rect = pygame.Rect(WIDTH//2 - 150, 470, 300, 60) # Adjusted position
 
         q_color = (120, 70, 70) if quit_rect.collidepoint(mouse_pos) else (80, 40, 40)
         pygame.draw.rect(surf, q_color, quit_rect, border_radius=10)
@@ -161,13 +166,15 @@ class Game:
         q_txt = self.font.render("QUIT GAME", True, WHITE)
         surf.blit(q_txt, (quit_rect.centerx - q_txt.get_width()//2, quit_rect.centery - q_txt.get_height()//2))
 
-        if pygame.mouse.get_pressed()[0]:
-            if btn_rect.collidepoint(mouse_pos):
-                self.state = "PLAYING"
-                time.sleep(0.2)
-            elif quit_rect.collidepoint(mouse_pos):
-                pygame.quit()
-                import sys; sys.exit()
+        # Fullscreen Toggle Button
+        fs_rect = pygame.Rect(WIDTH//2 - 150, 400, 300, 50)
+        fs_color = (100, 100, 150) if fs_rect.collidepoint(mouse_pos) else (60, 60, 100)
+        pygame.draw.rect(surf, fs_color, fs_rect, border_radius=10)
+        pygame.draw.rect(surf, WHITE, fs_rect, 1, border_radius=10)
+        # Text rendering
+        fs_text = "FULLSCREEN" if not self.is_fullscreen else "WINDOWED"
+        fs_txt = self.font.render(fs_text, True, WHITE)
+        surf.blit(fs_txt, (fs_rect.centerx - fs_txt.get_width()//2, fs_rect.centery - fs_txt.get_height()//2))
 
 
     # --- MAJOR FUNCTION: TEXT CACHING & RENDERING ---
@@ -284,8 +291,24 @@ class Game:
                 if self.state == "MENU":
                     if event.type == pygame.MOUSEBUTTONDOWN:
                         if event.button == 1:
+                            # Menu Button Handlers
+                            btn_rect = pygame.Rect(WIDTH//2 - 150, 300, 300, 80)
+                            fs_rect = pygame.Rect(WIDTH//2 - 150, 400, 300, 50)
+                            quit_rect = pygame.Rect(WIDTH//2 - 150, 470, 300, 60)
+                            
+                            if btn_rect.collidepoint(event.pos):
+                                self.state = "PLAYING"
+                            elif fs_rect.collidepoint(event.pos):
+                                self.is_fullscreen = not self.is_fullscreen
+                                flags = pygame.DOUBLEBUF | pygame.HWSURFACE
+                                if self.is_fullscreen: flags |= pygame.FULLSCREEN
+                                self.screen = pygame.display.set_mode((WIDTH, HEIGHT), flags)
+                            elif quit_rect.collidepoint(event.pos):
+                                pygame.quit()
+                                import sys; sys.exit()
+
                             # History scroll bar check
-                            bar_rect = pygame.Rect(WIDTH//2 + 260, 550, 20, 180) # Larger hit box
+                            bar_rect = pygame.Rect(WIDTH//2 + 260, 550, 20, 180) 
                             if bar_rect.collidepoint(event.pos):
                                 self.is_dragging_history_scroll = True
                         
@@ -308,6 +331,13 @@ class Game:
                     if self.paused:
                         if event.type == pygame.MOUSEBUTTONDOWN:
                             if event.button == 1:
+                                menu_btn_rect = pygame.Rect(WIDTH//2 - 100, HEIGHT//2 + 265, 200, 30)
+                                if menu_btn_rect.collidepoint(event.pos):
+                                    self.__init__()
+                                    self.state = "MENU"
+                                    self.paused = False
+                                    break
+                                
                                 # Menu scroll bar check
                                 bar_rect = pygame.Rect(WIDTH//2 + 380, HEIGHT//2 - 230, 25, 460) # Larger hit box
                                 if bar_rect.collidepoint(event.pos):
@@ -347,9 +377,13 @@ class Game:
                 target = self.sukuna
 
                 
-                # --- BLACK FLASH IMPACT PAUSE ---
+                # --- HIT STOP & BLACK FLASH IMPACT PAUSE ---
                 bf_timer = getattr(self, "bf_zoom_timer", 0)
-                if bf_timer > 25:
+                hit_stop_timer = getattr(self, "hit_stop", 0)
+                if hit_stop_timer > 0:
+                    self.hit_stop -= time_mult
+                    sim_dt = 0
+                elif bf_timer > 25:
                     sim_dt = 0 
                 else:
                     sim_dt = self.dt

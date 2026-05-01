@@ -141,6 +141,7 @@ def update_projectiles(self, dt):
                 
                 p.active = False
                 self.shake_timer = 15
+                self.hit_stop = 8
             
             for slash in self.projectiles:
                 if slash.type in ["dismantle", "cleave"]:
@@ -183,6 +184,8 @@ def update_projectiles(self, dt):
                 p_target.hp -= purple_dmg
                 if p_target.name == "Sukuna": p_target.memory.record("purple", dist_x, hit=True)
                 p.active = False 
+                self.shake_timer = 20
+                self.hit_stop = 30
     
         elif p.type == "fuga_arrow":
             dist_x = abs(self.gojo.rect.centerx - p.pos.x)
@@ -205,6 +208,7 @@ def update_projectiles(self, dt):
                     self.gojo.hp -= fuga_hp_dmg
                 
                 p.active = False 
+                self.hit_stop = 30
     
         intercepted_by_sd = False
         
@@ -243,6 +247,8 @@ def update_projectiles(self, dt):
                 if p.type == "world_slash":
                     self.gojo.hp -= 200 
                     p.active = False
+                    self.shake_timer = 25
+                    self.hit_stop = 15
                     
                 elif getattr(p, "is_sure_hit", False):
                     proj_dmg = 80.0 if p.type == "cleave" else 32.0
@@ -254,6 +260,7 @@ def update_projectiles(self, dt):
                 
                     self.gojo.hp -= proj_dmg
                     p.active = False
+                    if p.type == "cleave": self.hit_stop = 6
                     self.blood_particles.append([self.gojo.rect.centerx, self.gojo.rect.centery, random.uniform(-5, 5), random.uniform(-5, 0), 30, random.randint(3, 6)])
                     
                 else:
@@ -273,6 +280,7 @@ def update_projectiles(self, dt):
                     
                         self.gojo.hp -= proj_dmg
                         p.active = False
+                        if p.type == "cleave": self.hit_stop = 6
                         self.blood_particles.append([self.gojo.rect.centerx, self.gojo.rect.centery, random.uniform(-5, 5), random.uniform(-5, 0), 30, random.randint(3, 6)])
         
         if p.active:

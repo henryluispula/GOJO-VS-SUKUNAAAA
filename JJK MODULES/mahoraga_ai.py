@@ -76,6 +76,7 @@ def update_mahoraga_ai(self, dt):
                 self.mahoraga.black_flash_timer = 20
                 self.mahoraga.potential_timer = 600 
                 self.shake_timer = 15
+                self.hit_stop = 30
                 
                 ce_recovery = self.mahoraga.max_energy * 0.20
                 self.mahoraga.energy = min(self.mahoraga.max_energy, self.mahoraga.energy + ce_recovery)

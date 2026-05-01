@@ -72,9 +72,6 @@ def draw_hud(self, render_surf, dt):
     render_surf.blit(self.gojo_hud_bg, (10, 10))
     
     render_surf.blit(self.get_text("SATORU GOJO", (200, 230, 255)), (25, 15))
-    if self.gojo.potential_timer > 0:
-        render_surf.blit(self.get_text("120% POT", (255, 215, 0), font=self.mini_font), (260, 20))
-
     self.draw_bar_on(render_surf, 25, 60, self.gojo.hp, self.gojo.max_hp, RED, 310, 10, "HEALTH")
     
     threshold_x = 25 + int(310 * 0.7)
@@ -393,7 +390,14 @@ def draw_hud(self, render_surf, dt):
             pygame.draw.rect(render_surf, (150, 150, 255), (bar_x, handle_y, bar_w, handle_h), border_radius=3)
 
         resume_txt = self.get_text("PRESS 'P' TO RESUME", (100, 255, 100), font=self.mini_font)
-        render_surf.blit(resume_txt, (WIDTH//2 - resume_txt.get_width()//2, HEIGHT//2 + 265))
+        render_surf.blit(resume_txt, (WIDTH//2 - resume_txt.get_width()//2, HEIGHT//2 + 245))
+
+        menu_btn_rect = pygame.Rect(WIDTH//2 - 100, HEIGHT//2 + 265, 200, 30)
+        mouse_pos = pygame.mouse.get_pos()
+        color = (200, 80, 80) if menu_btn_rect.collidepoint(mouse_pos) else (150, 50, 50)
+        pygame.draw.rect(render_surf, color, menu_btn_rect, border_radius=5)
+        menu_txt = self.get_text("RETURN TO MENU", WHITE, font=self.mini_font)
+        render_surf.blit(menu_txt, (menu_btn_rect.centerx - menu_txt.get_width()//2, menu_btn_rect.centery - menu_txt.get_height()//2))
 
     if self.game_over:
         self.shared_ui_overlay.fill((0, 0, 0, 230))

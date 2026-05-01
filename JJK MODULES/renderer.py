@@ -415,35 +415,66 @@ def draw_world(self, punching, dt):
     
     self.gojo.draw_detailed(self.world_surf, punching)
 
-    # --- GRABBED INDICATOR (Standard Style) ---
+    # --- GRABBED & 120% POTENTIAL INDICATORS ---
     for f in [self.gojo, self.sukuna, self.mahoraga]:
-        if f and f.hp > 0 and f.grab_timer > 0:
-            # Match the pulsating/scaling style of other popups
-            scale_f = 1.1 + math.sin(pygame.time.get_ticks() * 0.012) * 0.1
-            
-            # Use character-specific colors for clarity
+        if f and getattr(f, "hp", 0) > 0:
             g_color = RED
             if f.name == "Gojo": g_color = PURPLE
             elif f.name == "Sukuna": g_color = BLUE
             elif f.name == "Mahoraga": g_color = MAHO_COLOR
 
+            base_y = f.rect.y - 120
             
-            txt = self.get_text("GRABBED!", BLACK)
-            out = self.get_text("GRABBED!", g_color)
+            # GRABBED
+            if getattr(f, "grab_timer", 0) > 0:
+                scale_f = 1.1 + math.sin(pygame.time.get_ticks() * 0.012) * 0.1
+                txt = self.get_text("GRABBED!", BLACK)
+                out = self.get_text("GRABBED!", g_color)
+                
+                s_out = pygame.transform.scale(out, (int(out.get_width() * scale_f), int(out.get_height() * scale_f)))
+                s_txt = pygame.transform.scale(txt, (int(txt.get_width() * scale_f), int(txt.get_height() * scale_f)))
+                
+                gx, gy = f.rect.centerx, base_y
+                base_y -= 40 # Shift up for next label if any
+                
+                self.world_surf.blit(s_out, (gx - s_out.get_width()//2 - 3, gy - s_out.get_height()//2 - 3))
+                self.world_surf.blit(s_out, (gx - s_out.get_width()//2 + 3, gy - s_out.get_height()//2 + 3))
+                self.world_surf.blit(s_out, (gx - s_out.get_width()//2 - 3, gy - s_out.get_height()//2 + 3))
+                self.world_surf.blit(s_out, (gx - s_out.get_width()//2 + 3, gy - s_out.get_height()//2 - 3))
+                self.world_surf.blit(s_txt, (gx - s_txt.get_width()//2, gy - s_txt.get_height()//2))
 
-            
-            s_out = pygame.transform.scale(out, (int(out.get_width() * scale_f), int(out.get_height() * scale_f)))
-            s_txt = pygame.transform.scale(txt, (int(txt.get_width() * scale_f), int(txt.get_height() * scale_f)))
-            
-            gx, gy = f.rect.centerx, f.rect.y - 120
-            
-            # Draw shadow/outline
-            self.world_surf.blit(s_out, (gx - s_out.get_width()//2 - 3, gy - s_out.get_height()//2 - 3))
-            self.world_surf.blit(s_out, (gx - s_out.get_width()//2 + 3, gy - s_out.get_height()//2 + 3))
-            self.world_surf.blit(s_out, (gx - s_out.get_width()//2 - 3, gy - s_out.get_height()//2 + 3))
-            self.world_surf.blit(s_out, (gx - s_out.get_width()//2 + 3, gy - s_out.get_height()//2 - 3))
-            # Draw main text
-            self.world_surf.blit(s_txt, (gx - s_txt.get_width()//2, gy - s_txt.get_height()//2))
+            # 120% POTENTIAL
+            if getattr(f, "potential_timer", 0) > 0:
+                scale_f = 1.0 + math.sin(pygame.time.get_ticks() * 0.008) * 0.05
+                pot_txt = self.get_text("120% POTENTIAL", BLACK)
+                pot_out = self.get_text("120% POTENTIAL", g_color)
+
+                s_out = pygame.transform.scale(pot_out, (int(pot_out.get_width() * scale_f), int(pot_out.get_height() * scale_f)))
+                s_txt = pygame.transform.scale(pot_txt, (int(pot_txt.get_width() * scale_f), int(pot_txt.get_height() * scale_f)))
+                
+                gx, gy = f.rect.centerx, base_y
+                
+                self.world_surf.blit(s_out, (gx - s_out.get_width()//2 - 3, gy - s_out.get_height()//2 - 3))
+                self.world_surf.blit(s_out, (gx - s_out.get_width()//2 + 3, gy - s_out.get_height()//2 + 3))
+                self.world_surf.blit(s_out, (gx - s_out.get_width()//2 - 3, gy - s_out.get_height()//2 + 3))
+                self.world_surf.blit(s_out, (gx - s_out.get_width()//2 + 3, gy - s_out.get_height()//2 - 3))
+                self.world_surf.blit(s_txt, (gx - s_txt.get_width()//2, gy - s_txt.get_height()//2))
+
+                # --- BLACK AND RED LIGHTNING EFFECTS ---
+                for _ in range(2):
+                    start_x = f.rect.centerx + random.randint(-70, 70)
+                    start_y = f.rect.centery + random.randint(-110, 110)
+                    end_x = start_x + random.randint(-50, 50)
+                    end_y = start_y + random.randint(-50, 50)
+                    
+                    lightning_color = BLACK if random.random() > 0.5 else RED
+                    thickness = random.randint(2, 5)
+                    pygame.draw.line(self.world_surf, lightning_color, (start_x, start_y), (end_x, end_y), thickness)
+                    
+                    if random.random() > 0.5:
+                        branch_x = end_x + random.randint(-30, 30)
+                        branch_y = end_y + random.randint(-30, 30)
+                        pygame.draw.line(self.world_surf, lightning_color, (end_x, end_y), (branch_x, branch_y), max(1, thickness - 1))
 
     for p in self.projectiles: p.draw(self.world_surf)
 

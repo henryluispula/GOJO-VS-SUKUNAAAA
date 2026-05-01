@@ -110,6 +110,7 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
         red_burst.lifetime = 15
         game.projectiles.append(red_burst)
         game.shake_timer = 30
+        game.hit_stop = 8
         for p in game.projectiles:
             if getattr(p, "is_grab_cleave", False): p.active = False
         game.gojo_combo_buffer.clear()
@@ -137,7 +138,7 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
                 if g.energy >= imbue_cost:
                     g.energy -= imbue_cost; dmg *= 1.6
                 
-                bf_chance = random.uniform(0.05, 0.10) if g.potential_timer > 0 else random.uniform(0.0005, 0.001)
+                bf_chance = random.uniform(0.05, 0.10) if g.potential_timer > 0 else random.uniform(0.005, 0.01)
                 is_black_flash = random.random() < bf_chance
                 
                 if is_black_flash:
@@ -147,6 +148,7 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
                     dmg *= math.pow(2.5, 2.5)
                     g.black_flash_timer = 20; g.potential_timer = 600
                     game.shake_timer = 15; g.energy = g.max_energy
+                    game.hit_stop = 30
                     game.bf_words.append({"x": target.rect.centerx, "y": target.rect.centery - 60, "timer": 45})
                 
                 if not target.is_dodging:

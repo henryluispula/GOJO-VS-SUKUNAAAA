@@ -440,7 +440,7 @@ def update_sukuna_ai(game, dt):
                 imbue_cost = 2.0 * s.cost_mult
                 if s.energy >= imbue_cost: s.energy -= imbue_cost; melee_dmg *= 1.6
                 
-                bf_chance = random.uniform(0.05, 0.10) if s.potential_timer > 0 else random.uniform(0.0005, 0.001)
+                bf_chance = random.uniform(0.05, 0.10) if s.potential_timer > 0 else random.uniform(0.005, 0.01)
                 is_black_flash = random.random() < bf_chance
                 
                 if is_black_flash:
@@ -448,6 +448,7 @@ def update_sukuna_ai(game, dt):
                     
                     melee_dmg *= math.pow(2.5, 2.5); s.black_flash_timer = 20; s.potential_timer = 600
                     game.shake_timer = 15; s.energy = s.max_energy
+                    game.hit_stop = 30
                     game.bf_words.append({"x": g.rect.centerx, "y": g.rect.centery - 60, "timer": 45})
                     
                 if is_amp:

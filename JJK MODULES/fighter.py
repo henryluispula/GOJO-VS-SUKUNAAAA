@@ -254,14 +254,9 @@ class Fighter:
 
 
 
-        if self.name == "Sukuna" and self.grab_timer > 0 and getattr(self, "grab_type", "") != "gojo_beatdown":
-            arm_color = (100, 0, 0)
-            grab_x = mid_x + (60 * self.direction)
-            pygame.draw.line(surface, SKIN, (mid_x, y + 50), (grab_x, y + 60), 18)
-            for _ in range(5):
-                pygame.draw.circle(surface, RED, (int(grab_x), int(y + 60 + random.randint(-10, 10))), 4)
+
                 
-        if self.is_split and self.name == "Gojo":
+        if self.hp <= 0 or getattr(self, "is_split", False):
             self.draw_death(surface)
             return
 
@@ -402,16 +397,6 @@ class Fighter:
             ]
             pygame.draw.polygon(surface, BLACK, pants_rect)
         
-        hp_ratio = self.hp / self.max_hp
-        if hp_ratio < 0.7:
-            pygame.draw.circle(surface, BLOOD, (int(mid_x - 10*scale), int(y + 40*scale)), int(8*scale))
-        if hp_ratio < 0.4:
-            pygame.draw.circle(surface, BLOOD, (int(mid_x + 15*scale), int(y + 60*scale)), int(12*scale))
-            pygame.draw.line(surface, BLOOD, (mid_x, y + int(30*scale)), (mid_x - int(15*scale), y + int(70*scale)), int(4*scale))
-        if hp_ratio < 0.2:
-            pygame.draw.circle(surface, BLOOD, (int(mid_x - 5*scale), int(y + 80*scale)), int(15*scale))
-            pygame.draw.line(surface, BLOOD, (mid_x + int(10*scale), y + int(80*scale)), (mid_x + int(20*scale), y + int(90*scale)), int(5*scale))
-        
         l_shoulder = (x + int(10*scale), y + int(35*scale))
         r_shoulder = (x + w - int(10*scale), y + int(35*scale))
         l_hand = (x + int(5*scale), y + int(85*scale))
@@ -496,10 +481,59 @@ class Fighter:
                 h_x = mid_x - int(25*scale) + i * 10
                 pygame.draw.polygon(surface, h_color, [(h_x, y-5), (h_x+5, y-int(45*scale)), (h_x+10, y-5)])
 
+        hp_ratio = self.hp / self.max_hp
+        if hp_ratio < 0.9:
+            pygame.draw.circle(surface, BLOOD, (int(mid_x - 12*scale), int(y + 30*scale)), int(4*scale))
+        if hp_ratio < 0.8:
+            pygame.draw.circle(surface, BLOOD, (int(mid_x + 18*scale), int(y + 45*scale)), int(5*scale))
+            pygame.draw.line(surface, BLOOD, (int(mid_x + 18*scale), int(y + 45*scale)), (int(mid_x + 10*scale), int(y + 55*scale)), int(3*scale))
+        if hp_ratio < 0.7:
+            pygame.draw.circle(surface, BLOOD, (int(mid_x - 10*scale), int(y + 40*scale)), int(8*scale))
+        if hp_ratio < 0.6:
+            pygame.draw.circle(surface, BLOOD, (int(mid_x - 22*scale), int(y + 60*scale)), int(6*scale))
+            pygame.draw.line(surface, BLOOD, (int(mid_x - 22*scale), int(y + 60*scale)), (int(mid_x - 15*scale), int(y + 75*scale)), int(4*scale))
+            pygame.draw.circle(surface, BLOOD, (int(mid_x + 5*scale), int(y + 20*scale)), int(5*scale)) # head/neck
+        if hp_ratio < 0.5:
+            pygame.draw.circle(surface, BLOOD, (int(mid_x + 25*scale), int(y + 80*scale)), int(9*scale))
+            pygame.draw.line(surface, BLOOD, (int(mid_x + 5*scale), int(y + 20*scale)), (int(mid_x + 15*scale), int(y + 40*scale)), int(3*scale))
+        if hp_ratio < 0.4:
+            pygame.draw.circle(surface, BLOOD, (int(mid_x + 15*scale), int(y + 60*scale)), int(12*scale))
+            pygame.draw.line(surface, BLOOD, (int(mid_x), int(y + 30*scale)), (int(mid_x - 15*scale), int(y + 70*scale)), int(4*scale))
+        if hp_ratio < 0.3:
+            pygame.draw.circle(surface, BLOOD, (int(mid_x - 12*scale), int(y - 12*scale)), int(5*scale))
+            pygame.draw.line(surface, BLOOD, (int(mid_x - 10*scale), int(y + 40*scale)), (int(mid_x - 15*scale), int(y + 70*scale)), int(6*scale))
+            pygame.draw.circle(surface, BLOOD, (int(mid_x + 10*scale), int(y - 15*scale)), int(4*scale))
+        if hp_ratio < 0.2:
+            pygame.draw.circle(surface, BLOOD, (int(mid_x - 5*scale), int(y + 80*scale)), int(15*scale))
+            pygame.draw.line(surface, BLOOD, (int(mid_x + 10*scale), int(y + 80*scale)), (int(mid_x + 20*scale), int(y + 90*scale)), int(5*scale))
+            pygame.draw.line(surface, BLOOD, (int(mid_x + 18*scale), int(y - 10*scale)), (int(mid_x + 20*scale), int(y + 15*scale)), int(3*scale)) # Drips down right cheek
+        if hp_ratio < 0.1:
+            pygame.draw.circle(surface, BLOOD, (int(mid_x - 12*scale), int(y + 8*scale)), int(8*scale)) # Covers left eye
+            pygame.draw.line(surface, BLOOD, (int(mid_x - 12*scale), int(y + 8*scale)), (int(mid_x - 18*scale), int(y + 25*scale)), int(4*scale)) # Drips down left cheek
+            pygame.draw.circle(surface, BLOOD, (int(mid_x + 5*scale), int(y - 18*scale)), int(6*scale)) # Forehead cut
+
     def draw_death(self, surface):
         mx, my = self.rect.centerx, self.rect.centery
-        pygame.draw.line(surface, CLOTHES, (mx-10, my+10), (mx-20, my+80), 14)
-        pygame.draw.line(surface, CLOTHES, (mx+10, my+10), (mx+20, my+80), 14)
-        pygame.draw.rect(surface, BLOOD, (mx-25, my-10, 50, 15))
-        pygame.draw.circle(surface, SKIN, (mx + 90, my + 60), 26)
-        pygame.draw.rect(surface, CLOTHES, (mx + 70, my + 70, 80, 45))
+        if self.name == "Gojo":
+            pygame.draw.line(surface, CLOTHES, (mx-10, my+10), (mx-20, my+80), 14)
+            pygame.draw.line(surface, CLOTHES, (mx+10, my+10), (mx+20, my+80), 14)
+            pygame.draw.rect(surface, BLOOD, (mx-25, my-10, 50, 15))
+            pygame.draw.circle(surface, SKIN, (mx + 90, my + 60), 26)
+            pygame.draw.rect(surface, CLOTHES, (mx + 70, my + 70, 80, 45))
+        elif self.name == "Sukuna":
+            pygame.draw.circle(surface, BLOOD, (mx, my+20), 45)
+            for _ in range(25):
+                rx, ry = mx + random.randint(-80, 80), my + random.randint(-40, 100)
+                pygame.draw.circle(surface, BLOOD, (rx, ry), random.randint(5, 18))
+            pygame.draw.circle(surface, SKIN, (mx - 60, my + 80), 24)
+            pygame.draw.line(surface, SKIN, (mx + 50, my + 80), (mx + 90, my + 90), 14)
+            pygame.draw.line(surface, SKIN, (mx + 20, my + 110), (mx + 40, my + 130), 16)
+        elif self.name == "Mahoraga":
+            pygame.draw.circle(surface, BLOOD, (mx, my+20), 60)
+            for _ in range(30):
+                rx, ry = mx + random.randint(-100, 100), my + random.randint(-60, 120)
+                pygame.draw.circle(surface, BLOOD, (rx, ry), random.randint(8, 22))
+            pygame.draw.circle(surface, WHITE, (mx + 70, my + 80), 28) 
+            for _ in range(8):
+                pygame.draw.line(surface, (200, 200, 180), (mx + random.randint(-80, 80), my - random.randint(0, 100)), 
+                                 (mx + random.randint(-80, 80), my - random.randint(0, 100)), random.randint(4, 10))
