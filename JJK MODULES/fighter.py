@@ -118,6 +118,7 @@ class Fighter:
         self.is_split = False
         self.using_blue = False 
         self.purple_charge = 0 
+        self.purple_fire_timer = 0
         self.fuga_charge = 0
         self.world_slash_charge = 0 
         self.world_slash_cd = 0 
@@ -299,6 +300,34 @@ class Fighter:
             "r_hand": [79, 69],
             "torso_top": [6, 20],
             "torso_bottom": [16, 95],
+            "l_foot": [15, 155],
+            "r_foot": [55, 155]
+        }
+        
+        self.purple_mix_pose = {
+            "head": [-1, 2],
+            "l_shoulder": [10, 35],
+            "r_shoulder": [60, 35],
+            "l_elbow": [-17, 17],
+            "r_elbow": [90, 16],
+            "l_hand": [-45, -10],
+            "r_hand": [116, -9],
+            "torso_top": [5, 20],
+            "torso_bottom": [15, 95],
+            "l_foot": [-7, 146],
+            "r_foot": [73, 146]
+        }
+        
+        self.purple_launch_pose = {
+            "head": [0, 0],
+            "l_shoulder": [10, 35],
+            "r_shoulder": [60, 35],
+            "l_elbow": [14, 53],
+            "r_elbow": [85, 40],
+            "l_hand": [41, 46],
+            "r_hand": [114, 39],
+            "torso_top": [5, 20],
+            "torso_bottom": [15, 95],
             "l_foot": [15, 155],
             "r_foot": [55, 155]
         }
@@ -544,6 +573,8 @@ class Fighter:
                     active_rig = poses[1] if self.punch_count % 2 == 1 else poses[2]
         elif getattr(self, "domain_charge", 0) > 0:
             active_rig = self.gojo_domain_pose if self.name == "Gojo" else self.sukuna_domain_pose
+        elif (getattr(self, "purple_charge", 0) > 0 or getattr(self, "purple_fire_timer", 0) > 0) and self.name == "Gojo":
+            active_rig = self.purple_launch_pose
         elif getattr(self, "summon_timer", 0) > 0 and self.name == "Sukuna":
             active_rig = self.summon_pose
         elif getattr(self, "stun_timer", 0) > 0 and self.name != "Mahoraga":
@@ -659,11 +690,54 @@ class Fighter:
                 tail_points.append((int(px), int(py)))
                 
             if len(tail_points) > 1:
-                for i in range(len(tail_points) - 1):
-                    t_thick = max(12, int(75 - (i * 7.5)))
-                    inner_thick = max(1, t_thick - 12)
-                    pygame.draw.line(surface, WHITE, tail_points[i], tail_points[i+1], t_thick)
-                    pygame.draw.line(surface, (210, 210, 215), tail_points[i], tail_points[i+1], inner_thick)
+                # Steeper reduction for a pointy tip
+                def get_thick(idx): return max(4, int(75 - (idx * 10)))
+                
+                last_pt = tail_points[-1]
+                end_thick = get_thick(len(tail_points) - 1)
+                
+                # Lighting Colors (Top-down shading removed, flat color retained)
+                c_drop = (60, 60, 50)     # Cast shadow on the background
+                c_main = (170, 170, 150)  # Main flat tail color
+                
+                # Draw layers from bottom (shadow) to top (flat body)
+                layers = [
+                    (c_drop, 8, 0),      # Drop shadow (Y+8)
+                    (c_main, 0, 0)       # Main tail flat color (Y+0)
+                ]
+                
+                for color, y_off, thick_reduction in layers:
+                    tip_t = max(0, end_thick + thick_reduction)
+                    if tip_t > 0:
+                        pygame.draw.circle(surface, color, (last_pt[0], last_pt[1] + y_off), tip_t // 2)
+                        
+                    for i in range(len(tail_points) - 2, -1, -1):
+                        t_base = get_thick(i)
+                        t_actual = max(0, t_base + thick_reduction)
+                        
+                        if t_actual > 0:
+                            p1 = (tail_points[i][0], tail_points[i][1] + y_off)
+                            p2 = (tail_points[i+1][0], tail_points[i+1][1] + y_off)
+                            
+                            # --- SEAMLESS HEAD GRADIENT ---
+                            # Indices 0, 1, and 2 are the closest to the head.
+                            if i < 3:
+                                # i=0 is 100% blend, i=1 is 66%, i=2 is 33%
+                                blend_factor = 1.0 - (i / 3.0)
+                                
+                                # Don't completely white-out the drop shadow, just lighten it heavily
+                                target_color = (200, 200, 200) if color == c_drop else WHITE
+                                
+                                draw_color = (
+                                    int(color[0] + (target_color[0] - color[0]) * blend_factor),
+                                    int(color[1] + (target_color[1] - color[1]) * blend_factor),
+                                    int(color[2] + (target_color[2] - color[2]) * blend_factor)
+                                )
+                            else:
+                                draw_color = color
+                                
+                            pygame.draw.line(surface, draw_color, p1, p2, t_actual)
+                            pygame.draw.circle(surface, draw_color, p1, t_actual // 2)
         
         hip_y = y + active_rig.get("torso_bottom_l", active_rig.get("torso_bottom", [0, 95]))[1]
         pygame.draw.line(surface, self.color if self.name != "Mahoraga" else (180, 180, 160), (l_hip_x, hip_y), (l_foot_pt[0] - leg_off, l_foot_pt[1]), int(thickness))
@@ -803,13 +877,33 @@ class Fighter:
             pygame.draw.polygon(surface, MAHO_COLOR, [(hx + int(16*scale), hy - int(2*scale)), (hx + int(58*scale), hy - int(12*scale)), (hx + int(10*scale), hy + int(4*scale))])
             mouth_w = int(14*scale)
             mouth_h = int(7*scale)
+            m_cx = hx
+            m_cy = hy + int(8*scale) + mouth_h / 2
+            rx = mouth_w / 2.0
+            ry = mouth_h / 2.0
+            
             mouth_rect = pygame.Rect(hx - mouth_w//2, hy + int(8*scale), mouth_w, mouth_h)
+            
+            # 1. Draw base mouth background
             pygame.draw.ellipse(surface, (160, 190, 190), mouth_rect)
-            pygame.draw.ellipse(surface, (30, 35, 40), mouth_rect, max(1, int(1.5*scale)))
-            pygame.draw.line(surface, (30, 35, 40), (hx - mouth_w//2, hy + int(8*scale) + mouth_h//2), (hx + mouth_w//2, hy + int(8*scale) + mouth_h//2), max(1, int(1*scale)))
+            
+            # 2. Draw teeth mathematically clamped to the ellipse curve
             for t_i in range(1, 5):
                 t_x = (hx - mouth_w//2) + (t_i * (mouth_w // 5))
-                pygame.draw.line(surface, (30, 35, 40), (t_x, hy + int(8*scale)), (t_x, hy + int(8*scale) + mouth_h), max(1, int(1*scale)))
+                
+                dx = abs(t_x - m_cx)
+                dx = min(dx, rx) 
+                
+                # Ellipse height formula: dy = ry * sqrt(1 - (dx/rx)^2)
+                dy = ry * math.sqrt(max(0, 1.0 - (dx**2 / rx**2)))
+                
+                pygame.draw.line(surface, (30, 35, 40), (t_x, m_cy - dy), (t_x, m_cy + dy), max(1, int(1*scale)))
+                
+            # 3. Draw horizontal mouth line
+            pygame.draw.line(surface, (30, 35, 40), (hx - mouth_w//2, m_cy), (hx + mouth_w//2, m_cy), max(1, int(1*scale)))
+            
+            # 4. Draw lip outline LAST to cover up any pixelated line edges
+            pygame.draw.ellipse(surface, (30, 35, 40), mouth_rect, max(1, int(1.5*scale)))
 
         if self.name != "Mahoraga":
             h_color = WHITE if self.name == "Gojo" else (20, 20, 25)
