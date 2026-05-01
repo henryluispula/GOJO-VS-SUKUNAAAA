@@ -8,6 +8,9 @@ def update_sukuna_ai(game, dt):
     s = game.sukuna
     time_mult = dt * 60.0
 
+    if getattr(s, "summon_timer", 0) > 0:
+        s.summon_timer -= time_mult
+
     dist = abs(s.rect.centerx - g.rect.centerx)
     
     purple_flying_early = any(p.type == "purple_orb" for p in game.projectiles)
@@ -543,6 +546,7 @@ def update_sukuna_ai(game, dt):
             print(f"MAHORAGA STATUS: Available")
             print(f"SUKUNA HP: {s.hp:.1f}")
             game.mahoraga_summon_timer = 300
+            s.summon_timer = 300
 
     # ── Domain Charge Countdown ──────────────────────────────────────────────
     if s.domain_charge > 0:

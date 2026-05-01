@@ -247,6 +247,48 @@ class Fighter:
             "r_foot": [55, 155]
         }
         
+        self.summon_pose = {
+            "head": [0, 0],
+            "l_shoulder": [11, 34],
+            "r_shoulder": [60, 35],
+            "l_elbow": [-3, 53],
+            "r_elbow": [54, 60],
+            "l_hand": [-21, 44],
+            "r_hand": [27, 38],
+            "torso_top": [5, 20],
+            "torso_bottom": [15, 95],
+            "l_foot": [15, 155],
+            "r_foot": [55, 155]
+        }
+        
+        self.gojo_domain_pose = {
+            "head": [0, 0],
+            "l_shoulder": [10, 35],
+            "r_shoulder": [60, 35],
+            "l_elbow": [23, 60],
+            "r_elbow": [63, 60],
+            "l_hand": [36, 16],
+            "r_hand": [65, 85],
+            "torso_top": [5, 20],
+            "torso_bottom": [15, 95],
+            "l_foot": [15, 155],
+            "r_foot": [55, 155]
+        }
+        
+        self.sukuna_domain_pose = {
+            "head": [0, 0],
+            "l_shoulder": [10, 35],
+            "r_shoulder": [60, 35],
+            "l_elbow": [7, 60],
+            "r_elbow": [63, 60],
+            "l_hand": [32, 38],
+            "r_hand": [38, 38],
+            "torso_top": [5, 20],
+            "torso_bottom": [15, 95],
+            "l_foot": [15, 155],
+            "r_foot": [55, 155]
+        }
+        
         # --- REFACTOR: Combat Realism & Feedback ---
         self.hit_stop = 0
         self.particles = []
@@ -373,12 +415,6 @@ class Fighter:
                 mid_x = x + (self.rect.width // 2)
 
         ragdoll_angle = 0
-
-
-
-
-
-
                 
         if self.hp <= 0 or getattr(self, "is_split", False):
             self.draw_death(surface)
@@ -497,6 +533,10 @@ class Fighter:
                 else:
                     # Alternates based on punch count (Pose 1 then Pose 2)
                     active_rig = poses[1] if self.punch_count % 2 == 1 else poses[2]
+        elif getattr(self, "domain_charge", 0) > 0:
+            active_rig = self.gojo_domain_pose if self.name == "Gojo" else self.sukuna_domain_pose
+        elif getattr(self, "summon_timer", 0) > 0 and self.name == "Sukuna":
+            active_rig = self.summon_pose
         elif self.is_blocking:
             active_rig = self.block_pose
 

@@ -269,16 +269,16 @@ def run_studio():
         base_y = f.rect.y - 120
         
         # GRABBED
-        if getattr(f, "grab_timer", 0) > 0:
-            scale_f = 1.1 + math.sin(pygame.time.get_ticks() * 0.012) * 0.1
-            txt = get_text("GRABBED!", settings.BLACK)
-            out = get_text("GRABBED!", g_color)
-            s_out = pygame.transform.scale(out, (int(out.get_width() * scale_f), int(out.get_height() * scale_f)))
-            s_txt = pygame.transform.scale(txt, (int(txt.get_width() * scale_f), int(txt.get_height() * scale_f)))
-            gx, gy = f.rect.centerx, base_y
-            base_y -= 40
-            for dx, dy in [(-3,-3), (3,3), (-3,3), (3,-3)]: screen.blit(s_out, (gx - s_out.get_width()//2 + dx, gy - s_out.get_height()//2 + dy))
-            screen.blit(s_txt, (gx - s_txt.get_width()//2, gy - s_txt.get_height()//2))
+        # if getattr(f, "grab_timer", 0) > 0:
+        #     scale_f = 1.1 + math.sin(pygame.time.get_ticks() * 0.012) * 0.1
+        #     # txt = get_text("GRABBED!", settings.BLACK)
+        #     # out = get_text("GRABBED!", g_color)
+        #     s_out = pygame.transform.scale(out, (int(out.get_width() * scale_f), int(out.get_height() * scale_f)))
+        #     s_txt = pygame.transform.scale(txt, (int(txt.get_width() * scale_f), int(txt.get_height() * scale_f)))
+        #     gx, gy = f.rect.centerx, base_y
+        #     base_y -= 40
+        #     for dx, dy in [(-3,-3), (3,3), (-3,3), (3,-3)]: screen.blit(s_out, (gx - s_out.get_width()//2 + dx, gy - s_out.get_height()//2 + dy))
+        #     screen.blit(s_txt, (gx - s_txt.get_width()//2, gy - s_txt.get_height()//2))
 
         # 120% POTENTIAL
         if getattr(f, "potential_timer", 0) > 0:
