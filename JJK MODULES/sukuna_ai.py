@@ -478,13 +478,13 @@ def update_sukuna_ai(game, dt):
                         sc = (150, 150, 255) if is_blocked else ((255, 0, 0) if s.black_flash_timer > 0 else RED)
                         for _ in range(12): game.hit_sparks.append([g.rect.centerx + random.randint(-15, 15), g.rect.centery - random.randint(10, 30), random.uniform(-12, 12), random.uniform(-12, 12), random.randint(15, 30), sc])
                         
-                        kb_dist = 1200 if is_black_flash else 15
+                        kb_dist = 1200 if is_black_flash else 35
                         g.rect.x += (1 if g.rect.centerx > s.rect.centerx else -1) * kb_dist
                 else:
                     if g.infinity > 0 and g.energy > 0 and g.technique_burnout <= 0:
                         g.energy = max(0, g.energy - 0.5 * g.cost_mult)
                         g.inf_hit_timer = 15  
-                        kb_dist = 1200 if is_black_flash else 5
+                        kb_dist = 1200 if is_black_flash else 15
                         g.rect.x += (1 if g.rect.centerx > s.rect.centerx else -1) * kb_dist
                     else:
                         if not g.is_dodging:
@@ -513,7 +513,7 @@ def update_sukuna_ai(game, dt):
                             sc = (150, 150, 255) if is_blocked else ((255, 0, 0) if s.black_flash_timer > 0 else RED)
                             for _ in range(12): game.hit_sparks.append([g.rect.centerx + random.randint(-15, 15), g.rect.centery - random.randint(10, 30), random.uniform(-12, 12), random.uniform(-12, 12), random.randint(15, 30), sc])
                             
-                            kb_dist = 1200 if is_black_flash else 15
+                            kb_dist = 1200 if is_black_flash else 35
                             g.rect.x += (1 if g.rect.centerx > s.rect.centerx else -1) * kb_dist
                 s.attack_cooldown = 12
 

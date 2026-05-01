@@ -132,7 +132,7 @@ def update_mahoraga_ai(self, dt):
                         self.hit_sparks.append([self.gojo.rect.centerx + random.randint(-15, 15), self.gojo.rect.centery - random.randint(10, 30), random.uniform(-12, 12), random.uniform(-12, 12), random.randint(15, 30), spark_color])
                     
                 kb_dir = 1 if self.gojo.rect.centerx > self.mahoraga.rect.centerx else -1
-                kb_dist = 1200 if is_black_flash else 40
+                kb_dist = 1200 if is_black_flash else 60
                 self.gojo.rect.x += kb_dir * kb_dist
                 
             self.mahoraga.attack_cooldown = 12

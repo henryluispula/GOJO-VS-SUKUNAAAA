@@ -195,7 +195,7 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
                                                  random.randint(15, 30), spark_color])
                     
                     kb_dir = 1 if target.rect.centerx > g.rect.centerx else -1
-                    kb_dist = 1200 if is_black_flash else 15
+                    kb_dist = 1200 if is_black_flash else 35
                     target.rect.x += kb_dir * kb_dist
                     
                     if target.name == "Mahoraga" and game.sukuna.amp_duration <= 0:
