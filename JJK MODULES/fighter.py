@@ -314,8 +314,8 @@ class Fighter:
             "r_hand": [116, -9],
             "torso_top": [5, 20],
             "torso_bottom": [15, 95],
-            "l_foot": [-7, 146],
-            "r_foot": [73, 146]
+            "l_foot": [15, 155],
+            "r_foot": [55, 155]
         }
         
         self.purple_launch_pose = {
@@ -573,9 +573,10 @@ class Fighter:
                     active_rig = poses[1] if self.punch_count % 2 == 1 else poses[2]
         elif getattr(self, "domain_charge", 0) > 0:
             active_rig = self.gojo_domain_pose if self.name == "Gojo" else self.sukuna_domain_pose
-        elif (getattr(self, "purple_charge", 0) > 0 or getattr(self, "purple_fire_timer", 0) > 0) and self.name == "Gojo":
-            active_rig = self.purple_launch_pose
-        elif getattr(self, "summon_timer", 0) > 0 and self.name == "Sukuna":
+        elif getattr(self, "purple_charge", 0) > 0 and self.name == "Gojo":
+            # Snaps to mixing pose for the first 33% of the charge (60 to 40), then settles into launch pose
+            active_rig = self.purple_mix_pose if self.purple_charge > 40 else self.purple_launch_pose
+        elif getattr(self, "purple_fire_timer", 0) > 0 and self.name == "Gojo":
             active_rig = self.summon_pose
         elif getattr(self, "stun_timer", 0) > 0 and self.name != "Mahoraga":
             active_rig = self.hit_pose
