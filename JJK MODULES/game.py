@@ -415,7 +415,7 @@ class Game:
                 update_domain_clash(self, keys, gojo_can_clash, sim_dt)
 
                 active_fighters = [self.gojo, self.sukuna]
-                if self.mahoraga and self.mahoraga.hp > 0:
+                if self.mahoraga and (self.mahoraga.hp > 0 or self.mahoraga.death_timer < 7.0):
                     active_fighters.append(self.mahoraga)
                     
                 for victim in active_fighters:
@@ -633,6 +633,10 @@ class Game:
 
                     if fighter.hp < fighter.prev_hp:
                         damage = fighter.prev_hp - fighter.hp
+                        if fighter.name == "Mahoraga" and getattr(self.gojo, "dev_blue_oneshot", False):                            
+                            is_blue_hit = any(p.type == "blue_orb" and p.pos.distance_to(fighter.rect.center) < 150 for p in self.projectiles)
+                            if self.gojo.using_blue or is_blue_hit:
+                                fighter.hp = 0
                         is_vow_damage = getattr(fighter, "ignore_shatter_once", False)
                         
                         if fighter.domain_charge > 0 and not is_vow_damage:
@@ -691,7 +695,8 @@ class Game:
             draw_world(self, punching, self.dt)
 
             active_f = [self.gojo, self.sukuna]
-            if self.mahoraga and self.mahoraga.hp > 0: active_f.append(self.mahoraga)
+            if self.mahoraga and (self.mahoraga.hp > 0 or self.mahoraga.death_timer < 7.0): 
+                active_f.append(self.mahoraga)
             
             if self.gojo.domain_active and getattr(self.gojo, "domain_shrunk", False) and hasattr(self.gojo, "domain_center_x"):
                 target_cam_height = 800.0

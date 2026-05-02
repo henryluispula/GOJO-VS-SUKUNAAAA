@@ -391,7 +391,7 @@ def draw_world(self, punching, dt):
     self.popups = active_popups
                 
     
-    if self.mahoraga and self.mahoraga.hp > 0: 
+    if self.mahoraga and (self.mahoraga.hp > 0 or self.mahoraga.death_timer < 7.0): 
         self.mahoraga.draw_detailed(self.world_surf)
 
     if self.mahoraga_summon_timer > 0:
