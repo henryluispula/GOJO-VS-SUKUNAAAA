@@ -187,7 +187,7 @@ class Fighter:
                 "head": [-5, 20], "l_shoulder": [28, 41], "r_shoulder": [105, 97],
                 "l_elbow": [-21, 22], "r_elbow": [50, 143], "l_hand": [-38, 92], "r_hand": [-5, 190],
                 "l_foot": [30, 310], "r_foot": [110, 310],
-                "torso_top_l": [15, 27], "torso_top_r": [106, 47], "chest_l": [7, 79], "chest_r": [134, 75],
+                "torso_top_l": [15, 27], "torso_top_r": [106, 47], "chest_l": [2, 78], "chest_r": [134, 75],
                 "waist_l": [29, 183], "waist_r": [107, 185], "torso_bottom": [27, 183]
             },
             # Punching animation 2
@@ -195,7 +195,7 @@ class Fighter:
                 "head": [-4, 13], "l_shoulder": [26, 64], "r_shoulder": [128, 34],
                 "l_elbow": [-11, 116], "r_elbow": [183, 30], "l_hand": [-43, 162], "r_hand": [163, 97],
                 "l_foot": [30, 310], "r_foot": [110, 310],
-                "torso_top_l": [18, 47], "torso_top_r": [127, 19], "chest_l": [4, 74], "chest_r": [131, 77],
+                "torso_top_l": [18, 47], "torso_top_r": [127, 19], "chest_l": [4, 74], "chest_r": [135, 78],
                 "waist_l": [27, 182], "waist_r": [113, 178], "torso_bottom": [30, 180]
             }
         ]
