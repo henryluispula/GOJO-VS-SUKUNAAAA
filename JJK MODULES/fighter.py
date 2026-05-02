@@ -139,6 +139,7 @@ class Fighter:
         self.aura_sway_y = 0 
         self.prev_x_aura = x
         self.prev_y_aura = y
+        self.death_triggered = False
         
         # --- RIGGING SYSTEM (BONE OFFSETS) ---
         self.rig = {
@@ -416,9 +417,11 @@ class Fighter:
 
     def draw_detailed(self, surface, is_punching=False, effect=None, is_amp=False, show_auras=True, forced_pose_index=None):
         for p in self.particles:
-            alpha = int(p["life"] * 255)
+            alpha = max(0, min(255, int(p["life"] * 255)))
             p_surf = pygame.Surface((6, 6), pygame.SRCALPHA)
-            pygame.draw.circle(p_surf, (*p["color"], alpha), (3, 3), 3)
+            # Use only the first 3 components of color to prevent 5-tuple errors
+            base_rgb = p["color"][:3] 
+            pygame.draw.circle(p_surf, (*base_rgb, alpha), (3, 3), 3)
             surface.blit(p_surf, (p["pos"][0]-3, p["pos"][1]-3))
 
         for pt in self.trail_points:
@@ -946,26 +949,77 @@ class Fighter:
 
     def draw_death(self, surface):
         mx, my = self.rect.centerx, self.rect.centery
+        x, y = self.rect.x, self.rect.y
+        w, h = self.rect.width, self.rect.height
+        
+        if not getattr(self, "death_triggered", False):
+            self.death_triggered = True
+            # Violent Blood Explosion
+            for _ in range(70):
+                self.particles.append({
+                    "pos": [mx + random.randint(-30, 30), my + random.randint(-50, 50)],
+                    "vel": [random.uniform(-20, 20), random.uniform(-28, 5)],
+                    "life": random.uniform(1.2, 3.0),
+                    "color": random.choice([BLOOD, (100, 0, 0), (50, 0, 0)])
+                })
+            # Darker gore chunks
+            for _ in range(25):
+                self.particles.append({
+                    "pos": [mx + random.randint(-20, 20), my + random.randint(-20, 20)],
+                    "vel": [random.uniform(-12, 12), random.uniform(-15, 15)],
+                    "life": 1.0,
+                    "color": (20, 10, 10)
+                })
+
         if self.name == "Gojo":
             pygame.draw.line(surface, CLOTHES, (mx-10, my+10), (mx-20, my+80), 14)
             pygame.draw.line(surface, CLOTHES, (mx+10, my+10), (mx+20, my+80), 14)
             pygame.draw.rect(surface, BLOOD, (mx-25, my-10, 50, 15))
-            pygame.draw.circle(surface, SKIN, (mx + 90, my + 60), 26)
+            ghx, ghy = mx + 90, my + 60
+            # Hair
+            for i in range(5):
+                spk_x = ghx - 25 + i * 10
+                pygame.draw.polygon(surface, WHITE, [(spk_x, ghy-5), (spk_x+5, ghy-45), (spk_x+10, ghy-5)])
+            pygame.draw.circle(surface, SKIN, (ghx, ghy), 26)
             pygame.draw.rect(surface, CLOTHES, (mx + 70, my + 70, 80, 45))
+            pygame.draw.ellipse(surface, BLOOD, (mx-60, y+h-15, 120, 30))
         elif self.name == "Sukuna":
-            pygame.draw.circle(surface, BLOOD, (mx, my+20), 45)
-            for _ in range(25):
-                rx, ry = mx + random.randint(-80, 80), my + random.randint(-40, 100)
-                pygame.draw.circle(surface, BLOOD, (rx, ry), random.randint(5, 18))
-            pygame.draw.circle(surface, SKIN, (mx - 60, my + 80), 24)
-            pygame.draw.line(surface, SKIN, (mx + 50, my + 80), (mx + 90, my + 90), 14)
-            pygame.draw.line(surface, SKIN, (mx + 20, my + 110), (mx + 40, my + 130), 16)
+            rig = {"head": [61, 119], "l_shoulder": [-41, 154], "r_shoulder": [126, 149], "l_elbow": [-62, 163], "r_elbow": [143, 163], "l_hand": [-88, 164], "r_hand": [173, 169], "torso_top": [8, 138], "torso_bottom": [6, 158], "l_foot": [-14, 167], "r_foot": [77, 169]}
+            def get_p(n): p = rig[n]; return (x + p[0], y + p[1])
+            shx, shy = get_p("head")
+            pygame.draw.ellipse(surface, (30, 0, 0), (mx-90, y+h-25, 180, 55))
+            # Hair & Markings
+            for i in range(5):
+                spk_x = shx - 25 + i * 10
+                pygame.draw.polygon(surface, (20, 20, 25), [(spk_x, shy-5), (spk_x+5, shy-45), (spk_x+10, shy-5)])
+            pygame.draw.line(surface, self.color, get_p("torso_bottom"), get_p("l_foot"), 14)
+            pygame.draw.line(surface, self.color, get_p("torso_bottom"), get_p("r_foot"), 14)
+            pygame.draw.line(surface, self.color, get_p("torso_top"), get_p("torso_bottom"), 18)
+            pygame.draw.line(surface, SKIN, get_p("l_shoulder"), get_p("l_elbow"), 11)
+            pygame.draw.line(surface, SKIN, get_p("l_elbow"), get_p("l_hand"), 11)
+            pygame.draw.line(surface, SKIN, get_p("r_shoulder"), get_p("r_elbow"), 11)
+            pygame.draw.line(surface, SKIN, get_p("r_elbow"), get_p("r_hand"), 11)
+            pygame.draw.circle(surface, SKIN, (shx, shy), 24)
+            pygame.draw.line(surface, BLACK, (shx-8, shy+5), (shx-4, shy+12), 2)
+            pygame.draw.line(surface, BLACK, (shx+8, shy+5), (shx+4, shy+12), 2)
+            pygame.draw.ellipse(surface, BLOOD, (mx-70, y+h-20, 140, 40))
         elif self.name == "Mahoraga":
-            pygame.draw.circle(surface, BLOOD, (mx, my+20), 60)
-            for _ in range(30):
-                rx, ry = mx + random.randint(-100, 100), my + random.randint(-60, 120)
-                pygame.draw.circle(surface, BLOOD, (rx, ry), random.randint(8, 22))
-            pygame.draw.circle(surface, WHITE, (mx + 70, my + 80), 28) 
-            for _ in range(8):
-                pygame.draw.line(surface, (200, 200, 180), (mx + random.randint(-80, 80), my - random.randint(0, 100)), 
-                                 (mx + random.randint(-80, 80), my - random.randint(0, 100)), random.randint(4, 10))
+            rig = {"head": [-164, 270], "l_shoulder": [-276, 260], "r_shoulder": [394, 243], "l_elbow": [-241, 310], "r_elbow": [356, 301], "l_hand": [-167, 299], "r_hand": [243, 299], "l_foot": [-49, 309], "r_foot": [192, 310], "torso_top_l": [9, 183], "torso_top_r": [151, 183], "chest_l": [13, 212], "chest_r": [140, 216], "waist_l": [24, 241], "waist_r": [122, 248], "torso_bottom": [-26, 287]}
+            def get_p(n): p = rig[n]; return (x + p[0], y + p[1])
+            mhx, mhy = get_p("head")
+            pygame.draw.ellipse(surface, (20, 0, 0), (mx-130, y+h-35, 260, 75))
+            
+            pygame.draw.polygon(surface, (180, 180, 160), [get_p("torso_top_l"), get_p("torso_top_r"), get_p("chest_r"), get_p("waist_r"), get_p("waist_l"), get_p("chest_l")])
+            pygame.draw.line(surface, (180, 180, 160), get_p("waist_l"), get_p("l_foot"), 36)
+            pygame.draw.line(surface, (180, 180, 160), get_p("waist_r"), get_p("r_foot"), 36)
+            pygame.draw.line(surface, WHITE, get_p("l_shoulder"), get_p("l_elbow"), 32)
+            pygame.draw.line(surface, WHITE, get_p("l_elbow"), get_p("l_hand"), 32)
+            pygame.draw.line(surface, WHITE, get_p("r_shoulder"), get_p("r_elbow"), 32)
+            pygame.draw.line(surface, WHITE, get_p("r_elbow"), get_p("r_hand"), 32)
+            
+            # Head detail
+            pygame.draw.rect(surface, WHITE, (mhx-32, mhy-32, 64, 64), border_radius=22)
+            pygame.draw.polygon(surface, MAHO_COLOR, [(mhx-24, mhy-16), (mhx-96, mhy-72), (mhx-8, mhy-28)]) # Wing 1
+            pygame.draw.polygon(surface, MAHO_COLOR, [(mhx+24, mhy-16), (mhx+96, mhy-72), (mhx+8, mhy-28)]) # Wing 2
+            
+            pygame.draw.ellipse(surface, BLOOD, (mx-120, y+h-30, 240, 65))
