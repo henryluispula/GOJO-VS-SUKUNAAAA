@@ -558,6 +558,8 @@ def update_sukuna_ai(game, dt):
         if s.domain_charge <= 0:
             s.domain_charge = 0
             s.domain_active = True; s.domain_timer = 900 
+            s.domain_start_ticks = pygame.time.get_ticks()
+            s.domain_was_clashed = False
             s.domain_cd = 3000; game.shake_timer = 30
 
     return dist, fuga_priority, gojo_has_inf

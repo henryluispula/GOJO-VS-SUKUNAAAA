@@ -364,6 +364,8 @@ class Fighter:
         self.ce_exhausted = False 
         self.anim_tick = 0   
         self.inf_hit_timer = 0    
+        self.domain_start_ticks = 0
+        self.domain_was_clashed = False
         if name == "Sukuna": self.memory = AIMemory()    
 
 
@@ -374,6 +376,10 @@ class Fighter:
     def end_domain(self):
         if not self.domain_active:
             return
+
+        if not self.domain_was_clashed and self.domain_start_ticks > 0:
+            duration = (pygame.time.get_ticks() - self.domain_start_ticks) / 1000.0
+            print(f"\n[DOMAIN LOG] {self.name}'s Expansion lasted: {duration:.2f}s (Non-Clash)")
 
         self.domain_active = False 
         self.domain_timer = 0

@@ -275,6 +275,8 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
         if g.domain_charge <= 0:
             g.domain_charge = 0
             g.domain_active = True; g.domain_timer = 900 
+            g.domain_start_ticks = pygame.time.get_ticks()
+            g.domain_was_clashed = False
             g.domain_cd = 3000; g.infinity = g.max_infinity
             game.shake_timer = 30
 

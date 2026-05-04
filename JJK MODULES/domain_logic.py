@@ -222,6 +222,8 @@ def update_domain_clash(game, keys, gojo_can_clash, dt):
         game.clash_resolved = False; game.clash_decision_timer = 0; game.clash_failed = False
 
     if getattr(game, "clash_active_flag", False):
+        g.domain_was_clashed = True
+        s.domain_was_clashed = True
         maho_exists = game.mahoraga and game.mahoraga.hp > 0
         maho_adapted = maho_exists and game.mahoraga.adaptation["void"] <= 0
 
