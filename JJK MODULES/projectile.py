@@ -33,11 +33,14 @@ class Projectile:
     def update(self, dt):
         time_mult = dt * 60.0
         self.pos += self.vel * time_mult
-        if self.type not in ["normal", "dismantle", "cleave", "world_slash"]:
+        
+        # Every projectile except basic ones now properly counts down its life
+        if self.type in ["blue_orb", "red_orb", "purple_orb", "fuga_arrow", "world_slash"]:
             self.lifetime -= time_mult
             if self.lifetime <= 0: self.active = False
             
-        if self.pos.x < -200 or self.pos.x > WORLD_WIDTH + 200 or self.pos.y < 0 or self.pos.y > WORLD_HEIGHT:
+        # Expanded bounds to prevent orbs launched from high-altitudes or wide angles from vanishing instantly
+        if self.pos.x < -1000 or self.pos.x > WORLD_WIDTH + 1000 or self.pos.y < -1000 or self.pos.y > WORLD_HEIGHT + 1000:
             self.active = False
 
     def draw(self, screen):

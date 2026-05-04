@@ -51,8 +51,13 @@ def update_projectiles(self, dt):
                             p_target.rect.centerx = p.pos.x
             
             if dist_to_orb < 450:
-                if p.type == "blue_orb" and p.vel.length() > p.original_speed:
+                # Guard against zero-division in normalize() and prevent speed-clamping if original_speed is 0
+                if p.vel.length() > p.original_speed and p.vel.length() > 0 and p.original_speed > 0:
                     p.vel = p.vel.normalize() * p.original_speed
+                
+                # Failsafe: If orb is near-death and still lingering on target, force despawn
+                if p.lifetime < 50: p.active = False
+
                 if p_target.name == "Mahoraga" and self.sukuna.amp_duration <= 0:
                     p_target.trigger_adaptation("blue", 2.0 * time_mult)
                     turns = p_target.adaptation_points["blue"] / 250.0
