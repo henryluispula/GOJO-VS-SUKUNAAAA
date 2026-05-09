@@ -644,6 +644,18 @@ class Fighter:
 
         self.last_active_rig = active_rig
 
+        if not hasattr(self, "current_rig"):
+            self.current_rig = {k: list(v) for k, v in active_rig.items() if isinstance(v, (list, tuple))}
+            
+        lerp_speed = 0.45 
+        for k, v in active_rig.items():
+            if k in self.current_rig and isinstance(v, (list, tuple)):
+                cx, cy = self.current_rig[k]
+                tx, ty = v
+                self.current_rig[k] = [cx + (tx - cx) * lerp_speed, cy + (ty - cy) * lerp_speed]
+            elif isinstance(v, (list, tuple)):
+                self.current_rig[k] = list(v)
+
         def get_pt(pt_name):
             lookup = pt_name
             if self.direction == -1:
@@ -652,7 +664,7 @@ class Fighter:
                 elif pt_name.endswith("_l"): lookup = pt_name[:-2] + "_r"
                 elif pt_name.endswith("_r"): lookup = pt_name[:-2] + "_l"
                 
-            px, py = active_rig.get(lookup, active_rig.get(pt_name, (0, 0)))
+            px, py = self.current_rig.get(lookup, self.current_rig.get(pt_name, (0, 0)))
             if self.direction == -1:
                 return (x + w - px, y + py)
             return (x + px, y + py)
@@ -865,10 +877,10 @@ class Fighter:
             pygame.draw.line(surface, (30, 30, 30), rot_pt(-8 * scale, -2 * scale), rot_pt(8 * scale, -2 * scale), int(4*scale))
             pygame.draw.line(surface, (30, 30, 30), rot_pt(-8 * scale, 5 * scale), rot_pt(8 * scale, 5 * scale), int(4*scale))
 
-        head_x_off = active_rig["head"][0]
+        head_x_off = self.current_rig["head"][0]
         if self.direction == -1: head_x_off = -head_x_off
         hx = mid_x + head_x_off
-        hy = y + active_rig["head"][1]
+        hy = y + self.current_rig["head"][1]
         
         head_color = WHITE if self.name == "Mahoraga" else SKIN
         if self.name == "Mahoraga":
@@ -961,10 +973,41 @@ class Fighter:
         mx, my = self.rect.centerx, self.rect.centery
         x, y = self.rect.x, self.rect.y
         w, h = self.rect.width, self.rect.height
-        floor_y = WORLD_HEIGHT - 100
+        floor_y = getattr(self, "override_floor_y", WORLD_HEIGHT - 100)
         self.death_timer = getattr(self, "death_timer", 0) + 0.016
         b_pulse = 1.0 + math.sin(pygame.time.get_ticks() * 0.003) * 0.04
         b_spread = min(1.6, 1.0 + self.death_timer * 0.15)
+
+        def draw_blood_explosion():
+            if self.death_timer < 0.35:
+                prog = self.death_timer / 0.35
+                radius = int(120 + prog * 200)
+                alpha = int(255 * (1.0 - prog))
+                if alpha <= 0: return
+                
+                exp_surf = pygame.Surface((radius*2, radius*2), pygame.SRCALPHA)
+                
+                # Central dense splash
+                pygame.draw.circle(exp_surf, (*BLOOD, alpha), (radius, radius), int(radius * 0.25))
+                
+                # Flying blood droplets
+                for i in range(24):
+                    angle = (i * (math.pi / 12)) + (i % 3) * 0.2
+                    dist = (radius * 0.3) + prog * (radius * 0.7 * (0.6 + (i % 4) * 0.2)) 
+                    
+                    drop_x = radius + math.cos(angle) * dist
+                    drop_y = radius + math.sin(angle) * dist
+                    
+                    drop_size = int((12 + (i % 5) * 4) * (1.0 - prog * 0.3))
+                    
+                    pygame.draw.circle(exp_surf, (*BLOOD, alpha), (int(drop_x), int(drop_y)), max(1, drop_size))
+                    
+                    # Droplet tail/trail
+                    tail_x = radius + math.cos(angle) * (dist - drop_size * 3)
+                    tail_y = radius + math.sin(angle) * (dist - drop_size * 3)
+                    pygame.draw.line(exp_surf, (*BLOOD, alpha), (int(drop_x), int(drop_y)), (int(tail_x), int(tail_y)), max(1, drop_size // 2))
+                
+                surface.blit(exp_surf, (mx - radius, my - radius))
 
         if self.name == "Mahoraga":
             if not self.death_triggered:
@@ -1007,6 +1050,7 @@ class Fighter:
             mhx, mhy = self.ragdoll_pts["head"]
             body_c, white_c, blood_c, wing_c = [int(v * (1.0 - melt)) for v in (180, 180, 160)], [int(v * (1.0 - melt)) for v in (255, 255, 255)], [int(v * (1.0 - melt)) for v in BLOOD], [int(v * (1.0 - melt)) for v in MAHO_COLOR]
             pygame.draw.ellipse(surface, blood_c, (mx - 120 * b_spread * b_pulse, floor_y - 20, 240 * b_spread * b_pulse, 40))
+            draw_blood_explosion()
             def gp(n): return self.ragdoll_pts[n]
             pygame.draw.polygon(surface, body_c, [gp("torso_top_l"), gp("torso_top_r"), gp("chest_r"), gp("waist_r"), gp("waist_l"), gp("chest_l")])
             t_mod = 1.0 - (melt * 0.6)
@@ -1016,34 +1060,294 @@ class Fighter:
             pygame.draw.polygon(surface, wing_c, [(mhx-24, mhy-16), (mhx-96, mhy-72), (mhx-8, mhy-28)])
             pygame.draw.polygon(surface, wing_c, [(mhx+24, mhy-16), (mhx+96, mhy-72), (mhx+8, mhy-28)])
         
-        elif self.name == "Sukuna":
-            pygame.draw.ellipse(surface, BLOOD, (mx - 70 * b_spread * b_pulse, y + h - 20, 140 * b_spread * b_pulse, 40))
-            rig = {"head": [61, 119], "l_shoulder": [-41, 154], "r_shoulder": [126, 149], "l_elbow": [-62, 163], "r_elbow": [143, 163], "l_hand": [-88, 164], "r_hand": [173, 169], "torso_top": [8, 138], "torso_bottom": [6, 158], "l_foot": [-14, 167], "r_foot": [77, 169]}
-            def get_p(n): p = rig[n]; return (x + p[0], y + p[1])
-            shx, shy = get_p("head")
-            pygame.draw.ellipse(surface, (30, 0, 0), (mx-90, y+h-25, 180, 55))
-            for i in range(5):
-                spk_x = shx - 25 + i * 10
-                pygame.draw.polygon(surface, (20, 20, 25), [(spk_x, shy-5), (spk_x+5, shy-45), (spk_x+10, shy-5)])
-            pygame.draw.line(surface, self.color, get_p("torso_bottom"), get_p("l_foot"), 14)
-            pygame.draw.line(surface, self.color, get_p("torso_bottom"), get_p("r_foot"), 14)
-            pygame.draw.line(surface, self.color, get_p("torso_top"), get_p("torso_bottom"), 18)
-            pygame.draw.line(surface, SKIN, get_p("l_shoulder"), get_p("l_elbow"), 11)
-            pygame.draw.line(surface, SKIN, get_p("l_elbow"), get_p("l_hand"), 11)
-            pygame.draw.line(surface, SKIN, get_p("r_shoulder"), get_p("r_elbow"), 11)
-            pygame.draw.line(surface, SKIN, get_p("r_elbow"), get_p("r_hand"), 11)
-            pygame.draw.circle(surface, SKIN, (shx, shy), 24)
-            pygame.draw.line(surface, BLACK, (shx-8, shy+5), (shx-4, shy+12), 2)
-            pygame.draw.line(surface, BLACK, (shx+8, shy+5), (shx+4, shy+12), 2)
-        
         elif self.name == "Gojo":
-            pygame.draw.ellipse(surface, BLOOD, (mx - 60 * b_spread * b_pulse, y + h - 15, 120 * b_spread * b_pulse, 30))
-            pygame.draw.line(surface, CLOTHES, (mx-10, my+10), (mx-20, my+80), 14)
-            pygame.draw.line(surface, CLOTHES, (mx+10, my+10), (mx+20, my+80), 14)
-            pygame.draw.rect(surface, BLOOD, (mx-25, my-10, 50, 15))
-            ghx, ghy = mx + 90, my + 60
+            if not self.death_triggered:
+                self.death_triggered = True
+                base_rig = getattr(self, "last_active_rig", self.rig)
+                self.death_rig = {}
+                for k, v in base_rig.items():
+                    if isinstance(v, list) and len(v) == 2:
+                        self.death_rig[k] = list(v)
+                
+                # Upper half physics
+                self.u_x = float(self.rect.x)
+                self.u_y = float(self.rect.y)
+                self.u_vx = float(-8 * self.direction + random.uniform(-2, 2))
+                self.u_vy = -10.0
+                self.u_angle = 0.0
+                self.u_avel = 0.02 * -self.direction + random.uniform(-0.01, 0.01)
+                
+                # Lower half physics
+                self.l_x = float(self.rect.x)
+                self.l_y = float(self.rect.y)
+                self.l_vx = float(-3 * self.direction + random.uniform(-1, 1))
+                self.l_vy = -4.0
+                self.l_angle = 0.0
+                self.l_avel = 0.01 * self.direction + random.uniform(-0.01, 0.01)
+
+                self.death_bounces = 0
+
+            # Physics updates
+            self.u_vy += 1.2
+            self.u_x += self.u_vx
+            self.u_y += self.u_vy
+            self.u_angle += self.u_avel
+            
+            self.l_vy += 1.2
+            self.l_x += self.l_vx
+            self.l_y += self.l_vy
+            self.l_angle += self.l_avel
+
+            pivot_x, pivot_y = self.rect.width / 2, self.rect.height / 2
+            
+            def do_physics(is_upper, y_pos, vy, vx, avel):
+                max_y = y_pos
+                for k, p in self.death_rig.items():
+                    is_k_upper = k in ["head", "l_shoulder", "r_shoulder", "l_elbow", "r_elbow", "l_hand", "r_hand", "torso_top"]
+                    if is_k_upper != is_upper: continue
+                    px = self.rect.width - p[0] if self.direction == -1 else p[0]
+                    dx = px - pivot_x
+                    dy = p[1] - pivot_y
+                    ang = self.u_angle if is_upper else self.l_angle
+                    ry = dx * math.sin(ang) + dy * math.cos(ang)
+                    actual_y = y_pos + pivot_y + ry
+                    if actual_y > max_y: max_y = actual_y
+                
+                if max_y > floor_y:
+                    y_pos -= (max_y - floor_y)
+                    if abs(vy) > 2.0:
+                        vy = -vy * 0.4
+                        vx *= 0.6
+                        avel *= 0.5
+                    else:
+                        vy = 0
+                        vx *= 0.8
+                        avel *= 0.8
+                return y_pos, vy, vx, avel
+
+            self.u_y, self.u_vy, self.u_vx, self.u_avel = do_physics(True, self.u_y, self.u_vy, self.u_vx, self.u_avel)
+            self.l_y, self.l_vy, self.l_vx, self.l_avel = do_physics(False, self.l_y, self.l_vy, self.l_vx, self.l_avel)
+
+            def rot_p(px, py, is_upper=False):
+                dx = px - pivot_x
+                dy = py - pivot_y
+                ang = self.u_angle if is_upper else self.l_angle
+                rx = dx * math.cos(ang) - dy * math.sin(ang)
+                ry = dx * math.sin(ang) + dy * math.cos(ang)
+                bx = self.u_x if is_upper else self.l_x
+                by = self.u_y if is_upper else self.l_y
+                return (bx + pivot_x + rx, by + pivot_y + ry)
+
+            def get_death_pt(name):
+                lookup = name
+                if self.direction == -1:
+                    if name.startswith("l_"): lookup = "r_" + name[2:]
+                    elif name.startswith("r_"): lookup = "l_" + name[2:]
+                p = self.death_rig.get(lookup, self.death_rig.get(name, [pivot_x, pivot_y]))
+                px = self.rect.width - p[0] if self.direction == -1 else p[0]
+                is_upper = name in ["head", "l_shoulder", "r_shoulder", "l_elbow", "r_elbow", "l_hand", "r_hand", "torso_top"]
+                return rot_p(px, p[1], is_upper)
+
+            def rot_offset(dx, dy, is_upper=False):
+                ang = self.u_angle if is_upper else self.l_angle
+                rx = dx * math.cos(ang) - dy * math.sin(ang)
+                ry = dx * math.sin(ang) + dy * math.cos(ang)
+                return (rx, ry)
+
+            pool_x = self.l_x + self.rect.width / 2
+            pygame.draw.ellipse(surface, BLOOD, (pool_x - 60 * b_spread * b_pulse, floor_y - 10, 120 * b_spread * b_pulse, 30))
+
+            t_top_x, t_top_y = self.death_rig.get("torso_top", [5, 20])
+            t_bot_x, t_bot_y = self.death_rig.get("torso_bottom", [15, 95])
+            t_mid_y = (t_top_y + t_bot_y) / 2
+            
+            t_top_l_x = self.rect.width - t_top_x if self.direction == -1 else t_top_x
+            t_top_r_x = t_top_x if self.direction == -1 else self.rect.width - t_top_x
+            t_bot_l_x = self.rect.width - t_bot_x if self.direction == -1 else t_bot_x
+            t_bot_r_x = t_bot_x if self.direction == -1 else self.rect.width - t_bot_x
+            
+            t_mid_l_x = (t_top_l_x + t_bot_l_x) / 2
+            t_mid_r_x = (t_top_r_x + t_bot_r_x) / 2
+
+            p_top_l = rot_p(t_top_l_x, t_top_y, True)
+            p_top_r = rot_p(t_top_r_x, t_top_y, True)
+            p_bot_l = rot_p(t_bot_l_x, t_bot_y, False)
+            p_bot_r = rot_p(t_bot_r_x, t_bot_y, False)
+            
+            p_mid_upper_l = rot_p(t_mid_l_x, t_mid_y, True)
+            p_mid_upper_r = rot_p(t_mid_r_x, t_mid_y, True)
+            p_mid_lower_l = rot_p(t_mid_l_x, t_mid_y, False)
+            p_mid_lower_r = rot_p(t_mid_r_x, t_mid_y, False)
+
+            thickness = 12
+            arm_color = SKIN
+            l_sh = get_death_pt("l_shoulder")
+            r_sh = get_death_pt("r_shoulder")
+            l_el = get_death_pt("l_elbow")
+            r_el = get_death_pt("r_elbow")
+            l_hd = get_death_pt("l_hand")
+            r_hd = get_death_pt("r_hand")
+            l_ft = get_death_pt("l_foot")
+            r_ft = get_death_pt("r_foot")
+            hd = rot_p(self.rect.width / 2, t_top_y - 26, True)
+
+            pygame.draw.line(surface, arm_color, l_sh, l_el, thickness - 2)
+            pygame.draw.line(surface, arm_color, l_el, l_hd, thickness - 2)
+            pygame.draw.line(surface, arm_color, r_sh, r_el, thickness - 2)
+            pygame.draw.line(surface, arm_color, r_el, r_hd, thickness - 2)
+
+            # Create separated hip points to increase the gap between legs
+            p_l_hip = rot_p(self.rect.width / 2 - 12, t_bot_y, False)
+            p_r_hip = rot_p(self.rect.width / 2 + 12, t_bot_y, False)
+            pygame.draw.line(surface, self.color, p_l_hip, l_ft, thickness)
+            pygame.draw.line(surface, self.color, p_r_hip, r_ft, thickness)
+
+            # Draw sliced torso polygons
+            pygame.draw.polygon(surface, self.color, [p_top_l, p_top_r, p_mid_upper_r, p_mid_upper_l])
+            pygame.draw.polygon(surface, self.color, [p_mid_lower_l, p_mid_lower_r, p_bot_r, p_bot_l])
+            
+            # Blood on severed slices
+            pygame.draw.line(surface, BLOOD, p_mid_upper_l, p_mid_upper_r, 5)
+            pygame.draw.line(surface, BLOOD, p_mid_lower_l, p_mid_lower_r, 5)
+
+            # Dripping blood from top half (falls straight down due to gravity)
+            for p_drip in [p_mid_upper_l, p_mid_upper_r, ((p_mid_upper_l[0]+p_mid_upper_r[0])/2, (p_mid_upper_l[1]+p_mid_upper_r[1])/2)]:
+                drip_time = (self.death_timer * 8 + p_drip[0]) % 10
+                if drip_time < 6:
+                    d_len = drip_time * 5
+                    pygame.draw.line(surface, BLOOD, p_drip, (p_drip[0], p_drip[1] + d_len), 2)
+                    pygame.draw.circle(surface, BLOOD, (int(p_drip[0]), int(p_drip[1] + d_len)), 2)
+
+            # Blood pool on the floor beneath the dripping top half
+            top_pool_cx = (p_mid_upper_l[0] + p_mid_upper_r[0]) / 2
+            pool_w = min(160, self.death_timer * 50)
+            if pool_w > 5:
+                pygame.draw.ellipse(surface, BLOOD, (top_pool_cx - pool_w/2, floor_y - 10, pool_w, 20))
+
+            # Blood fountain from bottom half (shoots out of the stump based on rotation)
+            fount_cx = (p_mid_lower_l[0] + p_mid_lower_r[0]) / 2
+            fount_cy = (p_mid_lower_l[1] + p_mid_lower_r[1]) / 2
+            fount_dx = math.sin(self.l_angle)
+            fount_dy = -math.cos(self.l_angle)
+            for i in range(4):
+                spurt_time = (self.death_timer * 15 + i * 3) % 10
+                if spurt_time < 7:
+                    spurt_len = spurt_time * 5
+                    spread_x = fount_dx + (i - 1.5) * 0.25
+                    spread_y = fount_dy
+                    mag = math.hypot(spread_x, spread_y)
+                    if mag > 0:
+                        spread_x /= mag
+                        spread_y /= mag
+                    sx = fount_cx + spread_x * spurt_len
+                    sy = fount_cy + spread_y * spurt_len
+                    pygame.draw.line(surface, BLOOD, (fount_cx, fount_cy), (sx, sy), 3)
+                    pygame.draw.circle(surface, BLOOD, (int(sx), int(sy)), 3)
+
+            head_color = SKIN
+            pygame.draw.circle(surface, head_color, (int(hd[0]), int(hd[1])), 26)
             for i in range(5):
-                spk_x = ghx - 25 + i * 10
-                pygame.draw.polygon(surface, WHITE, [(spk_x, ghy-5), (spk_x+5, ghy-45), (spk_x+10, ghy-5)])
-            pygame.draw.circle(surface, SKIN, (ghx, ghy), 26)
-            pygame.draw.rect(surface, CLOTHES, (mx + 70, my + 70, 80, 45))
+                b1_dx, b1_dy = -25 + i*10, -5
+                t_dx, t_dy = -20 + i*10, -45
+                b2_dx, b2_dy = -15 + i*10, -5
+                p1 = rot_offset(b1_dx, b1_dy, True)
+                p2 = rot_offset(t_dx, t_dy, True)
+                p3 = rot_offset(b2_dx, b2_dy, True)
+                pygame.draw.polygon(surface, WHITE, [
+                    (hd[0] + p1[0], hd[1] + p1[1]),
+                    (hd[0] + p2[0], hd[1] + p2[1]),
+                    (hd[0] + p3[0], hd[1] + p3[1])
+                ])
+
+        elif self.name == "Sukuna":
+            if not self.death_triggered:
+                self.death_triggered = True
+                base_rig = getattr(self, "last_active_rig", self.rig)
+                self.ragdoll_pts = {}
+                self.ragdoll_vels = {}
+                self.ragdoll_links = []
+                
+                for k, v in base_rig.items():
+                    if isinstance(v, list) and len(v) == 2:
+                        px = self.rect.width - v[0] if self.direction == -1 else v[0]
+                        self.ragdoll_pts[k] = [x + px, y + v[1]]
+                        self.ragdoll_vels[k] = [random.uniform(-10, 10), random.uniform(-15, -5)]
+                
+                conns = [("head","torso_top"),("torso_top","torso_bottom"),("torso_bottom","l_foot"),("torso_bottom","r_foot"),("l_shoulder","l_elbow"),("l_elbow","l_hand"),("r_shoulder","r_elbow"),("r_elbow","r_hand"), ("torso_top", "l_shoulder"), ("torso_top", "r_shoulder")]
+                for c1, c2 in conns:
+                    if c1 in self.ragdoll_pts and c2 in self.ragdoll_pts:
+                        p1, p2 = pygame.Vector2(self.ragdoll_pts[c1]), pygame.Vector2(self.ragdoll_pts[c2])
+                        self.ragdoll_links.append([c1, c2, p1.distance_to(p2)])
+
+            for k in self.ragdoll_pts:
+                p, v = self.ragdoll_pts[k], self.ragdoll_vels[k]
+                v[1] += 1.2
+                p[0] += v[0]
+                p[1] += v[1]
+                if p[1] > floor_y:
+                    p[1] = floor_y
+                    v[1] = -v[1] * 0.4
+                    v[0] *= 0.6
+                    if abs(v[1]) < 1.5: v[1] = 0
+
+            for _ in range(1):
+                for c1, c2, dist in self.ragdoll_links:
+                    p1, p2 = pygame.Vector2(self.ragdoll_pts[c1]), pygame.Vector2(self.ragdoll_pts[c2])
+                    curr_dist = p1.distance_to(p2)
+                    if curr_dist == 0: continue
+                    diff = (dist - curr_dist) / curr_dist * 0.2 
+                    offset = (p1 - p2) * diff
+                    self.ragdoll_pts[c1][0] += offset.x
+                    self.ragdoll_pts[c1][1] += offset.y
+                    self.ragdoll_pts[c2][0] -= offset.x
+                    self.ragdoll_pts[c2][1] -= offset.y
+
+            pygame.draw.ellipse(surface, BLOOD, (mx - 100 * b_spread * b_pulse, floor_y - 20, 200 * b_spread * b_pulse, 40))
+            draw_blood_explosion()
+
+            def gp(n): return self.ragdoll_pts.get(n, [0, 0])
+            
+            thickness = 12
+            pygame.draw.line(surface, self.color, gp("torso_top"), gp("torso_bottom"), 18)
+            pygame.draw.line(surface, self.color, gp("torso_top"), gp("l_shoulder"), 18)
+            pygame.draw.line(surface, self.color, gp("torso_top"), gp("r_shoulder"), 18)
+            pygame.draw.line(surface, self.color, gp("torso_bottom"), gp("l_foot"), 14)
+            pygame.draw.line(surface, self.color, gp("torso_bottom"), gp("r_foot"), 14)
+            pygame.draw.line(surface, SKIN, gp("l_shoulder"), gp("l_elbow"), 11)
+            pygame.draw.line(surface, SKIN, gp("l_elbow"), gp("l_hand"), 11)
+            pygame.draw.line(surface, SKIN, gp("r_shoulder"), gp("r_elbow"), 11)
+            pygame.draw.line(surface, SKIN, gp("r_elbow"), gp("r_hand"), 11)
+
+            hd = gp("head")
+            pygame.draw.circle(surface, SKIN, (int(hd[0]), int(hd[1])), 24)
+
+            t_top = gp("torso_top")
+            dx_neck = hd[0] - t_top[0]
+            dy_neck = hd[1] - t_top[1]
+            h_angle = math.atan2(dy_neck, dx_neck) + math.pi/2
+
+            dx_r = math.cos(h_angle)
+            dy_r = math.sin(h_angle)
+
+            def rot_off(ox, oy):
+                return (ox * dx_r - oy * dy_r, ox * dy_r + oy * dx_r)
+                
+            for i in range(5):
+                b1_dx, b1_dy = -25 + i*10, -5
+                t_dx, t_dy = -20 + i*10, -45
+                b2_dx, b2_dy = -15 + i*10, -5
+                p1 = rot_off(b1_dx, b1_dy)
+                p2 = rot_off(t_dx, t_dy)
+                p3 = rot_off(b2_dx, b2_dy)
+                pygame.draw.polygon(surface, (20, 20, 25), [
+                    (hd[0] + p1[0], hd[1] + p1[1]),
+                    (hd[0] + p2[0], hd[1] + p2[1]),
+                    (hd[0] + p3[0], hd[1] + p3[1])
+                ])
+
+            m1_1 = rot_off(-8, 5)
+            m1_2 = rot_off(-4, 12)
+            pygame.draw.line(surface, BLACK, (hd[0] + m1_1[0], hd[1] + m1_1[1]), (hd[0] + m1_2[0], hd[1] + m1_2[1]), 2)
+            m2_1 = rot_off(8, 5)
+            m2_2 = rot_off(4, 12)
+            pygame.draw.line(surface, BLACK, (hd[0] + m2_1[0], hd[1] + m2_1[1]), (hd[0] + m2_2[0], hd[1] + m2_2[1]), 2)

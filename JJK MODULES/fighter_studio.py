@@ -200,15 +200,22 @@ def run_studio():
         # Lock position to a unified floor for height comparison
         current_fighter.rect.centerx = 400
         current_fighter.rect.bottom = 600
+        current_fighter.override_floor_y = 700
+        
+        # Draw Ground
+        pygame.draw.rect(screen, (40, 40, 50), (0, 700, 800, 100))
+        pygame.draw.line(screen, (80, 80, 90), (0, 700), (800, 700), 4)
         
         if current_fighter.name == "Mahoraga":
             ref_gojo.rect.centerx = 200
             ref_gojo.rect.bottom = 600
+            ref_gojo.override_floor_y = 700
             ref_gojo.direction = 1
             ref_gojo.draw_detailed(screen)
             
             ref_sukuna.rect.centerx = 600
             ref_sukuna.rect.bottom = 600
+            ref_sukuna.override_floor_y = 700
             ref_sukuna.direction = -1
             ref_sukuna.draw_detailed(screen)
         

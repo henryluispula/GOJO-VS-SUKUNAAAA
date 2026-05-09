@@ -21,9 +21,13 @@ def update_domain_boundary(game):
             if f and f.hp > 0:
                 dx, dy = f.rect.centerx - cx, f.rect.centery - cy
                 d = math.hypot(dx, dy)
-                if d > radius - 35 and d > 0:
-                    push = (radius - 35 - d) * 0.8
-                    f.rect.x += (dx / d) * push; f.rect.y += (dy / d) * push
+                if d > radius - 90 and d > 0:
+                    push = (radius - 90 - d) * 1.0
+                    f.rect.x += (dx / d) * push
+                    f.rect.y += (dy / d) * push
+                    if dy > 0 and f.vel_y > 0:
+                        f.vel_y = 0
+                        f.on_ground = True
 
 
 def update_physics_and_grabs(game, dt):
