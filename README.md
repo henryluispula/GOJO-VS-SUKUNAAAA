@@ -8,13 +8,6 @@ A 2D fighting game built in Python with Pygame, recreating the climactic battle 
 
 You play as **Satoru Gojo**, the strongest sorcerer, against **Ryomen Sukuna**, the King of Curses, controlled by an adaptive AI. The fight takes place across the streets of Shinjuku and escalates into a battle of Domain Expansions.
 
----
-
-## ✨ Core Mechanics
-
-### Limitless — Gojo's Infinity
-Gojo's passive **Infinity** absorbs incoming slashes, Dismantles, and Cleaves, draining Curse Energy instead of HP. When his Curse Energy is depleted, Infinity fails — leaving him exposed. After 5 Domain uses, his techniques enter **Burnout**, disabling Infinity entirely until he recovers.
-
 ## 📖 Lore Context
 
 This game is set during the **Shinjuku Showdown** arc of *Jujutsu Kaisen*. Gojo has just been unsealed from the Prison Realm and immediately clashes with Sukuna, who has fully incarnated into Megumi Fushiguro's body and commands all 20 of his fingers' worth of power.
