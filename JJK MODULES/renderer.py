@@ -425,25 +425,7 @@ def draw_world(self, punching, dt):
 
             base_y = f.rect.y - 120
             
-            # GRABBED
-            # if getattr(f, "grab_timer", 0) > 0:
-            #     scale_f = 1.1 + math.sin(pygame.time.get_ticks() * 0.012) * 0.1
-            #     # txt = self.get_text("GRABBED!", BLACK)
-            #     # out = self.get_text("GRABBED!", g_color)
-                
-            #     s_out = pygame.transform.scale(out, (int(out.get_width() * scale_f), int(out.get_height() * scale_f)))
-            #     s_txt = pygame.transform.scale(txt, (int(txt.get_width() * scale_f), int(txt.get_height() * scale_f)))
-                
-            #     gx, gy = f.rect.centerx, base_y
-            #     base_y -= 40 # Shift up for next label if any
-                
-            #     self.world_surf.blit(s_out, (gx - s_out.get_width()//2 - 3, gy - s_out.get_height()//2 - 3))
-            #     self.world_surf.blit(s_out, (gx - s_out.get_width()//2 + 3, gy - s_out.get_height()//2 + 3))
-            #     self.world_surf.blit(s_out, (gx - s_out.get_width()//2 - 3, gy - s_out.get_height()//2 + 3))
-            #     self.world_surf.blit(s_out, (gx - s_out.get_width()//2 + 3, gy - s_out.get_height()//2 - 3))
-            #     self.world_surf.blit(s_txt, (gx - s_txt.get_width()//2, gy - s_txt.get_height()//2))
-
-            # 120% POTENTIAL
+            # 120% POTENTIAL INDICATOR
             if getattr(f, "potential_timer", 0) > 0:
                 scale_f = 1.0 + math.sin(pygame.time.get_ticks() * 0.008) * 0.05
                 pot_txt = self.get_text("120% POTENTIAL", BLACK)
@@ -460,7 +442,7 @@ def draw_world(self, punching, dt):
                 self.world_surf.blit(s_out, (gx - s_out.get_width()//2 + 3, gy - s_out.get_height()//2 - 3))
                 self.world_surf.blit(s_txt, (gx - s_txt.get_width()//2, gy - s_txt.get_height()//2))
 
-                # --- BLACK AND RED LIGHTNING EFFECTS ---
+                # Black Flash Lightning
                 for _ in range(2):
                     start_x = f.rect.centerx + random.randint(-70, 70)
                     start_y = f.rect.centery + random.randint(-110, 110)
@@ -492,17 +474,16 @@ def draw_world(self, punching, dt):
             active_blood.append(bp)
     self.blood_particles = active_blood
 
-    # --- SD GLASS SHARDS ---
+    # SD Glass Shards
     active_shards = []
     for shard in self.sd_shards:
-        # Physics
-        shard[0] += shard[2] * time_mult # x
-        shard[1] += shard[3] * time_mult # y
-        shard[3] += GRAVITY * 0.8 * time_mult # gravity
-        shard[4] -= time_mult # life
-        shard[6] += shard[2] * 2 * time_mult # rotation based on velocity
+        shard[0] += shard[2] * time_mult
+        shard[1] += shard[3] * time_mult
+        shard[3] += GRAVITY * 0.8 * time_mult
+        shard[4] -= time_mult
+        shard[6] += shard[2] * 2 * time_mult
         
-        # Drawing a triangular shard
+        # Triangular Shard Shape
         angle = math.radians(shard[6])
         size = shard[5]
         points = [
@@ -514,9 +495,8 @@ def draw_world(self, punching, dt):
         alpha = min(255, int(shard[4] * 2))
         shard_color = (200, 240, 255, alpha)
         
-        # Draw on a temp surface for alpha if needed, or just use a polygon
         pygame.draw.polygon(self.world_surf, shard_color[:3], points)
-        pygame.draw.polygon(self.world_surf, (255, 255, 255), points, 1) # Highlight
+        pygame.draw.polygon(self.world_surf, (255, 255, 255), points, 1)
         
         if shard[4] > 0 and shard[1] < WORLD_HEIGHT - 80:
             active_shards.append(shard)

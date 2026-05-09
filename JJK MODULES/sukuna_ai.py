@@ -31,7 +31,7 @@ def update_sukuna_ai(game, dt):
     is_purple_threat = g.purple_charge > 0 or purple_flying or purple_imminent or (purp_prob > 0.15 and g.purple_cd <= 0)
 
 
-    # ── Domain Cast Decision ─────────────────────────────────────────────────
+    # Domain Cast Decision────
     if (s.energy >= 200 * s.cost_mult and s.domain_cd == 0 and s.technique_burnout == 0
             and s.domain_charge == 0 and not s.domain_active and not s.is_paralyzed
             and g.grab_timer <= 0 and s.grab_timer <= 0 and s.attack_cooldown <= 0 
@@ -76,12 +76,11 @@ def update_sukuna_ai(game, dt):
             s.domain_charge = 60
             s.energy -= 200 * s.cost_mult
 
-    # ── Simple Domain ─────────────────────
+    # Simple Domain
     in_clash = getattr(game, "clash_phase_timer", 0) > 0
     clash_damage = getattr(game, "sukuna_hp_at_clash_start", s.hp) - s.hp
     is_losing_clash = in_clash and clash_damage > (s.max_hp * 0.35) 
 
-    # Simple Domain activation
     if (g.domain_active and not s.domain_active) or is_losing_clash:
         if s.energy > 5 * s.cost_mult and s.sd_broken_timer <= 0:
             if not getattr(s, "sd_was_active", False):
@@ -93,33 +92,31 @@ def update_sukuna_ai(game, dt):
     else:
         s.simple_domain_active = False; s.sd_was_active = False
 
-    # ── Main AI: Movement & Combat ───────────────────────────────────────────
+    # Main AI: Movement & Combat
     s.is_blocking = False
     if not s.is_paralyzed and s.grab_timer <= 0 and s.domain_charge == 0 and not is_stunned:
         if getattr(s, "tactical_eval_timer", 0) > 0: s.tactical_eval_timer -= time_mult
         is_tactical_eval = getattr(s, "tactical_eval_timer", 0) > 0
         
-        # Pattern recognition blocking
         p_threat = s.memory.get_threat("punch", dist)
         is_tanking_sukuna = s.hp > s.max_hp * 0.7
         if dist < 140 and p_threat > 0.35 and getattr(g, "punch_timer", 0) > 0 and not is_tanking_sukuna:
             s.is_blocking = True
             
-        # If both are blocking and Gojo isn't attacking, Sukuna should drop block to press the advantage
         if s.is_blocking and is_gojo_blocking and getattr(g, "punch_timer", 0) <= 0:
             s.is_blocking = False
 
         
 
 
-        # --- CONTACT & DODGE RESTRICTION LOGIC ---
+        # Contact & Dodge Restriction
         is_touching_gojo = s.rect.colliderect(g.rect)
         if is_touching_gojo:
             if s.dodge_cd < 25:
                 s.dodge_cd = 25
             s.dodge_cd += time_mult 
 
-        # --- RE-PRIORITIZED EVASION LOGIC ---
+        # Evasion Logic
         incoming_orbs = [p for p in game.projectiles if p.type in ["blue_orb", "red_orb", "purple_orb"] and abs(p.pos.x - s.rect.centerx) < 400]        
         if incoming_orbs:
             closest_orb = min(incoming_orbs, key=lambda p: abs(p.pos.x - s.rect.centerx))
@@ -137,10 +134,8 @@ def update_sukuna_ai(game, dt):
             if is_near_gojo:
                 s.dodge_cd = 40
             
-            # Threat speed logic
             threat_speed = 9 if is_near_gojo else 28
 
-            # Panic retreat exception
             can_tank_purple = not (is_purple_threat and (s.hp <= 150 or s.energy <= 300 * s.cost_mult))
             if is_purple_threat and not can_tank_purple and (not g.domain_active or s.domain_active):
                 if getattr(s, "panic_wall_timer", 0) > 0:
@@ -186,10 +181,9 @@ def update_sukuna_ai(game, dt):
                     if s.grab_cd > 0 or g.domain_active:
                         s.amp_duration = 600; is_amp = True
 
-        # Energy consumption logic
         if is_amp: s.energy -= 0.25 * s.cost_mult * time_mult
 
-        # Strategic Decision Logic
+        # Strategic Decision
         pb_threat = s.memory.get_threat("pb_blue", dist)
         
         gojo_vulnerable = (g.blue_cd > 290 or g.red_cd > 110 or (g.punch_timer > 0 and dist > 120))
@@ -201,14 +195,14 @@ def update_sukuna_ai(game, dt):
                 s.amp_duration = max(s.amp_duration, 60); is_amp = True
         else:
             if is_gojo_blocking:
-                rush_distance = 40 # Get very close for the grab
+                rush_distance = 40
             else:
                 rush_distance = 0 if (g.domain_active and not s.domain_active) else (110 + (pb_threat * 400))
 
             
         is_draining_ce = s.energy < (s.max_energy * 0.65)
 
-        # CE Vow / Flesh vow
+        # CE Vow
         if is_draining_ce and not s.ce_exhausted and g.grab_timer <= 0:
             vow_hp_cost = s.max_hp * 0.80
             vow_ce_gain = s.max_energy * 0.40
@@ -230,7 +224,7 @@ def update_sukuna_ai(game, dt):
                 s.direction = 1 if s.rect.x > g.rect.x else -1
                 s.dodge(); s.dodge_cd = 25
 
-        # Tactical retreat exception
+        # Tactical Retreat
         needs_healing = s.hp < (s.max_hp * 0.4) and s.energy > 50 and not s.ce_exhausted
         needs_energy = s.energy < (s.max_energy * 0.3)
         retreating = (needs_healing or needs_energy or is_tactical_eval) and (not g.domain_active or s.domain_active)
@@ -294,6 +288,7 @@ def update_sukuna_ai(game, dt):
         elif g.domain_active and not s.domain_active and g.rect.bottom < s.rect.top - 20 and s.on_ground:
             s.jump()
         # Pursuit speed exception
+        # Pursuit
         elif dist > rush_distance or g.grab_timer > 0:
             if s.memory.get_threat("jump", dist) > 0.4 and s.on_ground:
                 if random.random() < 0.1: s.jump()
@@ -311,14 +306,12 @@ def update_sukuna_ai(game, dt):
                     s.direction = -1 if s.rect.x > g.rect.x else 1
                     s.dodge(); s.dodge_cd = 60
             else:
-                # Reduced pursuit speed from 28 to 18 to make it look like a fast walk, not a glitchy dash
                 speed = 35 if (g.domain_active and not s.domain_active) else (35 if s.ce_exhausted else (18 if (s.cleave_cd <= 0 and dist < 600 and g.grab_timer <= 0) else 9))
             
             if g.grab_timer > 0:
                 s.rect.x += speed * s.direction * time_mult
                 if random.random() < 0.02: s.direction *= -1
             else:
-                # Clamping logic to prevent overshooting/vibrating
                 move_dir = -1 if s.rect.x > g.rect.x else 1
                 move_amount = speed * time_mult
                 if dist - rush_distance < move_amount:
@@ -336,7 +329,7 @@ def update_sukuna_ai(game, dt):
                     s.dodge_cd = 70
                 elif s.on_ground and random.random() < 0.02: s.jump()
 
-        # Fuga firing decision
+        # Fuga Firing Decision
         if s.energy >= 195 * s.cost_mult and s.fuga_cd <= 0 and s.fuga_charge <= 0 and s.technique_burnout <= 0 and not g.domain_active and g.domain_cd > 600 and not is_purple_threat:
             if s.tech_hits >= s.max_tech_hits:
                 vow_hp_cost = s.max_hp * 0.50
@@ -348,7 +341,7 @@ def update_sukuna_ai(game, dt):
                     if is_guaranteed_kill or (gojo_is_vulnerable_fuga and not gojo_is_tanky) or s.hp > s.max_hp * 0.85 or is_counter_attacking:
                         s.fuga_charge = 120
 
-        # World Slash charge countdown
+        # World Slash Charge Countdown
         if getattr(s, "world_slash_charge", 0) > 0:
             s.world_slash_charge -= time_mult
             if s.world_slash_charge <= 0:
@@ -356,7 +349,7 @@ def update_sukuna_ai(game, dt):
                 game.projectiles.append(Projectile(s.rect.centerx, s.rect.centery, g.rect.centerx, g.rect.centery, 55, BLACK, size_mult=12.0, type="world_slash"))
                 s.energy = max(0, s.energy - 80 * s.cost_mult); s.world_slash_cd = 1800; game.shake_timer = 40
 
-        # Fuga charge countdown + fire
+        # Fuga Charge Countdown
         if s.fuga_charge > 0:
             if s.is_paralyzed or g.domain_active or g.purple_charge > 0 or any(p.type == "purple_orb" for p in game.projectiles): 
                 s.fuga_charge = 0
@@ -376,10 +369,8 @@ def update_sukuna_ai(game, dt):
                     game.maho_announcements.append({"text": "SUKUNA VOW: 50% HP OFFERED FOR FUGA!", "timer": 120})
                     s.fuga_cd = 720; s.tech_hits = 0
 
-        # Grab / Cleave initiation
+        # Grab / Cleave Initiation
         if s.technique_burnout <= 0 and not fuga_priority and g.grab_timer <= 0:
-
-            # Prioritize grabs if Gojo is blocking!
             grab_range = 120 if is_gojo_blocking else 100
             if dist < grab_range and s.grab_cd <= 0:
 
@@ -414,7 +405,7 @@ def update_sukuna_ai(game, dt):
                                 game.blood_particles.append([bx, by, random.uniform(-10, 10), random.uniform(-10, 10), 60, random.randint(4, 8)])
                         s.energy -= 15 * s.cost_mult; s.cleave_cd = 600; s.grab_cd = 600
 
-        # Dismantle / WS offense when DA is off
+        # Dismantle / WS Offense
         if not is_amp and s.energy > 40 * s.cost_mult and not fuga_priority and s.technique_burnout == 0 and g.grab_timer <= 0:
             if s.world_slash_unlocked and s.energy > 80 * s.cost_mult and s.world_slash_cd <= 0 and getattr(s, "world_slash_charge", 0) <= 0:
                 if gojo_has_inf or is_counter_attacking or is_purple_threat:
@@ -431,7 +422,7 @@ def update_sukuna_ai(game, dt):
             elif dist > 180 and gojo_has_inf and s.dodge_cd <= 0 and s.stamina >= 20:
                 s.direction = 1 if s.rect.x < g.rect.x else -1; s.dodge(); s.dodge_cd = 40
 
-        # Fire slashes
+        # Fire Slashes
         if s.slash_count > 0 and s.slash_type != "cleave":
             if s.slash_delay <= 0:
                 if s.slash_type == "world_slash":
@@ -443,7 +434,7 @@ def update_sukuna_ai(game, dt):
                     s.slash_count -= 1; s.slash_delay = 2
             else: s.slash_delay -= time_mult
 
-        # Melee punch
+        # Melee Punch
         if dist < 120 and s.attack_cooldown <= 90 and not fuga_priority and not s.is_blocking:
 
 
@@ -534,7 +525,7 @@ def update_sukuna_ai(game, dt):
         if (purple_active or g.purple_charge > 0) and s.on_ground:
             if random.random() < 0.15: s.jump()
 
-        # Mahoraga summon triggers (65% adaptation + availability check)
+        # Mahoraga Summon Trigger
         uv_adapt_percent = 1.0 - s.adaptation["void"]
         maho_available = (game.mahoraga is None and 
                           getattr(s, "mahoraga_lockout", 0) <= 0 and 
@@ -543,16 +534,11 @@ def update_sukuna_ai(game, dt):
                           getattr(s, "punch_timer", 0) <= 0 and 
                           not getattr(s, "is_blocking", False))
 
-        # Trigger summon and log status when conditions are met
         if uv_adapt_percent >= 0.65 and maho_available:
-            print(f"\n[!] SUMMONING TRIGGERED")
-            print(f"ADAPTATION STATUS: {uv_adapt_percent * 100:.1f}%")
-            print(f"MAHORAGA STATUS: Available")
-            print(f"SUKUNA HP: {s.hp:.1f}")
             game.mahoraga_summon_timer = 300
             s.summon_timer = 300
 
-    # ── Domain Charge Countdown ──────────────────────────────────────────────
+    # Domain Charge Countdown
     if s.domain_charge > 0:
         s.domain_charge -= time_mult
         if s.domain_charge <= 0:

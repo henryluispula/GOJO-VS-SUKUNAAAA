@@ -51,11 +51,9 @@ def update_projectiles(self, dt):
                             p_target.rect.centerx = p.pos.x
             
             if dist_to_orb < 450:
-                # Guard against zero-division in normalize() and prevent speed-clamping if original_speed is 0
                 if p.vel.length() > p.original_speed and p.vel.length() > 0 and p.original_speed > 0:
                     p.vel = p.vel.normalize() * p.original_speed
                 
-                # Failsafe: If orb is near-death and still lingering on target, force despawn
                 if p.lifetime < 50: p.active = False
 
                 if p_target.name == "Mahoraga" and self.sukuna.amp_duration <= 0:
@@ -216,7 +214,6 @@ def update_projectiles(self, dt):
                 self.hit_stop = 30
     
         intercepted_by_sd = False
-        
         is_domain_slash = getattr(p, "is_sure_hit", False)
 
         if self.gojo.simple_domain_active and is_domain_slash:
@@ -270,7 +267,6 @@ def update_projectiles(self, dt):
                     
                 else:
                     is_burned_out = (self.gojo.domain_uses >= 5 and self.gojo.technique_burnout > 0)
-                    
                     if self.gojo.infinity > 0 and self.gojo.energy > 0 and not is_burned_out: 
                         self.gojo.energy = max(0, self.gojo.energy - 0.5 * self.gojo.cost_mult) 
                         p.active = False 

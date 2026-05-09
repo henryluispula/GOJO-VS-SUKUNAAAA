@@ -4,7 +4,7 @@ from projectile import Projectile
 
 
 def update_domain_boundary(game):
-    """Constrains fighters within the shrunk UV bubble."""
+    """Domain Boundary Constraint"""
     g = game.gojo
     if g.domain_active and getattr(g, "domain_shrunk", False):
         if not hasattr(g, "domain_center_x"):
@@ -31,7 +31,7 @@ def update_domain_boundary(game):
 
 
 def update_physics_and_grabs(game, dt):
-    """CE regen (cinematic), beatdown/grab damage, physics tick. Returns gojo_can_clash."""
+    """CE Regen, Beatdown/Grab Damage, Physics Tick"""
     g = game.gojo; s = game.sukuna
     is_cinematic = g.domain_charge > 0 or s.domain_charge > 0 or getattr(game, "clash_decision_timer", 0) > 0
     active_fighters = [f for f in [g, s, game.mahoraga] if f]
@@ -58,7 +58,7 @@ def update_physics_and_grabs(game, dt):
                     f.infinity = min(f.max_infinity, f.infinity + 3.5 * time_mult)
                     f.energy -= inf_cost
     else:
-        # ── Sukuna beatdown escape ───────────────────────────────────────────
+        # Sukuna Beatdown Escape
         if s.grab_timer > 0 and getattr(s, "grab_type", "") == "gojo_beatdown":
             escaped = False
             if s.attack_cooldown <= 0 and random.random() < 0.08:
@@ -102,7 +102,7 @@ def update_physics_and_grabs(game, dt):
                     game.shake_timer = 3; sc = WHITE if random.random() < 0.5 else BLUE
                     for _ in range(6): game.hit_sparks.append([s.rect.centerx + random.randint(-20, 20), s.rect.centery + random.randint(-30, 30), random.uniform(-10, 10), random.uniform(-10, 10), random.randint(15, 30), sc])
 
-        # ── Gojo grab (Sukuna holds Gojo) ────────────────────────────────────
+        # Gojo Grab (Sukuna Holds Gojo)
         if g.grab_timer > 0:
             grab_type = getattr(g, "grab_type", "cleave")
             
@@ -152,7 +152,7 @@ def update_physics_and_grabs(game, dt):
             elif grab_type == "cleave":
                 _cleave_tick()
 
-        # ── Physics tick ─────────────────────────────────────────────────────
+        # Physics Tick
         g.update_physics(dt)
         if getattr(game.sukuna, "mahoraga_was_summoned", False):
             if game.mahoraga is None or game.mahoraga.hp <= 0: game.sukuna.mahoraga_is_dead = True
@@ -178,7 +178,7 @@ def update_physics_and_grabs(game, dt):
 
 
 def update_domain_clash(game, keys, gojo_can_clash, dt):
-    """Domain clash initiation (shrink timing) and 20-second clash phase."""
+    """Domain Clash Initiation and Resolution"""
     g = game.gojo; s = game.sukuna
     time_mult = dt * 60.0
 
@@ -190,22 +190,20 @@ def update_domain_clash(game, keys, gojo_can_clash, dt):
             game.clash_decision_timer -= time_mult
             is_sweet_spot = 1 <= game.clash_decision_timer <= 8 
             
-            # --- AUTO-CAST CLASH POSE ON SWEET SPOT ---
             if is_sweet_spot and not getattr(g, "domain_shrunk", False) and not getattr(game, "clash_failed", False):
-                # We can reuse the `domain_charge` flag to force fighter.py to grab the domain pose!
                 g.domain_charge = 1  
                 
             if keys[pygame.K_z] and keys[pygame.K_v] and not getattr(game, "clash_failed", False):
                 if is_sweet_spot and not getattr(g, "domain_shrunk", False):
                     g.domain_shrunk = True; game.shake_timer = 20
-                    g.domain_charge = 0 # Release pose lock
+                    g.domain_charge = 0
                     game.popups.append({"x": g.rect.centerx, "y": g.rect.centery - 100, "timer": 60, "text": "CRITICAL SHRINK!", "color": (0, 255, 255)})
                 elif game.clash_decision_timer > 8:
                     game.clash_failed = True
                     game.popups.append({"x": g.rect.centerx, "y": g.rect.centery - 50, "timer": 30, "text": "TOO EARLY!", "color": RED})
             if game.clash_decision_timer <= 0:
                 game.clash_resolved = True
-                g.domain_charge = 0 # Release pose lock safely if time ran out
+                g.domain_charge = 0
                 if getattr(g, "domain_shrunk", False) and not getattr(game, "clash_failed", False):
                     game.clash_active_flag = True; g.stance = 600; s.stance = 600
                     g.last_hp_clash = g.hp; g.last_ce_clash = g.energy
@@ -272,18 +270,17 @@ def update_domain_clash(game, keys, gojo_can_clash, dt):
             s.amp_duration = max(s.amp_duration, 20)
         else:
             s.amp_duration = 0
-        # Adaptation transfer logic
+
+        # Adaptation Transfer
         if s.amp_duration <= 0:
             if maho_active:
                 s.adapting_to = None
                 game.mahoraga.adapting_to = "void"
                 game.mahoraga.adaptation_points["void"] += 1.25 * time_mult
-                # Note: Mahoraga's internal Fighter class now handles its own pulses
                 m_turns = game.mahoraga.adaptation_points["void"] / 250.0
                 game.mahoraga.adaptation["void"] = max(0, 1.0 - min(1.0, m_turns / 14.0))
             else:
                 s.adapting_to = "void"
-                # Updated to 1000 to match the 4-turn visual click for Megumi's wheel
                 old_s_v_turns = int(s.adaptation_points["void"] // 1000)
                 s.adaptation_points["void"] += 1.25 * time_mult
                 if int(s.adaptation_points["void"] // 1000) > old_s_v_turns:

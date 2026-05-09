@@ -125,6 +125,16 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
     else:
         g.is_blocking = False
 
+    if not g.is_paralyzed and g.domain_charge <= 0 and not g.is_blocking:
+        # RCT Heal (Q) 
+        if keys[pygame.K_q] and g.energy > 5 * g.cost_mult:
+            is_grabbed = g.grab_timer > 0
+            heal_rate = 1.0 if not is_grabbed else 0.8
+            ce_cost = 2 if not is_grabbed else 3.5
+            g.hp = min(g.max_hp, g.hp + 1.5 * heal_rate * time_mult)
+            g.energy -= ce_cost * g.cost_mult * time_mult
+            g.rct_timer = 5
+
     if not g.is_paralyzed and g.grab_timer <= 0 and g.domain_charge <= 0 and not g.is_blocking:
         if keys[pygame.K_a]: g.rect.x -= 20 * time_mult; g.direction = -1
         if keys[pygame.K_d]: g.rect.x += 20 * time_mult; g.direction = 1
@@ -210,11 +220,6 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
                         target.adaptation["punch"] = max(0, 1.0 - min(1.0, turns / 9.0))
             g.attack_cooldown = 12
 
-        # RCT Heal (Q)
-        if keys[pygame.K_q] and g.energy > 5 * g.cost_mult:
-            g.hp = min(g.max_hp, g.hp + 1.5 * time_mult)
-            g.energy -= 2 * g.cost_mult * time_mult
-            g.rct_timer = 5
 
         is_actually_burned_out = (g.domain_uses >= 5 and g.technique_burnout > 0)
 

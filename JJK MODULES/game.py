@@ -25,7 +25,6 @@ except ImportError:
 class Game:
     # --- MAJOR FUNCTION: INITIALIZATION ---
     def __init__(self):
-        # Robustly preserve fullscreen state across re-initializations
         was_fs = getattr(self, 'is_fullscreen', False)
         pygame.init()
         flags = pygame.DOUBLEBUF | pygame.HWSURFACE
@@ -37,7 +36,6 @@ class Game:
         self.cam_width = float(WIDTH)
         self.cam_height = float(HEIGHT)
         self.clock = pygame.time.Clock()
-        # State tracking
         self.prev_gojo_burnout = 0
         self.prev_sukuna_burnout = 0
         self.prev_world_slash_cd = 0
@@ -133,7 +131,7 @@ class Game:
         txt = self.font.render("PLAY", True, WHITE)
         surf.blit(txt, (btn_rect.centerx - txt.get_width()//2, btn_rect.centery - txt.get_height()//2))
 
-        y = 560 # Fixed title position
+        y = 560 
         surf.blit(self.get_text("MATCH HISTORY (LAST 10)", (100, 150, 255), self.mini_font), (WIDTH//2 - 100, y))
         
         # Clip history area
@@ -141,7 +139,6 @@ class Game:
         old_clip = surf.get_clip()
         surf.set_clip(history_clip)
         
-        # Items inside use the scroll offset
         item_y = y + 30 + self.history_scroll_y 
         for i, match in enumerate(self.match_history):
             color = BLUE if match["winner"] == "Gojo" else RED
@@ -152,12 +149,11 @@ class Game:
         surf.set_clip(old_clip)
         
         if len(self.match_history) > 5:
-            # Simple scroll indicator for history
             pygame.draw.rect(surf, (30, 30, 50), (WIDTH//2 + 260, 590, 6, 140), border_radius=3)
             handle_y = 590 + int((-self.history_scroll_y / 200) * 110)
             pygame.draw.rect(surf, (150, 150, 255), (WIDTH//2 + 260, max(590, min(700, handle_y)), 6, 30), border_radius=3)
 
-        quit_rect = pygame.Rect(WIDTH//2 - 150, 470, 300, 60) # Adjusted position
+        quit_rect = pygame.Rect(WIDTH//2 - 150, 470, 300, 60) 
 
         q_color = (120, 70, 70) if quit_rect.collidepoint(mouse_pos) else (80, 40, 40)
         pygame.draw.rect(surf, q_color, quit_rect, border_radius=10)
@@ -257,7 +253,6 @@ class Game:
             if not (keys[pygame.K_e] and keys[pygame.K_w]): self.pb_blue_ready = True
             if not (keys[pygame.K_e] and keys[pygame.K_s]): self.pb_red_ready = True
             
-            # --- SCROLL DRAGGING LOGIC ---
             if self.state == "MENU":
                 pygame.mouse.set_visible(True)
                 if self.is_dragging_history_scroll:
@@ -290,7 +285,6 @@ class Game:
                 if self.state == "MENU":
                     if event.type == pygame.MOUSEBUTTONDOWN:
                         if event.button == 1:
-                            # Menu Button Handlers
                             btn_rect = pygame.Rect(WIDTH//2 - 150, 300, 300, 80)
                             fs_rect = pygame.Rect(WIDTH//2 - 150, 400, 300, 50)
                             quit_rect = pygame.Rect(WIDTH//2 - 150, 470, 300, 60)
@@ -306,14 +300,13 @@ class Game:
                                 pygame.quit()
                                 import sys; sys.exit()
 
-                            # History scroll bar check
                             bar_rect = pygame.Rect(WIDTH//2 + 260, 550, 20, 180) 
                             if bar_rect.collidepoint(event.pos):
                                 self.is_dragging_history_scroll = True
                         
-                        if event.button == 4: # Scroll Up
+                        if event.button == 4: 
                             self.history_scroll_y = min(0, self.history_scroll_y + 20)
-                        elif event.button == 5: # Scroll Down
+                        elif event.button == 5:
                             self.history_scroll_y = max(-200, self.history_scroll_y - 20)
                     
                     if event.type == pygame.MOUSEBUTTONUP:
@@ -337,14 +330,13 @@ class Game:
                                     self.paused = False
                                     break
                                 
-                                # Menu scroll bar check
-                                bar_rect = pygame.Rect(WIDTH//2 + 380, HEIGHT//2 - 230, 25, 460) # Larger hit box
+                                bar_rect = pygame.Rect(WIDTH//2 + 380, HEIGHT//2 - 230, 25, 460) 
                                 if bar_rect.collidepoint(event.pos):
                                     self.is_dragging_menu_scroll = True
                             
-                            if event.button == 4: # Scroll Up
+                            if event.button == 4: 
                                 self.menu_scroll_y = min(0, self.menu_scroll_y + 30)
-                            elif event.button == 5: # Scroll Down
+                            elif event.button == 5: 
                                 self.menu_scroll_y = max(-190, self.menu_scroll_y - 30)
 
                         
@@ -459,7 +451,7 @@ class Game:
                                         enemy.sd_was_active = False
                                         enemy.sd_broken_timer = 120 
                                         self.popups.append({"x": enemy.rect.centerx, "y": enemy.rect.centery - 100, "timer": 45, "text": "SD CRUMBLED!", "color": RED})
-                                        # Spawn glass shards for the 'breaking' effect
+                                        
                                         for _ in range(30):
                                             shard_x = enemy.rect.centerx + random.randint(-80, 80)
                                             shard_y = enemy.rect.centery + random.randint(-120, 80)
@@ -506,8 +498,7 @@ class Game:
                                             enemy.adapting_to = None 
 
                                 if enemy.name == "Mahoraga" and self.sukuna.amp_duration <= 0:
-                                    enemy.adapting_to = "void"
-                                    # Syncing Mahoraga's wheel pulse to the 4-turn click
+                                    enemy.adapting_to = "void"                                 
                                     old_v_turns = int(enemy.adaptation_points["void"] // 1000)
                                     enemy.adaptation_points["void"] += 2.0 * time_mult
                                     if int(enemy.adaptation_points["void"] // 1000) > old_v_turns:
@@ -619,14 +610,12 @@ class Game:
             if not hasattr(self, "ce_hud_popups"): self.ce_hud_popups = []
 
             # --- DAMAGE & CURSED ENERGY TRACKING ---
-            # Simple Domain reset logic
             domain_ended = (self.prev_gojo_domain and not self.gojo.domain_active) or (self.prev_sukuna_domain and not self.sukuna.domain_active)
             self.prev_gojo_domain = self.gojo.domain_active
             self.prev_sukuna_domain = self.sukuna.domain_active
 
             for fighter in [self.gojo, self.sukuna, self.mahoraga]:
                 if fighter is not None:
-                    # Reset check
                     if domain_ended or (getattr(fighter, "prev_sd_cd", 0) > 0 and fighter.sd_broken_timer <= 0):
                         fighter.sd_hits = 0
                     fighter.prev_sd_cd = fighter.sd_broken_timer

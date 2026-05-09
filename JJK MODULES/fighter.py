@@ -10,7 +10,7 @@ from physics import update_fighter_physics
 import json, os, base64
 class AIMemory:
     def __init__(self):
-        # Move storage to a hidden system folder
+        # Save Path Setup
         appdata = os.getenv('APPDATA')
         save_dir = os.path.join(appdata, "GojoVsSukuna")
         if not os.path.exists(save_dir): os.makedirs(save_dir)
@@ -20,7 +20,6 @@ class AIMemory:
         if os.path.exists(self.path):
             try:
                 with open(self.path, "rb") as f:
-                    # Decode the scrambled data
                     encoded_data = f.read()
                     decoded_data = base64.b64decode(encoded_data).decode('utf-8')
                     loaded = json.loads(decoded_data)
@@ -30,7 +29,6 @@ class AIMemory:
 
     def save(self):
         try:
-            # Scramble the JSON into Base64 gibberish
             json_string = json.dumps(self.patterns)
             encoded_data = base64.b64encode(json_string.encode('utf-8'))
             with open(self.path, "wb") as f:
@@ -79,14 +77,14 @@ class Fighter:
         self.max_stance = 600
         self.stance = 600
         
-        # --- OPTIMIZATION: Surface Caching ---
+        # Surface Caching
         self.inf_surf = pygame.Surface((220, 320), pygame.SRCALPHA)
         self.aura_surf = pygame.Surface((600, 600), pygame.SRCALPHA)
         self.sd_surf = pygame.Surface((180, 180), pygame.SRCALPHA)
         self.amp_surf = pygame.Surface((150, 250), pygame.SRCALPHA)
         self.aura_hit_timer = 0 
         
-        # --- DODGE METER LOGIC ---
+        # Dodge Meter
         self.max_stamina = 100.0
         self.stamina = self.max_stamina
         self.stamina_exhausted = False
@@ -145,7 +143,7 @@ class Fighter:
         self.ragdoll_vels = {}
         self.ragdoll_links = []
         
-        # --- RIGGING SYSTEM (BONE OFFSETS) ---
+        # Rigging System
         self.rig = {
             "head": [0, 0],
             "l_shoulder": [10, 35],
@@ -179,7 +177,7 @@ class Fighter:
             self.rig["r_foot"] = [110, 310]
 
         self.maho_punch_poses = [
-            # Pose before punching or when near
+            # Idle / Near Pose
             {
                 "head": [0, 0], "l_shoulder": [9, 52], "r_shoulder": [123, 56],
                 "l_elbow": [-27, 82], "r_elbow": [165, 78], "l_hand": [-28, 127], "r_hand": [166, 126],
@@ -187,7 +185,7 @@ class Fighter:
                 "torso_top_l": [10, 40], "torso_top_r": [130, 40], "chest_l": [-5, 55], "chest_r": [145, 55],
                 "waist_l": [25, 180], "waist_r": [115, 180], "torso_bottom": [30, 180]
             },
-            # Punching animation 1
+            # Punch Frame 1
             {
                 "head": [-5, 20], "l_shoulder": [28, 41], "r_shoulder": [105, 97],
                 "l_elbow": [-21, 22], "r_elbow": [50, 143], "l_hand": [-38, 92], "r_hand": [-5, 190],
@@ -195,7 +193,7 @@ class Fighter:
                 "torso_top_l": [15, 27], "torso_top_r": [106, 47], "chest_l": [2, 78], "chest_r": [134, 75],
                 "waist_l": [29, 183], "waist_r": [107, 185], "torso_bottom": [27, 183]
             },
-            # Punching animation 2
+            # Punch Frame 2
             {
                 "head": [-4, 13], "l_shoulder": [26, 64], "r_shoulder": [128, 34],
                 "l_elbow": [-11, 116], "r_elbow": [183, 30], "l_hand": [-43, 162], "r_hand": [163, 97],
@@ -206,19 +204,19 @@ class Fighter:
         ]
             
         self.punch_poses = [
-            # Preparing / Stance
+            # Stance
             {
                 "head": [0, 0], "l_shoulder": [10, 35], "r_shoulder": [60, 35],
                 "l_elbow": [5, 59], "r_elbow": [82, 52], "l_hand": [40, 44], "r_hand": [111, 29],
                 "torso_top": [5, 20], "torso_bottom": [15, 95], "l_foot": [15, 155], "r_foot": [55, 155]
             },
-            # Punch Animation 1
+            # Punch Frame 1
             {
                 "head": [0, 0], "l_shoulder": [10, 35], "r_shoulder": [67, 27],
                 "l_elbow": [13, 60], "r_elbow": [102, 30], "l_hand": [46, 45], "r_hand": [134, 31],
                 "torso_top": [5, 20], "torso_bottom": [15, 95], "l_foot": [15, 155], "r_foot": [55, 155]
             },
-            # Punch Animation 2
+            # Punch Frame 2
             {
                 "head": [0, 0], "l_shoulder": [10, 35], "r_shoulder": [64, 27],
                 "l_elbow": [58, 37], "r_elbow": [75, 55], "l_hand": [113, 38], "r_hand": [87, 19],
@@ -337,19 +335,19 @@ class Fighter:
             "r_foot": [55, 155]
         }
         
-        # --- REFACTOR: Combat Realism & Feedback ---
+        # Combat State
         self.hit_stop = 0
         self.particles = []
         self.active_hitbox = None
         self.stun_timer = 0
         self.is_blocking = False
 
-        # --- DEV OPTIONS ---
+        # Dev Options
         self.dev_immortal = False
         self.dev_inf_ce = False
         self.dev_inf_infinity = False
         
-        # --- Domain Mechanics ---
+        # Domain Mechanics
         self.domain_active = False
         self.domain_timer = 0
         self.domain_cd = 0
@@ -429,7 +427,6 @@ class Fighter:
         for p in self.particles:
             alpha = max(0, min(255, int(p["life"] * 255)))
             p_surf = pygame.Surface((6, 6), pygame.SRCALPHA)
-            # Use only the first 3 components of color to prevent 5-tuple errors
             base_rgb = p["color"][:3] 
             pygame.draw.circle(p_surf, (*base_rgb, alpha), (3, 3), 3)
             surface.blit(p_surf, (p["pos"][0]-3, p["pos"][1]-3))
@@ -455,13 +452,11 @@ class Fighter:
                 hx = g.rect.x + hand_pt[0] if g.direction == 1 else g.rect.x + g.rect.width - hand_pt[0]
                 hy = g.rect.y + hand_pt[1]
                 
-                # Glue this fighter's neck to the grabbing hand
                 my_neck_y = self.rig.get("torso_top", [5, 20])[1]
                 x = hx - (self.rect.width // 2)
                 y = hy - my_neck_y + 10
                 mid_x = x + (self.rect.width // 2)
                 
-                # Sync underlying physics rect to visual lock
                 self.rect.x = int(x)
                 self.rect.y = int(y)
 
@@ -558,8 +553,6 @@ class Fighter:
         w = self.rect.width
         h = self.rect.height
         
-        # Tail logic moved after head calculation for head-gluing
-        pass
 
         active_rig = self.rig
         if forced_pose_index is not None:
@@ -576,18 +569,15 @@ class Fighter:
                 else:
                     active_rig = poses[1] if self.punch_count % 2 == 1 else poses[2]
             else:
-                # Gojo/Sukuna also alternate between Strike 1 and Strike 2
                 if getattr(self, "is_grabbing_attack", False):
                     active_rig = self.grab_poses[0] if phase < 0.4 else self.grab_poses[1]
                 elif phase < 0.2:
                     active_rig = poses[0]
                 else:
-                    # Alternates based on punch count (Pose 1 then Pose 2)
                     active_rig = poses[1] if self.punch_count % 2 == 1 else poses[2]
         elif getattr(self, "domain_charge", 0) > 0:
             active_rig = self.gojo_domain_pose if self.name == "Gojo" else self.sukuna_domain_pose
         elif getattr(self, "purple_charge", 0) > 0 and self.name == "Gojo":
-            # Snaps to mixing pose for the first 33% of the charge (60 to 40), then settles into launch pose
             active_rig = self.purple_mix_pose if self.purple_charge > 40 else self.purple_launch_pose
         elif getattr(self, "purple_fire_timer", 0) > 0 and self.name == "Gojo":
             active_rig = self.summon_pose
@@ -685,14 +675,12 @@ class Fighter:
             l_hip_x = mid_x - 10
             r_hip_x = mid_x + 10
 
-        # DRAW TAIL FIRST (to be behind the body)
+        # Mahoraga Tail
         if self.name == "Mahoraga":
-            # Smoothly animate the tail direction when mirroring (reacts over time)
             if not hasattr(self, "tail_visual_dir"): self.tail_visual_dir = float(-self.direction)
             target_tail_dir = float(-self.direction)
             self.tail_visual_dir += (target_tail_dir - self.tail_visual_dir) * 0.1
 
-            # Calculate head position early for tail gluing
             head_x_off = active_rig["head"][0]
             if self.direction == -1: head_x_off = -head_x_off
             hx_tail = mid_x + head_x_off
@@ -706,30 +694,24 @@ class Fighter:
             wave_amount = 8
             
             for i in range(8):
-                # Each segment waves with a slight delay for a "flowing" effect
                 offset_x = math.sin(t * wave_speed + i * 0.4) * wave_amount
                 offset_y = math.cos(t * wave_speed + i * 0.4) * (wave_amount * 0.6)
                 
-                # px: stretches out more horizontally, now uses visual_dir for smooth swing
                 px = tail_x + (i * 22 * self.tail_visual_dir) + offset_x
                 py = tail_y + (i * 12) + offset_y
                 tail_points.append((int(px), int(py)))
                 
             if len(tail_points) > 1:
-                # Steeper reduction for a pointy tip
                 def get_thick(idx): return max(4, int(75 - (idx * 10)))
                 
                 last_pt = tail_points[-1]
                 end_thick = get_thick(len(tail_points) - 1)
                 
-                # Lighting Colors (Top-down shading removed, flat color retained)
-                c_drop = (60, 60, 50)     # Cast shadow on the background
-                c_main = (170, 170, 150)  # Main flat tail color
-                
-                # Draw layers from bottom (shadow) to top (flat body)
+                c_drop = (60, 60, 50)
+                c_main = (170, 170, 150)
                 layers = [
-                    (c_drop, 8, 0),      # Drop shadow (Y+8)
-                    (c_main, 0, 0)       # Main tail flat color (Y+0)
+                    (c_drop, 8, 0),
+                    (c_main, 0, 0)
                 ]
                 
                 for color, y_off, thick_reduction in layers:
@@ -745,13 +727,9 @@ class Fighter:
                             p1 = (tail_points[i][0], tail_points[i][1] + y_off)
                             p2 = (tail_points[i+1][0], tail_points[i+1][1] + y_off)
                             
-                            # --- SEAMLESS HEAD GRADIENT ---
-                            # Indices 0, 1, and 2 are the closest to the head.
+                            # Head Gradient
                             if i < 3:
-                                # i=0 is 100% blend, i=1 is 66%, i=2 is 33%
                                 blend_factor = 1.0 - (i / 3.0)
-                                
-                                # Don't completely white-out the drop shadow, just lighten it heavily
                                 target_color = (200, 200, 200) if color == c_drop else WHITE
                                 
                                 draw_color = (
@@ -797,13 +775,9 @@ class Fighter:
         pygame.draw.polygon(surface, self.color, body_rect)
 
 
-        
-        if self.name == "Mahoraga":
-            # Chest highlight removed as requested
-            pass
 
+        # Mahoraga Pants
         if self.name == "Mahoraga":
-            # Pants follow the waist joints
             w_l = get_pt("waist_l")
             w_r = get_pt("waist_r")
             pants_rect = [
@@ -822,16 +796,9 @@ class Fighter:
         l_hand = get_pt("l_hand")
         r_hand = get_pt("r_hand")
         
-        if self.name == "Mahoraga" and getattr(self, "punch_timer", 0) > 0:
-            print(f"DEBUG [Mahoraga Punch]: Direction={self.direction} | R_HAND_RIG={active_rig['r_hand']} | DRAW_POS={r_hand}")
-        
-        if self.name == "Mahoraga" and getattr(self, "punch_timer", 0) > 0 and not self.is_paralyzed and self.stun_timer <= 0:
-            # Legacy math extension removed to favor the new Rigging System
-            pass
-        
         arm_color = WHITE if self.name == "Mahoraga" else SKIN
         
-        # Draw arms with direction-based Z-layering (Back arm first, Front arm last)
+        # Arm Z-Layering
         def draw_l_arm():
             pygame.draw.line(surface, arm_color, l_shoulder, l_elbow, int(thickness - 2))
             pygame.draw.line(surface, arm_color, l_elbow, l_hand, int(thickness - 2))
@@ -884,7 +851,6 @@ class Fighter:
         
         head_color = WHITE if self.name == "Mahoraga" else SKIN
         if self.name == "Mahoraga":
-            # Rounded square head for a more monstrous/statue-like look
             h_rad = 30
             head_rect = pygame.Rect(hx - h_rad, hy - h_rad, h_rad * 2, h_rad * 2)
             pygame.draw.rect(surface, head_color, head_rect, border_radius=20)
@@ -910,10 +876,7 @@ class Fighter:
             
             mouth_rect = pygame.Rect(hx - mouth_w//2, hy + int(8*scale), mouth_w, mouth_h)
             
-            # 1. Draw base mouth background
             pygame.draw.ellipse(surface, (160, 190, 190), mouth_rect)
-            
-            # 2. Draw teeth mathematically clamped to the ellipse curve
             for t_i in range(1, 5):
                 t_x = (hx - mouth_w//2) + (t_i * (mouth_w // 5))
                 
@@ -924,11 +887,7 @@ class Fighter:
                 dy = ry * math.sqrt(max(0, 1.0 - (dx**2 / rx**2)))
                 
                 pygame.draw.line(surface, (30, 35, 40), (t_x, m_cy - dy), (t_x, m_cy + dy), max(1, int(1*scale)))
-                
-            # 3. Draw horizontal mouth line
             pygame.draw.line(surface, (30, 35, 40), (hx - mouth_w//2, m_cy), (hx + mouth_w//2, m_cy), max(1, int(1*scale)))
-            
-            # 4. Draw lip outline LAST to cover up any pixelated line edges
             pygame.draw.ellipse(surface, (30, 35, 40), mouth_rect, max(1, int(1.5*scale)))
 
         if self.name != "Mahoraga":
@@ -949,7 +908,7 @@ class Fighter:
         if hp_ratio < 0.6:
             pygame.draw.circle(surface, BLOOD, (int(mid_x - 22*scale), int(y + 60*scale)), int(6*scale))
             pygame.draw.line(surface, BLOOD, (int(mid_x - 22*scale), int(y + 60*scale)), (int(mid_x - 15*scale), int(y + 75*scale)), int(4*scale))
-            pygame.draw.circle(surface, BLOOD, (int(mid_x + 5*scale), int(y + 20*scale)), int(5*scale)) # head/neck
+            pygame.draw.circle(surface, BLOOD, (int(mid_x + 5*scale), int(y + 20*scale)), int(5*scale))
         if hp_ratio < 0.5:
             pygame.draw.circle(surface, BLOOD, (int(mid_x + 25*scale), int(y + 80*scale)), int(9*scale))
             pygame.draw.line(surface, BLOOD, (int(mid_x + 5*scale), int(y + 20*scale)), (int(mid_x + 15*scale), int(y + 40*scale)), int(3*scale))
@@ -963,11 +922,11 @@ class Fighter:
         if hp_ratio < 0.2:
             pygame.draw.circle(surface, BLOOD, (int(mid_x - 5*scale), int(y + 80*scale)), int(15*scale))
             pygame.draw.line(surface, BLOOD, (int(mid_x + 10*scale), int(y + 80*scale)), (int(mid_x + 20*scale), int(y + 90*scale)), int(5*scale))
-            pygame.draw.line(surface, BLOOD, (int(mid_x + 18*scale), int(y - 10*scale)), (int(mid_x + 20*scale), int(y + 15*scale)), int(3*scale)) # Drips down right cheek
+            pygame.draw.line(surface, BLOOD, (int(mid_x + 18*scale), int(y - 10*scale)), (int(mid_x + 20*scale), int(y + 15*scale)), int(3*scale))
         if hp_ratio < 0.1:
-            pygame.draw.circle(surface, BLOOD, (int(mid_x - 12*scale), int(y + 8*scale)), int(8*scale)) # Covers left eye
-            pygame.draw.line(surface, BLOOD, (int(mid_x - 12*scale), int(y + 8*scale)), (int(mid_x - 18*scale), int(y + 25*scale)), int(4*scale)) # Drips down left cheek
-            pygame.draw.circle(surface, BLOOD, (int(mid_x + 5*scale), int(y - 18*scale)), int(6*scale)) # Forehead cut
+            pygame.draw.circle(surface, BLOOD, (int(mid_x - 12*scale), int(y + 8*scale)), int(8*scale))
+            pygame.draw.line(surface, BLOOD, (int(mid_x - 12*scale), int(y + 8*scale)), (int(mid_x - 18*scale), int(y + 25*scale)), int(4*scale))
+            pygame.draw.circle(surface, BLOOD, (int(mid_x + 5*scale), int(y - 18*scale)), int(6*scale))
 
     def draw_death(self, surface):
         mx, my = self.rect.centerx, self.rect.centery
@@ -986,11 +945,7 @@ class Fighter:
                 if alpha <= 0: return
                 
                 exp_surf = pygame.Surface((radius*2, radius*2), pygame.SRCALPHA)
-                
-                # Central dense splash
                 pygame.draw.circle(exp_surf, (*BLOOD, alpha), (radius, radius), int(radius * 0.25))
-                
-                # Flying blood droplets
                 for i in range(24):
                     angle = (i * (math.pi / 12)) + (i % 3) * 0.2
                     dist = (radius * 0.3) + prog * (radius * 0.7 * (0.6 + (i % 4) * 0.2)) 
@@ -999,10 +954,7 @@ class Fighter:
                     drop_y = radius + math.sin(angle) * dist
                     
                     drop_size = int((12 + (i % 5) * 4) * (1.0 - prog * 0.3))
-                    
                     pygame.draw.circle(exp_surf, (*BLOOD, alpha), (int(drop_x), int(drop_y)), max(1, drop_size))
-                    
-                    # Droplet tail/trail
                     tail_x = radius + math.cos(angle) * (dist - drop_size * 3)
                     tail_y = radius + math.sin(angle) * (dist - drop_size * 3)
                     pygame.draw.line(exp_surf, (*BLOOD, alpha), (int(drop_x), int(drop_y)), (int(tail_x), int(tail_y)), max(1, drop_size // 2))
@@ -1068,16 +1020,14 @@ class Fighter:
                 for k, v in base_rig.items():
                     if isinstance(v, list) and len(v) == 2:
                         self.death_rig[k] = list(v)
-                
-                # Upper half physics
+                # Upper Half
                 self.u_x = float(self.rect.x)
                 self.u_y = float(self.rect.y)
                 self.u_vx = float(-8 * self.direction + random.uniform(-2, 2))
                 self.u_vy = -10.0
                 self.u_angle = 0.0
                 self.u_avel = 0.02 * -self.direction + random.uniform(-0.01, 0.01)
-                
-                # Lower half physics
+                # Lower Half
                 self.l_x = float(self.rect.x)
                 self.l_y = float(self.rect.y)
                 self.l_vx = float(-3 * self.direction + random.uniform(-1, 1))
@@ -1087,7 +1037,6 @@ class Fighter:
 
                 self.death_bounces = 0
 
-            # Physics updates
             self.u_vy += 1.2
             self.u_x += self.u_vx
             self.u_y += self.u_vy
@@ -1196,21 +1145,17 @@ class Fighter:
             pygame.draw.line(surface, arm_color, r_sh, r_el, thickness - 2)
             pygame.draw.line(surface, arm_color, r_el, r_hd, thickness - 2)
 
-            # Create separated hip points to increase the gap between legs
             p_l_hip = rot_p(self.rect.width / 2 - 12, t_bot_y, False)
             p_r_hip = rot_p(self.rect.width / 2 + 12, t_bot_y, False)
             pygame.draw.line(surface, self.color, p_l_hip, l_ft, thickness)
             pygame.draw.line(surface, self.color, p_r_hip, r_ft, thickness)
 
-            # Draw sliced torso polygons
             pygame.draw.polygon(surface, self.color, [p_top_l, p_top_r, p_mid_upper_r, p_mid_upper_l])
             pygame.draw.polygon(surface, self.color, [p_mid_lower_l, p_mid_lower_r, p_bot_r, p_bot_l])
-            
-            # Blood on severed slices
             pygame.draw.line(surface, BLOOD, p_mid_upper_l, p_mid_upper_r, 5)
             pygame.draw.line(surface, BLOOD, p_mid_lower_l, p_mid_lower_r, 5)
 
-            # Dripping blood from top half (falls straight down due to gravity)
+            # Blood Drip
             for p_drip in [p_mid_upper_l, p_mid_upper_r, ((p_mid_upper_l[0]+p_mid_upper_r[0])/2, (p_mid_upper_l[1]+p_mid_upper_r[1])/2)]:
                 drip_time = (self.death_timer * 8 + p_drip[0]) % 10
                 if drip_time < 6:
@@ -1218,13 +1163,12 @@ class Fighter:
                     pygame.draw.line(surface, BLOOD, p_drip, (p_drip[0], p_drip[1] + d_len), 2)
                     pygame.draw.circle(surface, BLOOD, (int(p_drip[0]), int(p_drip[1] + d_len)), 2)
 
-            # Blood pool on the floor beneath the dripping top half
             top_pool_cx = (p_mid_upper_l[0] + p_mid_upper_r[0]) / 2
             pool_w = min(160, self.death_timer * 50)
             if pool_w > 5:
                 pygame.draw.ellipse(surface, BLOOD, (top_pool_cx - pool_w/2, floor_y - 10, pool_w, 20))
 
-            # Blood fountain from bottom half (shoots out of the stump based on rotation)
+            # Blood Fountain
             fount_cx = (p_mid_lower_l[0] + p_mid_lower_r[0]) / 2
             fount_cy = (p_mid_lower_l[1] + p_mid_lower_r[1]) / 2
             fount_dx = math.sin(self.l_angle)

@@ -100,7 +100,7 @@ def draw_hud(self, render_surf, dt):
     # SD_FX_DRAW_GOJO
     if fx_g > 0:
         setattr(self.gojo, "sd_fx", fx_g - time_mult)
-        y_bnc = -8 if fx_g > 15 else 0 # CARTOON_BOUNCE
+        y_bnc = -8 if fx_g > 15 else 0 
         flash_val = min(255, int((fx_g / 25.0) * 510))
         fx_color = (max(sd_color_g[0], flash_val), max(sd_color_g[1], flash_val), max(sd_color_g[2], flash_val))
         self.draw_bar_on(render_surf, 25, 145 + y_bnc, max(0, self.gojo.max_sd_hits - self.gojo.sd_hits), self.gojo.max_sd_hits, fx_color, 310, 6, sd_label_g)
@@ -131,84 +131,6 @@ def draw_hud(self, render_surf, dt):
     render_surf.blit(self.get_text(p_label, p_color, font=self.mini_font), (180, 170)) 
     render_surf.blit(self.get_text(f"{d_cd} | {use_txt}", WHITE, font=self.mini_font), (25, 190))
 
-    # if self.mahoraga and self.mahoraga.hp > 0:
-    #     render_surf.blit(self.sukuna_hud_bg_maho, (WIDTH - 350, 10))
-    # else:
-    #     render_surf.blit(self.sukuna_hud_bg_normal, (WIDTH - 350, 10))
-    
-    # s_label = self.get_text("RYOMEN SUKUNA", (255, 100, 100))
-    # render_surf.blit(s_label, (WIDTH - 335, 15))
-    # if self.sukuna.potential_timer > 0:
-    #     render_surf.blit(self.get_text("120% POT", (255, 215, 0), font=self.mini_font), (WIDTH - 100, 20))
-
-    # self.draw_bar_on(render_surf, WIDTH - 335, 60, self.sukuna.hp, self.sukuna.max_hp, RED, 310, 10, "HEALTH")
-    # self.draw_bar_on(render_surf, WIDTH - 335, 95, self.sukuna.energy, self.sukuna.max_energy, BLUE, 310, 8, "CURSE ENERGY")
-
-    # sd_label_s = f"SIMPLE DOMAIN (CD: {int(self.sukuna.sd_broken_timer)//60 + 1}s)" if self.sukuna.sd_broken_timer > 0 else "SIMPLE DOMAIN"
-    # sd_color_s = (0, 255, 255) if self.sukuna.sd_broken_timer <= 0 else (100, 100, 100)
-    # self.draw_bar_on(render_surf, WIDTH - 335, 145, max(0, self.sukuna.max_sd_hits - self.sukuna.sd_hits), self.sukuna.max_sd_hits, sd_color_s, 310, 6, sd_label_s)
-
-    # sukuna_is_burned_out = self.sukuna.technique_burnout > 0 and self.sukuna.domain_uses >= 5
-    
-    # is_da_locked_out = getattr(self.sukuna, "tactical_eval_timer", 0) > 0
-    # if self.sukuna.amp_duration > 0:
-    #     da_status = "ACT"
-    # elif is_da_locked_out:
-    #     da_status = f"{int(self.sukuna.amp_cd) // 60}s"
-    # else:
-    #     da_status = "RDY"
-    # da_cd = f"DOMAIN AMP: {da_status}"
-    
-    # di_cd = f"DISMANTLE: {'BRN' if sukuna_is_burned_out else 'RDY' if self.sukuna.dismantle_cd <= 0 else str(int(self.sukuna.dismantle_cd)//60)+'s'}"
-    # cl_cd = f"CLEAVE: {'BRN' if sukuna_is_burned_out else 'RDY' if self.sukuna.cleave_cd <= 0 else str(int(self.sukuna.cleave_cd)//60)+'s'}"
-    
-    # fu_status = "BURN" if sukuna_is_burned_out else ("RDY" if self.sukuna.fuga_cd <= 0 else f"{int(self.sukuna.fuga_cd)//60}s")
-    # if self.sukuna.tech_hits < self.sukuna.max_tech_hits:
-    #     fu_label = f"FUGA: LOCKED ({int(self.sukuna.tech_hits)}/{self.sukuna.max_tech_hits})"
-    #     fu_color = (150, 150, 150) 
-    # else:
-    #     fu_label = f"FUGA: {fu_status}"
-    #     fu_color = RED if sukuna_is_burned_out else (255, 150, 50)
-        
-    # sukuna_actual_domain_cooldown = max(self.sukuna.domain_cd, self.sukuna.technique_burnout)
-    # sd_cd = f"SHRINE: {'BURN' if sukuna_is_burned_out else 'ACT' if self.sukuna.domain_active else 'RDY' if sukuna_actual_domain_cooldown<=0 else str(int(sukuna_actual_domain_cooldown)//60)+'s'}"
-
-    # da_txt = self.get_text(da_cd, (150, 220, 255), font=self.mini_font)
-    # render_surf.blit(da_txt, (WIDTH - 335, 170))
-    
-    # slash_str = f" | {di_cd} | {cl_cd}"
-    # slash_txt = self.get_text(slash_str, (255, 150, 150), font=self.mini_font)
-    # render_surf.blit(slash_txt, (WIDTH - 335 + da_txt.get_width(), 170))
-
-    # fu_txt = self.get_text(f"{fu_label} | ", fu_color, font=self.mini_font)
-    # render_surf.blit(fu_txt, (WIDTH - 335, 190))
-    # render_surf.blit(self.get_text(sd_cd, WHITE, font=self.mini_font), (WIDTH - 335 + fu_txt.get_width(), 190))
-
-    # if self.mahoraga and self.mahoraga.hp > 0:
-    #     self.draw_bar_on(render_surf, WIDTH - 335, 235, self.mahoraga.hp, self.mahoraga.max_hp, MAHO_COLOR, 310, 8, "MAHORAGA")
-        
-    #     if self.sukuna.amp_duration > 0:
-    #         ad_txt = "ADAPT: PAUSED (DOMAIN AMP)"
-    #         ad_color = (255, 100, 100) 
-    #     else:
-    #         ad_txt = f"ADAPT: {self.mahoraga.adapting_to.upper() if self.mahoraga.adapting_to else 'NONE'}"
-    #         ad_color = (255, 255, 150)
-            
-    #     if self.sukuna.world_slash_unlocked: 
-    #         ad_txt = "WORLD SLASH BLUEPRINT ACQUIRED!"
-    #         ad_color = (255, 255, 150)
-            
-    #     render_surf.blit(self.get_text(ad_txt, ad_color, font=self.mini_font), (WIDTH - 335, 250))
-        
-    #     p_p = int((1.0 - self.mahoraga.adaptation["punch"]) * 100)
-    #     b_p = int((1.0 - self.mahoraga.adaptation["blue"]) * 100)
-    #     r_p = int((1.0 - self.mahoraga.adaptation["red"]) * 100)
-    #     pu_p = int((1.0 - self.mahoraga.adaptation["purple"]) * 100)
-    #     i_p = int(self.mahoraga.adaptation["infinity"] * 100)
-    #     v_p = int((1.0 - self.mahoraga.adaptation["void"]) * 100)
-    #     sm_txt = f"PN:{p_p}% BL:{b_p}% RD:{r_p}% PR:{pu_p}% IN:{i_p}% VD:{v_p}%"
-        
-    #     render_surf.blit(self.get_text(sm_txt, WHITE, font=self.micro_font), (WIDTH - 335, 270))
 
     if getattr(self, "clash_active_flag", False) and self.gojo.domain_active and self.sukuna.domain_active:
         g_bar_x, g_bar_y, bar_w, bar_h = 356, 10, 15, 210
@@ -219,14 +141,7 @@ def draw_hud(self, render_surf, dt):
         if g_fill_h > 0:
             pygame.draw.rect(render_surf, (200, 200, 255), (g_bar_x, g_bar_y + bar_h - g_fill_h, bar_w, g_fill_h), border_radius=2)
 
-        # s_bar_x = WIDTH - 370
-        # pygame.draw.rect(render_surf, (0, 0, 0), (s_bar_x - 4, g_bar_y - 4, bar_w + 8, bar_h + 8), border_radius=4)
-        # pygame.draw.rect(render_surf, (40, 40, 40), (s_bar_x, g_bar_y, bar_w, bar_h), border_radius=2)
-        # s_stance = max(0, getattr(self.sukuna, "stance", 300))
-        # s_fill_h = int((s_stance / 600.0) * bar_h)
-        # if s_fill_h > 0:
-        #     pygame.draw.rect(render_surf, (255, 100, 100), (s_bar_x, g_bar_y + bar_h - s_fill_h, bar_w, s_fill_h), border_radius=2)
-
+    # CE Cost Popups
     if hasattr(self, "ce_hud_popups"):
         active_ce_popups = []
         for cp in self.ce_hud_popups:
@@ -304,6 +219,7 @@ def draw_hud(self, render_surf, dt):
     
     render_surf.blit(self.get_text("PRESS 'P' TO PAUSE / VIEW CONTROLS", (200, 200, 200), font=self.mini_font), (WIDTH//2 - 100, 20))
     
+    # Paused Panel
     if self.paused:
         self.shared_ui_overlay.fill((0, 0, 0, 200))
         render_surf.blit(self.shared_ui_overlay, (0, 0))
@@ -315,7 +231,7 @@ def draw_hud(self, render_surf, dt):
         title = self.get_text("CONTROLS & INSTRUCTIONS", WHITE)
         render_surf.blit(title, (WIDTH//2 - title.get_width()//2, HEIGHT//2 - 280))
         
-        # Categories and their controls
+        # Controls Sections
         sections = [
             ("BASIC ACTIONS", [
                 ("[A / D]", "Move Left/Right"),
@@ -345,13 +261,13 @@ def draw_hud(self, render_surf, dt):
         
         start_y = HEIGHT // 2 - 220 + self.menu_scroll_y
         
-        # Set clipping area for scrolling content
+        # Clipping Area for Scrollable Content
         clip_rect = pygame.Rect(WIDTH//2 - 380, HEIGHT//2 - 230, 760, 460)
         old_clip = render_surf.get_clip()
         render_surf.set_clip(clip_rect)
         
         for section_title, controls in sections:
-            # Draw section header
+            # Section Header
             header_txt = self.get_text(section_title, (150, 180, 255), font=self.mini_font)
             render_surf.blit(header_txt, (WIDTH//2 - 370, start_y))
             pygame.draw.line(render_surf, (50, 50, 100), (WIDTH//2 - 370, start_y + 25), (WIDTH//2 + 370, start_y + 25), 1)
@@ -365,25 +281,24 @@ def draw_hud(self, render_surf, dt):
                 render_surf.blit(desc_txt, (WIDTH//2 - 350 + key_txt.get_width(), start_y))
                 start_y += 28
             
-            start_y += 15 # Gap between sections
+            start_y += 15
 
         render_surf.set_clip(old_clip)
         
-        # Scroll bar visualization
-        content_h = 650 # Total height of content
-        view_h = 460    # Viewable area
+        # Scrollbar
+        content_h = 650
+        view_h = 460
         if content_h > view_h:
             bar_track_h = 460
             bar_w = 6
             bar_x = WIDTH//2 + 385
             bar_y = HEIGHT//2 - 230
             
-            # Draw track
+            # Draw Track
             pygame.draw.rect(render_surf, (30, 30, 50), (bar_x, bar_y, bar_w, bar_track_h), border_radius=3)
             
-            # Draw handle
+            # Draw Handle
             handle_h = int((view_h / content_h) * bar_track_h)
-            # Clamp scroll ratio between 0 and 1
             max_scroll = content_h - view_h
             scroll_ratio = max(0.0, min(1.0, -self.menu_scroll_y / max_scroll))
             handle_y = bar_y + int(scroll_ratio * (bar_track_h - handle_h))

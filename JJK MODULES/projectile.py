@@ -34,12 +34,12 @@ class Projectile:
         time_mult = dt * 60.0
         self.pos += self.vel * time_mult
         
-        # Every projectile except basic ones now properly counts down its life
+        # Lifetime
         if self.type in ["blue_orb", "red_orb", "purple_orb", "fuga_arrow", "world_slash"]:
             self.lifetime -= time_mult
             if self.lifetime <= 0: self.active = False
             
-        # Expanded bounds to prevent orbs launched from high-altitudes or wide angles from vanishing instantly
+        # Out-of-Bounds Despawn
         if self.pos.x < -1000 or self.pos.x > WORLD_WIDTH + 1000 or self.pos.y < -1000 or self.pos.y > WORLD_HEIGHT + 1000:
             self.active = False
 
@@ -56,7 +56,7 @@ class Projectile:
             base_color = BLACK if self.type == "world_slash" else (255, 100, 100)
 
             if getattr(self, "is_grab_cleave", False):
-                # --- CLEAVE HOLD: MULTI-SLASH FLURRY VFX ---
+                # Cleave Hold: Multi-Slash Flurry VFX
                 num_flurry_slashes = 2 
                 for _ in range(num_flurry_slashes):
                     cx = self.pos.x + random.uniform(-40, 40)
@@ -80,7 +80,7 @@ class Projectile:
                         pygame.draw.circle(screen, (255, 50, 50), (int(cx), int(cy)), random.randint(8, 15), 2)
                         
             else:
-                # --- STANDARD SLASH VFX ---
+                # Standard Slash VFX
                 angle = math.atan2(self.vel.y, self.vel.x)
                 points = []
                 num_segments = 10 
@@ -96,8 +96,8 @@ class Projectile:
 
                 for i in range(num_segments, -1, -1):
                     theta = (i / num_segments - 0.5) * arc_sweep
-                    t = (i / num_segments - 0.5) * 2.0 
-                    thickness_curve = 1.0 - (t * t) 
+                    t = (i / num_segments - 0.5) * 2.0
+                    thickness_curve = 1.0 - (t * t)
                     
                     edge_thickness = 1.0  
                     center_thickness = 6.0 
