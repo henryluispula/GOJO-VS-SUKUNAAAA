@@ -444,7 +444,8 @@ def update_sukuna_ai(game, dt):
                 if s.energy >= imbue_cost: s.energy -= imbue_cost; melee_dmg *= 1.6
                 
                 bf_chance = random.uniform(0.05, 0.10) if s.potential_timer > 0 else random.uniform(0.005, 0.01)
-                is_black_flash = random.random() < bf_chance
+                is_cleave_grab = g.grab_timer > 0 and getattr(g, "grab_type", "") == "cleave"
+                is_black_flash = (not is_cleave_grab) and random.random() < bf_chance
                 
                 if is_black_flash:
                     game.bf_zoom_timer = 45; game.bf_zoom_pos = (g.rect.centerx, g.rect.centery)
