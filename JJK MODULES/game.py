@@ -676,7 +676,14 @@ class Game:
                                 fighter.ce_loss_accum -= val_to_show 
                                 
                                 if fighter.name == "Gojo":
-                                    self.ce_hud_popups.append({"x": 165 + x_offset, "y": 75, "val": val_to_show, "timer": 45, "color": PURPLE})
+                                    is_clashing = getattr(self, "clash_active_flag", False) and self.gojo.domain_active and self.sukuna.domain_active
+                                    num_slots = 6 if is_clashing else 5
+                                    bw, spacing = 100, 10
+                                    slots_w = num_slots * (bw + spacing) - spacing
+                                    dash_w = 340 + slots_w + 10
+                                    dash_x = (WIDTH - dash_w) // 2
+                                    dash_y = HEIGHT - 70 - 4
+                                    self.ce_hud_popups.append({"x": dash_x + 100 + x_offset, "y": dash_y + 40, "val": val_to_show, "timer": 45, "color": PURPLE})
                                 elif fighter.name == "Sukuna":
                                     self.ce_hud_popups.append({"x": WIDTH - 205 + x_offset, "y": 75, "val": val_to_show, "timer": 45, "color": BLUE})
 

@@ -98,12 +98,36 @@ def update_sukuna_ai(game, dt):
         if getattr(s, "tactical_eval_timer", 0) > 0: s.tactical_eval_timer -= time_mult
         is_tactical_eval = getattr(s, "tactical_eval_timer", 0) > 0
         
+        # --- STRATEGIC DEFENSE: DODGE VS BLOCK ---
         p_threat = s.memory.get_threat("punch", dist)
-        is_tanking_sukuna = s.hp > s.max_hp * 0.7
-        if dist < 140 and p_threat > 0.35 and getattr(g, "punch_timer", 0) > 0 and not is_tanking_sukuna:
-            s.is_blocking = True
+        g_is_punching = getattr(g, "punch_timer", 0) > 0
+        is_grabbing = g.grab_timer > 0 or getattr(s, "is_grabbing_attack", False)
+        
+        should_block = False
+        if dist < 160 and not s.is_dodging and not is_grabbing:
+            # 1. Evaluate Dodge (High stamina preference)
+            if (g_is_punching or p_threat > 0.7) and s.stamina > 60 and s.dodge_cd <= 0:
+                s.direction = -1 if s.rect.x < g.rect.x else 1 # Dodge AWAY
+                s.dodge(); s.dodge_cd = 45
             
-        if s.is_blocking and is_gojo_blocking and getattr(g, "punch_timer", 0) <= 0:
+            # 2. Evaluate Block (Fallback or low stamina)
+            elif g_is_punching or p_threat > 0.45:
+                if s.stamina < 20 and s.hp > s.max_hp * 0.3:
+                    should_block = False # Avoid guard break
+                else:
+                    should_block = True
+            
+            # HP-based desperation
+            if s.hp < s.max_hp * 0.25 and p_threat > 0.2:
+                should_block = True
+
+        if should_block and not s.is_dodging:
+            s.is_blocking = True
+        elif is_grabbing:
+            s.is_blocking = False
+        
+        # Recover stamina if no threat
+        if s.is_blocking and not g_is_punching and p_threat < 0.3:
             s.is_blocking = False
 
         
@@ -459,10 +483,9 @@ def update_sukuna_ai(game, dt):
                     if not g.is_dodging:
                         actual_dmg = melee_dmg
                         is_blocked = getattr(g, "is_blocking", False)
-                        is_tanking = g.hp > g.max_hp * 0.7
                         
                         if is_blocked:
-                            if g.stamina < 10:
+                            if g.stamina < 12.5:
                                 g.stamina = 0
                                 g.is_blocking = False
                                 is_blocked = False
@@ -470,15 +493,15 @@ def update_sukuna_ai(game, dt):
                                 game.popups.append({"x": g.rect.centerx, "y": g.rect.centery - 60, "timer": 45, "text": "GUARD BREAK!", "color": (255, 50, 50)})
                             else:
                                 actual_dmg *= 0.2
-                                g.stamina -= 10
+                                g.stamina -= 12.5
                                 game.popups.append({"x": g.rect.centerx, "y": g.rect.centery - 60, "timer": 20, "text": "BLOCKED", "color": (150, 150, 255)})
                             
                         if g.energy > 0 and not is_black_flash:
                             rm = random.uniform(0.15, 0.35); md = actual_dmg * (1.0 - rm); actual_dmg *= rm
                             g.energy = max(0, g.energy - (md * 3.5) * g.cost_mult)
                         g.hp -= actual_dmg
-                        if not is_blocked and not is_tanking and not is_black_flash:
-                            g.stun_timer = 15
+                        if not is_blocked and not is_black_flash:
+                            g.stun_timer = 15 if g.grab_timer > 0 else 2
                             
                         sc = (150, 150, 255) if is_blocked else ((255, 0, 0) if s.black_flash_timer > 0 else RED)
                         for _ in range(12): game.hit_sparks.append([g.rect.centerx + random.randint(-15, 15), g.rect.centery - random.randint(10, 30), random.uniform(-12, 12), random.uniform(-12, 12), random.randint(15, 30), sc])
@@ -495,9 +518,8 @@ def update_sukuna_ai(game, dt):
                         if not g.is_dodging:
                             actual_dmg = melee_dmg
                             is_blocked = getattr(g, "is_blocking", False)
-                            is_tanking = g.hp > g.max_hp * 0.7
                             if is_blocked:
-                                if g.stamina < 10:
+                                if g.stamina < 12.5:
                                     g.stamina = 0
                                     g.is_blocking = False
                                     is_blocked = False
@@ -505,15 +527,15 @@ def update_sukuna_ai(game, dt):
                                     game.popups.append({"x": g.rect.centerx, "y": g.rect.centery - 60, "timer": 45, "text": "GUARD BREAK!", "color": (255, 50, 50)})
                                 else:
                                     actual_dmg *= 0.2
-                                    g.stamina -= 10
+                                    g.stamina -= 12.5
                                     game.popups.append({"x": g.rect.centerx, "y": g.rect.centery - 60, "timer": 20, "text": "BLOCKED", "color": (150, 150, 255)})
 
                             if g.energy > 0 and not is_black_flash:
                                 rm = random.uniform(0.15, 0.35); md = actual_dmg * (1.0 - rm); actual_dmg *= rm
                                 g.energy = max(0, g.energy - (md * 3.5) * g.cost_mult)
                             g.hp -= actual_dmg
-                            if not is_blocked and not is_tanking and not is_black_flash:
-                                g.stun_timer = 15
+                            if not is_blocked and not is_black_flash:
+                                g.stun_timer = 15 if g.grab_timer > 0 else 2
                                 
                             sc = (150, 150, 255) if is_blocked else ((255, 0, 0) if s.black_flash_timer > 0 else RED)
                             for _ in range(12): game.hit_sparks.append([g.rect.centerx + random.randint(-15, 15), g.rect.centery - random.randint(10, 30), random.uniform(-12, 12), random.uniform(-12, 12), random.randint(15, 30), sc])

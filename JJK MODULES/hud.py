@@ -69,77 +69,124 @@ def draw_hud(self, render_surf, dt):
         clash_txt = self.get_text("DOMAIN CLASH!", (255, 255, 100))
         render_surf.blit(clash_txt, (WIDTH//2 - clash_txt.get_width()//2, 80))
 
-    render_surf.blit(self.gojo_hud_bg, (10, 10))
+    # --- GOJO HUD DASHBOARD (DYNAMIC WIDTH) ---
+    is_clashing = getattr(self, "clash_active_flag", False) and self.gojo.domain_active and self.sukuna.domain_active
     
-    render_surf.blit(self.get_text("SATORU GOJO", (200, 230, 255)), (25, 15))
-    self.draw_bar_on(render_surf, 25, 60, self.gojo.hp, self.gojo.max_hp, RED, 310, 10, "HEALTH")
+    # 1. PRE-CALCULATE ABILITIES
+    is_burned_out = self.gojo.technique_burnout > 0 and self.gojo.domain_uses >= 5
+    actual_domain_cooldown = max(self.gojo.domain_cd, self.gojo.technique_burnout)
     
-    threshold_x = 25 + int(310 * 0.7)
-    pygame.draw.line(render_surf, (255, 255, 255), (threshold_x, 58), (threshold_x, 72), 2)
-    if self.gojo.hp > self.gojo.max_hp * 0.7:
-        render_surf.blit(self.get_text("TANK STUN", (200, 200, 200), font=self.mini_font), (260, 30))
-        
-    self.draw_bar_on(render_surf, 25, 95, self.gojo.energy, self.gojo.max_energy, PURPLE, 145, 8, "CURSE ENERGY")
-    self.draw_bar_on(render_surf, 190, 95, self.gojo.infinity, self.gojo.max_infinity, INF_COLOR, 145, 8, "INFINITY")
-    
-    stam_color = (255, 50, 50) if self.gojo.stamina < 10 else (50, 255, 100)
-    self.draw_bar_on(render_surf, 25, 120, self.gojo.stamina, getattr(self.gojo, 'max_stamina', 100.0), stam_color, 310, 6, "STAMINA")
+    # Define Max CDs for Visual Wipe
+    max_cds = {"BLUE": 300, "RED": 600, "PURPLE": 1800, "SIMPLE": 150, "VOID": 3000, "STANCE": 600}
 
-    # SD_READY_LOGIC_GOJO
+    abilities = [
+        {"name": "BLUE",   "key": "W",     "cd": self.gojo.blue_cd, "color": BLUE, "hits": None},
+        {"name": "RED",    "key": "S",     "cd": self.gojo.red_cd, "color": RED, "hits": None},
+        {"name": "PURPLE", "key": "R",     "cd": self.gojo.purple_cd, "color": (200, 100, 255), "hits": (int(self.gojo.tech_hits), self.gojo.max_tech_hits)},
+        {"name": "SIMPLE", "key": "R-CLK", "cd": self.gojo.sd_broken_timer, "color": (0, 255, 255), "hits": (max(0, self.gojo.max_sd_hits - self.gojo.sd_hits), self.gojo.max_sd_hits)},
+        {"name": "VOID",   "key": "V",     "cd": actual_domain_cooldown, "color": WHITE, "hits": (5 - self.gojo.domain_uses, 5)}
+    ]
+    if is_clashing:
+        abilities.append({"name": "STANCE", "key": "CLASH", "cd": 0, "color": (200, 200, 255), "hits": (max(0, getattr(self.gojo, "stance", 300)), 600)})
+
+    bw, bh = 100, 60
+    spacing = 10
+    slots_w = len(abilities) * (bw + spacing) - spacing
+    
+    # Dashboard Width: Stats Area (330) + Gap (10) + Abilities Slots
+    dash_w, dash_h = 340 + slots_w + 10, 70
+    dash_x = (WIDTH - dash_w) // 2
+    dash_y = HEIGHT - dash_h - 4 
+    
+    # Dashboard Background
+    pygame.draw.rect(render_surf, (0, 0, 10, 230), (dash_x - 5, dash_y - 12, dash_w + 10, dash_h + 16), border_radius=8)
+    pygame.draw.rect(render_surf, (70, 70, 120), (dash_x - 5, dash_y - 12, dash_w + 10, dash_h + 16), 2, border_radius=8)
+
+    # 1. STAT BARS
+    bx, by = dash_x + 10, dash_y + 12
+    self.draw_bar_on(render_surf, bx, by, self.gojo.hp, self.gojo.max_hp, RED, 310, 12, "SATORU GOJO")
+    self.draw_bar_on(render_surf, bx, by + 28, self.gojo.energy, self.gojo.max_energy, PURPLE, 180, 6, "CE")
+    self.draw_bar_on(render_surf, bx + 190, by + 28, self.gojo.infinity, self.gojo.max_infinity, INF_COLOR, 120, 6, "INF")
+    stam_color = (255, 50, 50) if self.gojo.stamina < 10 else (50, 255, 100)
+    self.draw_bar_on(render_surf, bx, by + 50, self.gojo.stamina, getattr(self.gojo, 'max_stamina', 100.0), stam_color, 310, 4, "STAMINA")
+
+    # 2. ABILITY SLOTS
     if not hasattr(self.gojo, "sd_trig"): setattr(self.gojo, "sd_trig", False)
     if self.gojo.sd_broken_timer <= 0:
         if not self.gojo.sd_trig:
-            setattr(self.gojo, "sd_fx", 25.0)
-            setattr(self.gojo, "sd_trig", True)
+            setattr(self.gojo, "sd_fx", 25.0); setattr(self.gojo, "sd_trig", True)
     else: setattr(self.gojo, "sd_trig", False)
     
     fx_g = getattr(self.gojo, "sd_fx", 0)
-    sd_label_g = f"SIMPLE DOMAIN (CD: {int(self.gojo.sd_broken_timer)//60 + 1}s)" if self.gojo.sd_broken_timer > 0 else "SIMPLE DOMAIN"
-    sd_color_g = (0, 255, 255) if self.gojo.sd_broken_timer <= 0 else (100, 100, 100)
-    
-    # SD_FX_DRAW_GOJO
-    if fx_g > 0:
-        setattr(self.gojo, "sd_fx", fx_g - time_mult)
-        y_bnc = -8 if fx_g > 15 else 0 
-        flash_val = min(255, int((fx_g / 25.0) * 510))
-        fx_color = (max(sd_color_g[0], flash_val), max(sd_color_g[1], flash_val), max(sd_color_g[2], flash_val))
-        self.draw_bar_on(render_surf, 25, 145 + y_bnc, max(0, self.gojo.max_sd_hits - self.gojo.sd_hits), self.gojo.max_sd_hits, fx_color, 310, 6, sd_label_g)
-        # CYAN_STREAK
-        streak_x = 25 + (310 * (1.0 - fx_g / 25.0))
-        pygame.draw.rect(render_surf, (255, 255, 255), (streak_x, 145 + y_bnc, 20, 8))
-    else:
-        self.draw_bar_on(render_surf, 25, 145, max(0, self.gojo.max_sd_hits - self.gojo.sd_hits), self.gojo.max_sd_hits, sd_color_g, 310, 6, sd_label_g)
+    if fx_g > 0: setattr(self.gojo, "sd_fx", fx_g - time_mult)
 
-    is_burned_out = self.gojo.technique_burnout > 0 and self.gojo.domain_uses >= 5
-    
-    b_cd = f"BLUE: {'BURN' if is_burned_out else 'RDY' if self.gojo.blue_cd<=0 else str(int(self.gojo.blue_cd)//60)+'s'}"
-    r_cd = f"RED: {'BURN' if is_burned_out else 'RDY' if self.gojo.red_cd<=0 else str(int(self.gojo.red_cd)//60)+'s'}"
-    
-    p_status = "BURN" if is_burned_out else ("RDY" if self.gojo.purple_cd <= 0 else f"{int(self.gojo.purple_cd)//60}s")
-    if self.gojo.tech_hits < self.gojo.max_tech_hits:
-        p_label = f"PRPLE: LOCKED ({int(self.gojo.tech_hits)}/{self.gojo.max_tech_hits})"
-        p_color = (150, 150, 150) 
-    else:
-        p_label = f"PRPLE: {p_status}"
-        p_color = RED if is_burned_out else (200, 100, 255) 
+    abilities_start_x = dash_x + 340
+    if not hasattr(self, "micro_font"): self.micro_font = pygame.font.SysFont("Impact", 13)
+    if not hasattr(self, "name_font"): self.name_font = pygame.font.SysFont("Impact", 16)
+    if not hasattr(self, "cd_font"): self.cd_font = pygame.font.SysFont("Impact", 22)
 
-    actual_domain_cooldown = max(self.gojo.domain_cd, self.gojo.technique_burnout)
-    d_cd = f"VOID: {'BURN' if is_burned_out else 'ACT' if self.gojo.domain_active else 'RDY' if actual_domain_cooldown<=0 else str(int(actual_domain_cooldown)//60)+'s'}"
-    use_txt = f"USES: {self.gojo.domain_uses}/5"
+    for i, abi in enumerate(abilities):
+        x = abilities_start_x + i * (bw + spacing)
+        y = dash_y + 4
+        
+        # Slot Background
+        pygame.draw.rect(render_surf, (15, 15, 25), (x, y, bw, bh), border_radius=6)
+        
+        # Border
+        border_color = (80, 80, 120)
+        if abi["name"] == "SIMPLE" and fx_g > 0:
+            flash_val = min(255, int((fx_g / 25.0) * 510)); border_color = (flash_val, flash_val, 255)
+        pygame.draw.rect(render_surf, border_color, (x, y, bw, bh), 2, border_radius=6)
+        
+        # Hide VOID cooldown if active
+        is_void_active = abi["name"] == "VOID" and self.gojo.domain_active
+        effective_cd = 0 if is_void_active else abi["cd"]
 
-    render_surf.blit(self.get_text(f"{b_cd} | {r_cd} | ", (200, 220, 255), font=self.mini_font), (25, 170))
-    render_surf.blit(self.get_text(p_label, p_color, font=self.mini_font), (180, 170)) 
-    render_surf.blit(self.get_text(f"{d_cd} | {use_txt}", WHITE, font=self.mini_font), (25, 190))
+        # Key hint
+        key_txt = self.micro_font.render(abi["key"], True, (160, 160, 180))
+        render_surf.blit(key_txt, (x + 5, y + 2))
+        
+        # Name (Larger)
+        name_txt = self.name_font.render(abi["name"], True, WHITE)
+        render_surf.blit(name_txt, (x + bw//2 - name_txt.get_width()//2, y + 18))
+        
+        # Charges / Hits / Stance / Void Bar (Drawn first so Dim covers it)
+        if abi["hits"]:
+            curr, mval = abi["hits"]
+            bar_w = bw - 16
+            bh_thick = 7 
+            pygame.draw.rect(render_surf, (30, 30, 45), (x + 8, y + 40, bar_w, bh_thick), border_radius=2)
+            if abi["name"] == "VOID":
+                fill_w = int((curr / mval) * bar_w)
+                pygame.draw.rect(render_surf, abi["color"], (x + 8, y + 40, fill_w, bh_thick), border_radius=2)
+                for segment in range(1, 5):
+                    lx = x + 8 + int((segment / 5.0) * bar_w)
+                    pygame.draw.line(render_surf, (0, 0, 0), (lx, y + 40), (lx, y + 40 + bh_thick - 1), 1)
+            else:
+                fill_w = int((curr / mval) * bar_w)
+                pygame.draw.rect(render_surf, abi["color"], (x + 8, y + 40, fill_w, bh_thick), border_radius=2)
 
-
-    if getattr(self, "clash_active_flag", False) and self.gojo.domain_active and self.sukuna.domain_active:
-        g_bar_x, g_bar_y, bar_w, bar_h = 356, 10, 15, 210
-        pygame.draw.rect(render_surf, (0, 0, 0), (g_bar_x - 4, g_bar_y - 4, bar_w + 8, bar_h + 8), border_radius=4)
-        pygame.draw.rect(render_surf, (40, 40, 40), (g_bar_x, g_bar_y, bar_w, bar_h), border_radius=2)
-        g_stance = max(0, getattr(self.gojo, "stance", 300))
-        g_fill_h = int((g_stance / 600.0) * bar_h)
-        if g_fill_h > 0:
-            pygame.draw.rect(render_surf, (200, 200, 255), (g_bar_x, g_bar_y + bar_h - g_fill_h, bar_w, g_fill_h), border_radius=2)
+        # Status / Cooldown (Now covers bars)
+        if effective_cd > 0:
+            # Static Dim Overlay
+            dim_surf = pygame.Surface((bw, bh), pygame.SRCALPHA)
+            dim_surf.fill((0, 0, 0, 230))
+            render_surf.blit(dim_surf, (x, y))
+            
+            # CD Seconds
+            cd_s = f"{int(effective_cd // 60) + 1}s"
+            cd_txt = self.cd_font.render(cd_s, True, (255, 255, 120))
+            render_surf.blit(cd_txt, (x + bw//2 - cd_txt.get_width()//2, y + bh//2 - cd_txt.get_height()//2 + 5))
+        else:
+            # Status Text (Burnout only)
+            status_str = ""
+            status_color = RED
+            if is_burned_out and abi["name"] not in ["SIMPLE", "STANCE"]:
+                status_str = "BURNT" if abi["name"] == "VOID" else "BURN"
+            
+            if status_str:
+                stat_txt = self.micro_font.render(status_str, True, status_color)
+                render_surf.blit(stat_txt, (x + bw//2 - stat_txt.get_width()//2, y + 28))
 
     # CE Cost Popups
     if hasattr(self, "ce_hud_popups"):
