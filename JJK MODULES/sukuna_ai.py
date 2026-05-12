@@ -34,6 +34,7 @@ def update_sukuna_ai(game, dt):
     # Domain Cast Decision────
     if (s.energy >= 200 * s.cost_mult and s.domain_cd == 0 and s.technique_burnout == 0
             and s.domain_charge == 0 and not s.domain_active and not s.is_paralyzed
+            and not getattr(game, "clash_active_flag", False)
             and g.grab_timer <= 0 and s.grab_timer <= 0 and s.attack_cooldown <= 0 
             and game.mahoraga_summon_timer <= 0
             and getattr(s, "stun_timer", 0) <= 0 and getattr(s, "punch_timer", 0) <= 0 and not getattr(s, "is_blocking", False)):
@@ -256,7 +257,7 @@ def update_sukuna_ai(game, dt):
         if retreating and g.grab_timer <= 0:
             if is_tactical_eval:
                 can_survive_counter = s.hp > (s.max_hp * 0.25)
-                if s.energy >= 200 * s.cost_mult and s.domain_cd <= 0 and s.technique_burnout <= 0 and not s.domain_active and getattr(s, "stun_timer", 0) <= 0 and getattr(s, "punch_timer", 0) <= 0 and not getattr(s, "is_blocking", False):
+                if s.energy >= 200 * s.cost_mult and s.domain_cd <= 0 and s.technique_burnout <= 0 and not s.domain_active and not getattr(game, "clash_active_flag", False) and getattr(s, "stun_timer", 0) <= 0 and getattr(s, "punch_timer", 0) <= 0 and not getattr(s, "is_blocking", False):
                     s.domain_charge = 60; s.energy -= 200 * s.cost_mult
                 elif s.tech_hits >= s.max_tech_hits and s.fuga_cd <= 0 and s.energy >= 195 * s.cost_mult and s.technique_burnout <= 0 and not g.domain_active and not s.is_paralyzed and not is_purple_threat:
                     if s.hp > (s.max_hp * 0.50 + 40): s.fuga_charge = 120
@@ -268,7 +269,7 @@ def update_sukuna_ai(game, dt):
             if needs_healing and s.energy > 1000 * s.cost_mult:
                 s.energy -= 4.0 * s.cost_mult * time_mult; s.hp = min(s.max_hp, s.hp + 5.0 * time_mult); s.rct_timer = 5
 
-            if not needs_energy and not is_tactical_eval and s.energy >= 200 * s.cost_mult and s.domain_cd == 0 and s.technique_burnout == 0 and s.domain_charge == 0 and not s.domain_active and s.attack_cooldown <= 0 and getattr(s, "stun_timer", 0) <= 0 and getattr(s, "punch_timer", 0) <= 0 and not getattr(s, "is_blocking", False):
+            if not needs_energy and not is_tactical_eval and s.energy >= 200 * s.cost_mult and s.domain_cd == 0 and s.technique_burnout == 0 and s.domain_charge == 0 and not s.domain_active and not getattr(game, "clash_active_flag", False) and s.attack_cooldown <= 0 and getattr(s, "stun_timer", 0) <= 0 and getattr(s, "punch_timer", 0) <= 0 and not getattr(s, "is_blocking", False):
                 if (5 - g.domain_uses) <= (5 - s.domain_uses):
                     s.domain_charge = 60; s.energy -= 200 * s.cost_mult
 
@@ -485,7 +486,7 @@ def update_sukuna_ai(game, dt):
                         is_blocked = getattr(g, "is_blocking", False)
                         
                         if is_blocked:
-                            if g.stamina < 12.5:
+                            if g.stamina < 17:
                                 g.stamina = 0
                                 g.is_blocking = False
                                 is_blocked = False
@@ -493,7 +494,8 @@ def update_sukuna_ai(game, dt):
                                 game.popups.append({"x": g.rect.centerx, "y": g.rect.centery - 60, "timer": 45, "text": "GUARD BREAK!", "color": (255, 50, 50)})
                             else:
                                 actual_dmg *= 0.2
-                                g.stamina -= 12.5
+                                g.stamina -= 17
+                                g.stun_timer = 16
                                 game.popups.append({"x": g.rect.centerx, "y": g.rect.centery - 60, "timer": 20, "text": "BLOCKED", "color": (150, 150, 255)})
                             
                         if g.energy > 0 and not is_black_flash:
@@ -519,7 +521,7 @@ def update_sukuna_ai(game, dt):
                             actual_dmg = melee_dmg
                             is_blocked = getattr(g, "is_blocking", False)
                             if is_blocked:
-                                if g.stamina < 12.5:
+                                if g.stamina < 17:
                                     g.stamina = 0
                                     g.is_blocking = False
                                     is_blocked = False
@@ -527,7 +529,8 @@ def update_sukuna_ai(game, dt):
                                     game.popups.append({"x": g.rect.centerx, "y": g.rect.centery - 60, "timer": 45, "text": "GUARD BREAK!", "color": (255, 50, 50)})
                                 else:
                                     actual_dmg *= 0.2
-                                    g.stamina -= 12.5
+                                    g.stamina -= 17
+                                    g.stun_timer = 16
                                     game.popups.append({"x": g.rect.centerx, "y": g.rect.centery - 60, "timer": 20, "text": "BLOCKED", "color": (150, 150, 255)})
 
                             if g.energy > 0 and not is_black_flash:

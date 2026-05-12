@@ -364,7 +364,7 @@ def draw_hud(self, render_surf, dt):
     if self.game_over:
         self.shared_ui_overlay.fill((0, 0, 0, 230))
         render_surf.blit(self.shared_ui_overlay, (0,0))
-        msg = "THE KING REIGNS" if self.gojo.is_split else "THE STRONGEST SURVIVED"
+        msg = "KING OF CURSES REIGNS" if self.gojo.is_split else "HONORED ONE PREVAILS"
         msg_surf = self.get_text(msg, WHITE)
         render_surf.blit(msg_surf, (WIDTH//2 - msg_surf.get_width()//2, HEIGHT//2 - 50))
         

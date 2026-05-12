@@ -542,7 +542,7 @@ class Game:
                         self.sukuna.hp = min((self.sukuna.max_hp * 0.5), self.sukuna.hp + 3.5) 
                         self.sukuna.rct_timer = 5
                     
-                    if self.sukuna.energy >= 200 * self.sukuna.cost_mult and self.sukuna.domain_cd <= 0 and self.sukuna.technique_burnout <= 0 and self.sukuna.domain_charge <= 0 and not self.sukuna.domain_active and self.gojo.grab_timer <= 0 and self.mahoraga_summon_timer <= 0 and getattr(self.sukuna, "stun_timer", 0) <= 0 and getattr(self.sukuna, "punch_timer", 0) <= 0 and not getattr(self.sukuna, "is_blocking", False):
+                    if self.sukuna.energy >= 200 * self.sukuna.cost_mult and self.sukuna.domain_cd <= 0 and self.sukuna.technique_burnout <= 0 and self.sukuna.domain_charge <= 0 and not self.sukuna.domain_active and not getattr(self, "clash_active_flag", False) and self.gojo.grab_timer <= 0 and self.mahoraga_summon_timer <= 0 and getattr(self.sukuna, "stun_timer", 0) <= 0 and getattr(self.sukuna, "punch_timer", 0) <= 0 and not getattr(self.sukuna, "is_blocking", False):
                         self.sukuna.domain_charge = 60
                         self.sukuna.energy -= 200 * self.sukuna.cost_mult
                         self.popups.append({"x": self.sukuna.rect.centerx, "y": self.sukuna.rect.centery - 100, "timer": 60, "text": "DESPERATE DOMAIN!", "color": RED})
@@ -634,7 +634,7 @@ class Game:
                             self.popups.append({"x": fighter.rect.centerx, "y": fighter.rect.centery - 100, "timer": 45, "text": "DOMAIN INTERRUPTED!", "color": WHITE})
                         
                         if fighter.name == "Sukuna" and damage >= 60: 
-                            if fighter.domain_active and not is_vow_damage:
+                            if fighter.domain_active and not is_vow_damage and not getattr(self, "clash_active_flag", False):
                                 break_chance = 0.75 if damage >= 120 else 0.30 
                                 if random.random() < break_chance:
                                     fighter.end_domain()

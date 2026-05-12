@@ -211,7 +211,14 @@ def update_projectiles(self, dt):
                     self.gojo.hp -= fuga_hp_dmg
                 
                 p.active = False 
-                self.hit_stop = 30
+                self.hit_stop = 35
+                self.shake_timer = 40
+                # Visual Explosion
+                for _ in range(40):
+                    vx = random.uniform(-15, 15)
+                    vy = random.uniform(-15, 15)
+                    sc = random.choice([(255, 100, 0), (255, 200, 50), RED])
+                    self.hit_sparks.append([p.pos.x, p.pos.y, vx, vy, random.randint(30, 60), sc])
     
         intercepted_by_sd = False
         is_domain_slash = getattr(p, "is_sure_hit", False)

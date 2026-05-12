@@ -175,7 +175,7 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
                             dmg *= random.uniform(0.6, 0.85)
                     
                     if is_blocked:
-                        if target.stamina < 12.5:
+                        if target.stamina < 17:
                             target.stamina = 0
                             target.is_blocking = False
                             is_blocked = False
@@ -184,8 +184,9 @@ def update_gojo_controls(game, keys, mouse_click, target, dt):
                             game.popups.append({"x": target.rect.centerx, "y": target.rect.centery - 60, "timer": 45, "text": "GUARD BREAK!", "color": (255, 50, 50)})
                         else:
                             dmg *= 0.2
-                            target.stamina -= 12.5
+                            target.stamina -= 17
                             target.hp -= dmg
+                            target.stun_timer = 16
                             game.popups.append({"x": target.rect.centerx, "y": target.rect.centery - 60, "timer": 20, "text": "BLOCKED", "color": (150, 150, 255)})
                     else:
                         target.hp -= dmg
