@@ -79,6 +79,9 @@ def update_projectiles(self, dt):
                     p_target.hp -= orb_dmg
                     if p_target.name == "Sukuna": p_target.memory.record("blue", dist_to_orb, hit=True)
                     if p_target.name in ["Sukuna", "Mahoraga"]: self.gojo.tech_hits = min(self.gojo.max_tech_hits, self.gojo.tech_hits + 1 * time_mult)
+            else:
+                if p.vel.length() > 0 and p.vel.length() < 110:
+                    p.vel = p.vel.normalize() * 110
             
             for slash in self.projectiles:
                 if slash.type in ["dismantle", "cleave"]:
