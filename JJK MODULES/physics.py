@@ -139,7 +139,8 @@ def update_fighter_physics(self, dt):
             
             if self.is_paralyzed:
                 heal_cost *= 4.0 
-                self.mahoraga_lockout = 900  
+                if not getattr(self, "mahoraga_was_summoned", False) and not getattr(self, "mahoraga_is_dead", False):
+                    self.mahoraga_lockout = 900  
                 
                 if random.random() < (0.1 * time_mult):
                     self.black_flash_timer = 2 
